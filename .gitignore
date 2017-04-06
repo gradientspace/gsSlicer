@@ -31,3 +31,8 @@ gsSlicer/obj/
 gsSlicer/bin/
 .vs/gsSlicer/v14/.suo
 gsSlicer/gsSlicer.csproj.user
+gsSlicerEXE/obj/
+gsSlicerEXE/bin/
+packages/
+sliceViewGTK/bin/
+sliceViewGTK/obj/x86/

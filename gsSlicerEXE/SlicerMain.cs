@@ -5,7 +5,7 @@ using g3;
 
 namespace gsSlicer
 {
-    static class gsSlicer
+    static class SlicerMain
     {
 
         /// <summary>
