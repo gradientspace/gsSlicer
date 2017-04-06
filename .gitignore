@@ -27,3 +27,7 @@
 *.exe
 *.out
 *.app
+gsSlicer/obj/
+gsSlicer/bin/
+.vs/gsSlicer/v14/.suo
+gsSlicer/gsSlicer.csproj.user
