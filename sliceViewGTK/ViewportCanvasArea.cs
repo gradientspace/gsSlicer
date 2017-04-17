@@ -10,10 +10,15 @@ namespace SliceViewer
 {
 	class SliceViewCanvas : DrawingArea
 	{
-        public List<PathSet2> Paths = new List<PathSet2>();
+		public PathSet Paths = new PathSet();
 
 
 		public bool ShowOpenEndpoints = true;
+
+		public float Zoom = 0.95f;
+
+		// this is a pixel-space translate
+		public Vector2f Translate = Vector2f.Zero;
 
 
 		public SliceViewCanvas() 
@@ -25,14 +30,19 @@ namespace SliceViewer
         SKPath MakePath(PolyLine2d polyLine, Func<Vector2d, SKPoint> mapF)
         {
 			SKPath p = new SKPath();
-
             p.MoveTo(mapF(polyLine[0]));
 			for ( int i = 1; i < polyLine.VertexCount; i++ )
 				p.LineTo( mapF(polyLine[i]) );
-
             return p;
         }
-        
+		SKPath MakePath(PolyLine3d polyLine, Func<Vector2d, SKPoint> mapF)
+		{
+			SKPath p = new SKPath();
+			p.MoveTo(mapF(polyLine[0].xy));
+			for ( int i = 1; i < polyLine.VertexCount; i++ )
+				p.LineTo( mapF(polyLine[i].xy) );
+			return p;
+		}        
 
 		void OnExpose(object sender, ExposeEventArgs args)
 		{
@@ -41,16 +51,26 @@ namespace SliceViewer
 
 			int width = area.Allocation.Width;
 			int height = area.Allocation.Height;
-			int nBorder = 5;
 
-            AxisAlignedBox2d bounds = new AxisAlignedBox2d(0, 0, 500, 500);
+			//AxisAlignedBox3d bounds3 = Paths.Bounds;
+			AxisAlignedBox3d bounds3 = Paths.ExtrudeBounds;
+			AxisAlignedBox2d bounds = (bounds3 == AxisAlignedBox3d.Empty) ?
+				new AxisAlignedBox2d(0, 0, 500, 500) : 
+				new AxisAlignedBox2d(bounds3.Min.x, bounds3.Min.y, bounds3.Max.x, bounds3.Max.y );
 
-            bounds.Expand(25);
-			double sx = (double)(width-2*nBorder) / bounds.Width;
-			double sy = (double)(height-2*nBorder) / bounds.Height;
+			double sx = (double)width / bounds.Width;
+			double sy = (double)height / bounds.Height;
 
 			float scale = (float)Math.Min(sx, sy);
-			Vector2f translate = (Vector2f)(-bounds.Min);
+
+			// we apply this translate after scaling to pixel coords
+			Vector2f pixC = Zoom * scale * (Vector2f)bounds.Center;
+			Vector2f translate = new Vector2f(width/2, height/2) - pixC;
+
+
+			//Zoom = 0.95f;
+			//Zoom = 1.5f;
+			//Translate = new Vector2f(0, 0);
 
             SKColorType useColorType = Util.IsRunningOnMono() ? SKColorType.Rgba8888 : SKColorType.Bgra8888;
 
@@ -64,9 +84,10 @@ namespace SliceViewer
 
 					Func<Vector2d, Vector2f> xformF = (pOrig) => {
 						Vector2f pNew = (Vector2f)pOrig;
-						pNew += translate;
-						pNew = scale * pNew;
-						pNew += new Vector2f(nBorder, nBorder);
+						pNew -= (Vector2f)bounds.Center;
+						pNew = Zoom * scale * pNew;
+						pNew += (Vector2f)pixC;
+						pNew += translate + Translate;
 						pNew.y = canvas.ClipBounds.Height - pNew.y;
 						return pNew;
 					};
@@ -75,31 +96,60 @@ namespace SliceViewer
 						return new SKPoint(p.x, p.y);
 					};
 
-
 					using (var paint = new SKPaint())
 					{
 						paint.StrokeWidth = 1;
-                        SKColor pathColor = new SKColor(0, 0, 0, 255);
+						SKColor extrudeColor = new SKColor(0, 0, 0, 255);
+						SKColor travelColor = new SKColor(0,255,0,128);
                         SKColor startColor = new SKColor(255, 0, 0, 128);
+						SKColor planeColor = new SKColor(0,0,255, 128);
 						float pointR = 3f;
 						paint.IsAntialias = true;
 
 						//paint.Style = SKPaintStyle.Fill;
                         paint.Style = SKPaintStyle.Stroke;
 
-                        foreach ( PathSet2 Path in Paths ) {
-                            foreach ( PolyLine2d poly in Path.Paths ) {
-							    SKPath path = MakePath(poly, mapToSkiaF);
-                                paint.Color = pathColor;
-                                paint.StrokeWidth = 2;
-                                canvas.DrawPath(path, paint);
+						Action<LinearPath2> drawPath2F = (polyPath) => {
+							PolyLine2d poly = polyPath.Path;
+							SKPath path = MakePath(poly, mapToSkiaF);
+							paint.Color = (polyPath.Type == PathTypes.Deposition ) ? extrudeColor : travelColor;
+							paint.StrokeWidth = (polyPath.Type == PathTypes.Deposition ) ? 1 : 3;
+							canvas.DrawPath(path, paint);
+							paint.Color = startColor;
+							paint.StrokeWidth = 1;
+							Vector2f pt = xformF(poly.Start);
+							canvas.DrawCircle(pt.x, pt.y, pointR, paint);						
+						};
+						Action<LinearPath3> drawPath3F = (polyPath) => {
+							PolyLine3d poly = polyPath.Path;
+							SKPath path = MakePath(poly, mapToSkiaF);
+							paint.Color = planeColor;
+							paint.StrokeWidth = 1;
+							canvas.DrawPath(path, paint);
+							paint.StrokeWidth = 1;
+							Vector2f pt = xformF(poly.Start.xy);
+							canvas.DrawCircle(pt.x, pt.y, 5f, paint);						
+							paint.Color = startColor;
+						};
+						Action<IPath> drawPath = (path) => {
+							if ( path is LinearPath3 )
+								drawPath3F(path as LinearPath3);
+							else if (path is LinearPath2)
+								drawPath2F(path as LinearPath2);
+							else
+								throw new NotImplementedException();
+						};
+						Action<IPathSet> drawPaths = null;
+						drawPaths = (paths) => {
+							foreach ( IPath path in paths ) {
+								if ( path is IPathSet )
+									drawPaths(path as IPathSet);
+								else
+									drawPath(path);
+							}
+						};
 
-                                paint.Color = startColor;
-                                Vector2f pt = xformF(poly.Start);
-								canvas.DrawCircle(pt.x, pt.y, pointR, paint);
-                            }
-                        }
-
+						drawPaths(Paths);
 
 					}
 
@@ -108,7 +158,6 @@ namespace SliceViewer
 						Cairo.Format.Argb32,
 						bitmap.Width, bitmap.Height,
 						bitmap.Width * 4);
-
 
 					surface.MarkDirty();
 					cr.SetSourceSurface(surface, 0, 0);

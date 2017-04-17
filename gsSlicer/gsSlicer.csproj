@@ -40,14 +40,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PathSet2.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="gcode\GCodeToLayerPaths.cs" />
+    <Compile Include="PathSet.cs" />
+    <Compile Include="PathInterfaces.cs" />
+    <Compile Include="LinearPath2.cs" />
+    <Compile Include="LinearPath3.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
       <Project>{0c518dda-28fe-44ca-9ab0-f9773974f13a}</Project>
       <Name>geometry3Sharp</Name>
     </ProjectReference>
+    <ProjectReference Include="..\gsGCode\gsGCode.csproj">
+      <Project>{25DE77C9-14A4-4562-9A24-0BF1E612D9A9}</Project>
+      <Name>gsGCode</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="gcode\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -96,6 +96,10 @@
       <Project>{0C518DDA-28FE-44CA-9AB0-F9773974F13A}</Project>
       <Name>geometry3Sharp</Name>
     </ProjectReference>
+    <ProjectReference Include="..\gsGCode\gsGCode.csproj">
+      <Project>{25DE77C9-14A4-4562-9A24-0BF1E612D9A9}</Project>
+      <Name>gsGCode</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">

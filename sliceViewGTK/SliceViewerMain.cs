@@ -27,7 +27,7 @@ namespace SliceViewer
 			Gtk.Application.Init();
 
 			var window = new Window("SliceViewer");
-			window.SetDefaultSize(800, 600);
+			window.SetDefaultSize(900, 600);
 			window.SetPosition(WindowPosition.Center);
 			window.DeleteEvent += delegate
 			{
@@ -35,20 +35,39 @@ namespace SliceViewer
 			};
 
 
-            PathSet2 Layer = new PathSet2();
+			//string sPath = "../../../sample_files/disc_single_layer.gcode";
+			string sPath = "../../../sample_files/disc_0p6mm.gcode";
 
-            PolyLine2d square = new PolyLine2d();
-            square.AppendVertex(new Vector2d(100, 100));
-            square.AppendVertex(new Vector2d(400, 100));
-            square.AppendVertex(new Vector2d(400, 400));
-            square.AppendVertex(new Vector2d(100, 400));
-            square.AppendVertex(new Vector2d(100, 105));
+			GenericGCodeParser parser = new GenericGCodeParser();
+			GCodeFile gcode;
+			using (FileStream fs = new FileStream(sPath, FileMode.Open, FileAccess.Read)) {
+				using (TextReader reader = new StreamReader(fs) ) {
+					gcode = parser.Parse(reader);
+				}
+			}
 
-            Layer.Paths.Add(square);
+
+			GCodeToLayerPaths converter = new GCodeToLayerPaths();
+			MakerbotInterpreter interpreter = new MakerbotInterpreter();
+			interpreter.AddListener(converter);
+
+			InterpretArgs interpArgs = new InterpretArgs();
+			interpreter.Interpret(gcode, interpArgs);
+
+			PathSet Layer = converter.Paths;
+
+			//PathSet Layer = new PathSet();
+			//LinearPath2 path = new LinearPath2();
+			//path.AppendVertex(new Vector2d(100, 100));
+			//path.AppendVertex(new Vector2d(400, 100));
+			//path.AppendVertex(new Vector2d(400, 400));
+			//path.AppendVertex(new Vector2d(100, 400));
+			//path.AppendVertex(new Vector2d(100, 105));
+			//Layer.Append(path);
 
 
             var darea = new SliceViewCanvas();
-            darea.Paths.Add(Layer);
+			darea.Paths = Layer;
             window.Add(darea);
 
             window.ShowAll();
