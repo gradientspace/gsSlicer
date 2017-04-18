@@ -15,6 +15,26 @@ namespace gs
 	};
 		
 
+	public interface IPathVertex {
+		Vector3d Position { get; set; }
+	}
+
+	public struct PathVertex : IPathVertex 
+	{
+		public Vector3d Position { get; set; }
+		public double FeedRate;
+
+		public PathVertex(Vector3d pos, double rate) {
+			Position = pos;
+			FeedRate = rate;
+		}
+
+		public static implicit operator Vector3d(PathVertex v)
+		{
+			return v.Position;
+		}
+	};
+
 
 	public interface IPath
 	{
@@ -25,17 +45,19 @@ namespace gs
 		AxisAlignedBox3d Bounds { get; }
 	}
 
-	public interface ILinearPath : IPath, IEnumerable<Vector3d>
+	public interface ILinearPath<T> : IPath, IEnumerable<T>
 	{
+		T this[int key] { get; }
 	}
 
-	public interface IBuildLinearPath : ILinearPath
+	public interface IBuildLinearPath<T> : ILinearPath<T>
 	{
 		void ChangeType(PathTypes type);
-		void AppendVertex(Vector3d v);	
+		void AppendVertex(T v);	
 		
 		int VertexCount { get; }
-		Vector3d LastVertex { get; }
+		T Start { get; }
+		T End { get; }
 	}
 
 

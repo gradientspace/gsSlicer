@@ -35,8 +35,8 @@ namespace SliceViewer
 			};
 
 
-			//string sPath = "../../../sample_files/disc_single_layer.gcode";
-			string sPath = "../../../sample_files/disc_0p6mm.gcode";
+			string sPath = "../../../sample_files/disc_single_layer.gcode";
+			//string sPath = "../../../sample_files/disc_0p6mm.gcode";
 
 			GenericGCodeParser parser = new GenericGCodeParser();
 			GCodeFile gcode;

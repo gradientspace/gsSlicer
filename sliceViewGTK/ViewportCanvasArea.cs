@@ -42,7 +42,15 @@ namespace SliceViewer
 			for ( int i = 1; i < polyLine.VertexCount; i++ )
 				p.LineTo( mapF(polyLine[i].xy) );
 			return p;
-		}        
+		}     
+		SKPath MakePath<T>(LinearPath3<T> path, Func<Vector2d, SKPoint> mapF) where T : IPathVertex
+		{
+			SKPath p = new SKPath();
+			p.MoveTo(mapF(path[0].Position.xy));
+			for ( int i = 1; i < path.VertexCount; i++ )
+				p.LineTo( mapF(path[i].Position.xy) );
+			return p;
+		} 
 
 		void OnExpose(object sender, ExposeEventArgs args)
 		{
@@ -109,33 +117,37 @@ namespace SliceViewer
 						//paint.Style = SKPaintStyle.Fill;
                         paint.Style = SKPaintStyle.Stroke;
 
-						Action<LinearPath2> drawPath2F = (polyPath) => {
-							PolyLine2d poly = polyPath.Path;
-							SKPath path = MakePath(poly, mapToSkiaF);
-							paint.Color = (polyPath.Type == PathTypes.Deposition ) ? extrudeColor : travelColor;
-							paint.StrokeWidth = (polyPath.Type == PathTypes.Deposition ) ? 1 : 3;
+						Action<LinearPath3<PathVertex>> drawPath3F = (polyPath) => {
+							SKPath path = MakePath(polyPath, mapToSkiaF);
+							if ( polyPath.Type == PathTypes.Deposition ) {
+								paint.Color = extrudeColor;
+							} else if ( polyPath.Type == PathTypes.Travel ) {
+								paint.Color = travelColor;
+								paint.StrokeWidth = 3;
+							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
+								paint.Color = planeColor;
+							} else {
+								paint.Color = startColor;
+							}
 							canvas.DrawPath(path, paint);
-							paint.Color = startColor;
+
 							paint.StrokeWidth = 1;
-							Vector2f pt = xformF(poly.Start);
-							canvas.DrawCircle(pt.x, pt.y, pointR, paint);						
-						};
-						Action<LinearPath3> drawPath3F = (polyPath) => {
-							PolyLine3d poly = polyPath.Path;
-							SKPath path = MakePath(poly, mapToSkiaF);
-							paint.Color = planeColor;
+
+							Vector2f pt = xformF(polyPath.Start.Position.xy);
+							if ( polyPath.Type == PathTypes.Deposition || polyPath.Type == PathTypes.Travel ) {
+								canvas.DrawCircle(pt.x, pt.y, pointR, paint);	
+							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
+								paint.Style = SKPaintStyle.Fill;
+								canvas.DrawCircle(pt.x, pt.y, 8f, paint);
+								paint.Style = SKPaintStyle.Stroke;
+							}
+
 							paint.StrokeWidth = 1;
-							canvas.DrawPath(path, paint);
-							paint.StrokeWidth = 1;
-							Vector2f pt = xformF(poly.Start.xy);
-							canvas.DrawCircle(pt.x, pt.y, 5f, paint);						
 							paint.Color = startColor;
 						};
 						Action<IPath> drawPath = (path) => {
-							if ( path is LinearPath3 )
-								drawPath3F(path as LinearPath3);
-							else if (path is LinearPath2)
-								drawPath2F(path as LinearPath2);
+							if ( path is LinearPath3<PathVertex> )
+								drawPath3F(path as LinearPath3<PathVertex> );
 							else
 								throw new NotImplementedException();
 						};

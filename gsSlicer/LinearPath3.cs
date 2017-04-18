@@ -5,21 +5,30 @@ using g3;
 
 namespace gs 
 {
-	public class LinearPath3  : IBuildLinearPath
+	public class LinearPath3<T>  : IBuildLinearPath<T> where T : IPathVertex
 	{
-		public PolyLine3d Path;
+		List<T> Path;
 		PathTypes _pathtype;	// access via Type property
+
+		// todo: add speed
+		//  ?? extend PolyLine3d ??
 
 		public LinearPath3()
 		{
-			Path = new PolyLine3d();
+			Path = new List<T>();
 			_pathtype = PathTypes.Travel;
 		}
-		public LinearPath3(ILinearPath copy) {
-			Path = new PolyLine3d();
+		public LinearPath3(ILinearPath<T> copy) {
+			Path = new List<T>();
 			_pathtype = copy.Type;		
-			foreach ( Vector3d v in copy )
-				Path.AppendVertex(v);
+			foreach ( T v in copy )
+				Path.Add(v);
+		}
+
+		public T this[int key] { 
+			get {
+				return Path[key];
+			}
 		}
 
 		public bool IsLinear {
@@ -28,9 +37,9 @@ namespace gs
 
 		public bool IsPlanar {
 			get { 
-				double z = Path[0].z;
-				for ( int i = 1; i < Path.Vertices.Count; ++i ) {
-					if ( Path.Vertices[i].z != z )
+				double z = Path[0].Position.z;
+                  for ( int i = 1; i < Path.Count; ++i ) {
+					if ( Path[i].Position.z != z )
 						return false;
 				}
 				return true;
@@ -44,12 +53,12 @@ namespace gs
 
 		public AxisAlignedBox3d Bounds { 
 			get {
-				return Path.GetBounds();
+				return BoundsUtil.Bounds(this, (vtx) => { return vtx.Position; });
 			}
 		}
 
 
-		public IEnumerator<Vector3d> GetEnumerator() {
+		public IEnumerator<T> GetEnumerator() {
 			return Path.GetEnumerator();
 		}
 		IEnumerator IEnumerable.GetEnumerator() {
@@ -58,14 +67,17 @@ namespace gs
 
 
 		public int VertexCount {
-			get { return Path.VertexCount; }
+			get { return Path.Count; }
 		}
-		public void AppendVertex(Vector3d v) {
-			if ( Path.VertexCount == 0 || Path.End.DistanceSquared(v) > MathUtil.Epsilon )	
-				Path.AppendVertex(v);
+		public void AppendVertex(T v) {
+			if ( Path.Count == 0 || End.Position.DistanceSquared(v.Position) > MathUtil.Epsilon )	
+				Path.Add(v);
 		}
-		public Vector3d LastVertex { 
-			get { return Path.End; }
+		public T Start { 
+			get { return Path[0]; }
+		}
+		public T End { 
+			get { return Path[Path.Count-1]; }
 		}
 		public void ChangeType(PathTypes type) {
 			Type = type;

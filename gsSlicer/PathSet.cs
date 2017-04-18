@@ -72,7 +72,7 @@ namespace gs
 
 		public AxisAlignedBox3d ExtrudeBounds
 		{
-			get{
+			get {
 				AxisAlignedBox3d box = AxisAlignedBox3d.Empty;
 				foreach ( var p in Paths ) {
 					if ( p.Type == PathTypes.Deposition )
@@ -80,6 +80,18 @@ namespace gs
 				}
 				return box;				
 			}
+		}
+
+		public List<double> GetZValues() {
+			HashSet<double> Zs = new HashSet<double>();
+			PathUtil.ApplyToLeafPaths(this, (ipath) => {
+				if ( ipath is LinearPath3<IPathVertex> ) {
+					foreach ( var v in (ipath as LinearPath3<IPathVertex>) ) {
+						Zs.Add( v.Position.z );
+					}
+				}
+			});
+			return new List<double>(Zs);
 		}
 
 	}

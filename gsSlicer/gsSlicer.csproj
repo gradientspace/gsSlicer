@@ -44,8 +44,8 @@
     <Compile Include="gcode\GCodeToLayerPaths.cs" />
     <Compile Include="PathSet.cs" />
     <Compile Include="PathInterfaces.cs" />
-    <Compile Include="LinearPath2.cs" />
     <Compile Include="LinearPath3.cs" />
+    <Compile Include="PathUtil.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
