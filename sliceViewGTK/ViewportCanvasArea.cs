@@ -24,7 +24,66 @@ namespace SliceViewer
 		public SliceViewCanvas() 
 		{
 			ExposeEvent += OnExpose;
+
+			ButtonPressEvent += OnButtonPressEvent;
+			ButtonReleaseEvent += OnButtonReleaseEvent;
+			MotionNotifyEvent += OnMotionNotifyEvent;
+			ScrollEvent += OnScrollEvent;
+			Events = Gdk.EventMask.ExposureMask | Gdk.EventMask.LeaveNotifyMask |
+			            Gdk.EventMask.ButtonPressMask | Gdk.EventMask.ButtonReleaseMask | Gdk.EventMask.PointerMotionMask |
+			            Gdk.EventMask.ScrollMask;
 		}
+
+
+		// zoom
+		private void OnScrollEvent(object o, ScrollEventArgs args)
+		{
+			if (args.Event.Direction == Gdk.ScrollDirection.Up)
+				Zoom *= 1.05f;
+			else
+				Zoom = Math.Max( 0.25f, Zoom * (1.0f / 1.05f) );
+			QueueDraw();
+		}
+
+
+		// pan support
+		bool left_down = false;
+		Vector2f start_pos = Vector2f.Zero;
+		Vector2f pan_start;
+		private void OnButtonPressEvent(object o, ButtonPressEventArgs args) {
+			if (args.Event.Button == 1) {
+				left_down = true;
+				start_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
+				pan_start = Translate;
+			}
+		}
+		private void OnButtonReleaseEvent(object o, ButtonReleaseEventArgs args) {
+			if ( left_down )
+				left_down = false;
+		}
+		private void OnMotionNotifyEvent(object o, MotionNotifyEventArgs args)
+		{
+			if ( left_down ) {
+				Vector2f cur_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
+				Vector2f delta = cur_pos - start_pos;
+				delta.y = -delta.y;
+				delta *= 1.0f;  // speed
+				Translate = pan_start + delta/Zoom;
+				QueueDraw();
+			}
+		}
+
+
+		void Reset()
+		{
+			Zoom = 1.0f;
+			Translate = Vector2f.Zero;
+		}
+
+
+
+
+
 
 
         SKPath MakePath(PolyLine2d polyLine, Func<Vector2d, SKPoint> mapF)
@@ -52,6 +111,9 @@ namespace SliceViewer
 			return p;
 		} 
 
+
+
+
 		void OnExpose(object sender, ExposeEventArgs args)
 		{
 			DrawingArea area = (DrawingArea) sender;
@@ -75,27 +137,20 @@ namespace SliceViewer
 			Vector2f pixC = Zoom * scale * (Vector2f)bounds.Center;
 			Vector2f translate = new Vector2f(width/2, height/2) - pixC;
 
-
-			//Zoom = 0.95f;
-			//Zoom = 1.5f;
-			//Translate = new Vector2f(0, 0);
-
-            SKColorType useColorType = Util.IsRunningOnMono() ? SKColorType.Rgba8888 : SKColorType.Bgra8888;
-
-			using (var bitmap = new SKBitmap(width, height, useColorType, SKAlphaType.Premul))
+			using (var bitmap = new SKBitmap(width, height, SkiaUtil.ColorType(), SKAlphaType.Premul))
 			{
 				IntPtr len;
-				using (var skSurface = SKSurface.Create(bitmap.Info.Width, bitmap.Info.Height, useColorType, SKAlphaType.Premul, bitmap.GetPixels(out len), bitmap.Info.RowBytes))
+				using (var skSurface = SKSurface.Create(bitmap.Info.Width, bitmap.Info.Height, SkiaUtil.ColorType(), SKAlphaType.Premul, bitmap.GetPixels(out len), bitmap.Info.RowBytes))
 				{
 					var canvas = skSurface.Canvas;
-					canvas.Clear(new SKColor(240, 240, 240, 255));
+					canvas.Clear(SkiaUtil.Color(240, 240, 240, 255));
 
 					Func<Vector2d, Vector2f> xformF = (pOrig) => {
 						Vector2f pNew = (Vector2f)pOrig;
 						pNew -= (Vector2f)bounds.Center;
 						pNew = Zoom * scale * pNew;
 						pNew += (Vector2f)pixC;
-						pNew += translate + Translate;
+						pNew += translate + Zoom*Translate;
 						pNew.y = canvas.ClipBounds.Height - pNew.y;
 						return pNew;
 					};
@@ -107,10 +162,10 @@ namespace SliceViewer
 					using (var paint = new SKPaint())
 					{
 						paint.StrokeWidth = 1;
-						SKColor extrudeColor = new SKColor(0, 0, 0, 255);
-						SKColor travelColor = new SKColor(0,255,0,128);
-                        SKColor startColor = new SKColor(255, 0, 0, 128);
-						SKColor planeColor = new SKColor(0,0,255, 128);
+						SKColor extrudeColor = SkiaUtil.Color(0, 0, 0, 255);
+						SKColor travelColor = SkiaUtil.Color(0,255,0,128);
+						SKColor startColor = SkiaUtil.Color(255, 0, 0, 128);
+						SKColor planeColor = SkiaUtil.Color(0,0,255, 128);
 						float pointR = 3f;
 						paint.IsAntialias = true;
 

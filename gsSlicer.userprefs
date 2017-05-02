@@ -1,16 +1,16 @@
 ﻿<Properties StartupConfiguration="{6348C5CD-6696-4B59-9851-43924A326BD4}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="sliceViewGTK/SliceViewerMain.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/PathInterfaces.cs">
     <Files>
       <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="38" Column="4" />
       <File FileName="gsSlicer/gcode/GCodeToLayerPaths.cs" Line="10" Column="14" />
-      <File FileName="gsGCode/interpreters/MakerbotInterpreter.cs" Line="64" Column="28" />
-      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="142" Column="14" />
+      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="194" Column="23" />
       <File FileName="gsGCode/parsers/GenericGCodeParser.cs" Line="81" Column="1" />
-      <File FileName="gsSlicer/LinearPath3.cs" Line="77" Column="23" />
-      <File FileName="gsSlicer/PathInterfaces.cs" Line="65" Column="3" />
+      <File FileName="gsSlicer/LinearPath3.cs" Line="80" Column="22" />
+      <File FileName="gsSlicer/PathInterfaces.cs" Line="20" Column="3" />
       <File FileName="gsGCode/geometry/GCodeToPlanarComplex.cs" Line="94" Column="89" />
       <File FileName="gsSlicer/PathSet.cs" Line="75" Column="8" />
       <File FileName="gsSlicer/PathUtil.cs" Line="11" Column="24" />
+      <File FileName="sliceViewGTK/SkiaUtil.cs" Line="12" Column="80" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.ItemProperties.SliceViewer PreferredExecutionTarget="MonoDevelop.Default" />
