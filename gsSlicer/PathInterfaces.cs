@@ -23,10 +23,22 @@ namespace gs
 	{
 		public Vector3d Position { get; set; }
 		public double FeedRate;
+		public Vector3d Extrusion {get; set; }
+
+		public object Source { get; set; }
 
 		public PathVertex(Vector3d pos, double rate) {
 			Position = pos;
 			FeedRate = rate;
+			Extrusion = Vector3d.Zero;
+			Source = null;
+		}
+
+		public PathVertex(Vector3d pos, double rate, double ExtruderA) {
+			Position = pos;
+			FeedRate = rate;
+			Extrusion = new Vector3d(ExtruderA, 0, 0);
+			Source = null;
 		}
 
 		public static implicit operator Vector3d(PathVertex v)
@@ -54,6 +66,7 @@ namespace gs
 	{
 		void ChangeType(PathTypes type);
 		void AppendVertex(T v);	
+		void UpdateVertex(int i, T v);
 		
 		int VertexCount { get; }
 		T Start { get; }
@@ -65,5 +78,33 @@ namespace gs
 	{
 	}
 
+
+
+	// Just a utility class we can subclass to create custom "marker" paths
+	// in the path stream.
+	public class SentinelPath : IPath
+	{
+		public PathTypes Type { 
+			get {
+				return PathTypes.Custom;
+			}
+		}
+		public virtual bool IsPlanar { 
+			get {
+				return false;
+			}
+		}
+		public virtual bool IsLinear { 
+			get {
+				return false;
+			}
+		}
+
+		public virtual AxisAlignedBox3d Bounds { 
+			get {
+				return AxisAlignedBox3d.Zero;
+			}
+		}
+	}
 
 }

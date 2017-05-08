@@ -46,6 +46,8 @@
     <Compile Include="PathInterfaces.cs" />
     <Compile Include="LinearPath3.cs" />
     <Compile Include="PathUtil.cs" />
+    <Compile Include="tests\CalculateExtruderMotion.cs" />
+    <Compile Include="tests\MakerbotTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
@@ -59,6 +61,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="gcode\" />
+    <Folder Include="tests\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -5,6 +5,14 @@ namespace gs
 {
 	using LinearPath = LinearPath3<PathVertex>;
 
+
+	// we will insert these in PathSet when we are
+	// instructed to reset extruder stepper
+	public class ResetExtruderPathHack : SentinelPath
+	{
+	}
+
+
 	public class GCodeToLayerPaths : IGCodeListener
 	{
 		public PathSet Paths;
@@ -15,52 +23,76 @@ namespace gs
 		}
 
 
+		void push_active_path() {
+			if ( ActivePath != null && ActivePath.VertexCount > 0 )
+				Paths.Append(ActivePath);
+			ActivePath = null;
+		}
+
 		public void Begin() {
 			Paths = new PathSet();
 			ActivePath = new LinearPath();
 		}
 		public void End() {
-			if (ActivePath.VertexCount > 0 )
-				Paths.Append(ActivePath);
+			push_active_path();
 		}
 
 
 		public void BeginTravel() {
+			push_active_path();
+
 			var newPath = new LinearPath();
 			newPath.Type = PathTypes.Travel;
-			Paths.Append(ActivePath);
 			ActivePath = newPath;		
 		}
 		public void BeginDeposition() {
+			push_active_path();
+				
 			var newPath = new LinearPath();
 			newPath.Type = PathTypes.Deposition;
-			Paths.Append(ActivePath);
 			ActivePath = newPath;				
 		}
 
 
-		public void LinearMoveToAbsolute3d(Vector3d v, double rate = 0)
+		public void LinearMoveToAbsolute3d(LinearMoveData move)
 		{
+			if ( ActivePath == null )		// only required in some weird cases...
+				BeginTravel();
+
 			// if we are doing a Z-move, convert to 3D path
-			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.Position.z != v.z);
+			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.Position.z != move.position.z);
 			if ( bZMove )
 				ActivePath.ChangeType( PathTypes.PlaneChange );
 
-			ActivePath.AppendVertex( new PathVertex(v,rate) );
+			PathVertex vtx = new PathVertex(
+				move.position, move.rate, move.extrude.x );
+			
+			if ( move.source != null )
+				vtx.Source = move.source;
+
+			ActivePath.AppendVertex(vtx);
+		}
+
+
+		public void CustomCommand(int code, object o) {
+			if ( code == (int)CustomListenerCommands.ResetExtruder ) {
+				push_active_path();
+				Paths.Append( new ResetExtruderPathHack() );
+			}
 		}
 
 
 
-		public void LinearMoveToRelative3d(Vector3d v, double rate = 0)
+		public void LinearMoveToRelative3d(LinearMoveData move)
 		{
 			throw new NotImplementedException();
 		}
 
-		public void LinearMoveToAbsolute2d( Vector2d v, double rate = 0 ) {
+		public void LinearMoveToAbsolute2d(LinearMoveData move) {
 			throw new NotImplementedException();
 		}
 
-		public void LinearMoveToRelative2d( Vector2d v, double rate = 0 ) {
+		public void LinearMoveToRelative2d(LinearMoveData move) {
 			throw new NotImplementedException();
 		}
 

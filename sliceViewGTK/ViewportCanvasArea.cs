@@ -180,6 +180,7 @@ namespace SliceViewer
 								paint.Color = travelColor;
 								paint.StrokeWidth = 3;
 							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
+								paint.StrokeWidth = 0.5f;
 								paint.Color = planeColor;
 							} else {
 								paint.Color = startColor;
@@ -193,7 +194,7 @@ namespace SliceViewer
 								canvas.DrawCircle(pt.x, pt.y, pointR, paint);	
 							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
 								paint.Style = SKPaintStyle.Fill;
-								canvas.DrawCircle(pt.x, pt.y, 8f, paint);
+								canvas.DrawCircle(pt.x, pt.y, 4f, paint);
 								paint.Style = SKPaintStyle.Stroke;
 							}
 
@@ -203,8 +204,7 @@ namespace SliceViewer
 						Action<IPath> drawPath = (path) => {
 							if ( path is LinearPath3<PathVertex> )
 								drawPath3F(path as LinearPath3<PathVertex> );
-							else
-								throw new NotImplementedException();
+							// else we might have other path type...
 						};
 						Action<IPathSet> drawPaths = null;
 						drawPaths = (paths) => {

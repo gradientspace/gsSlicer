@@ -17,5 +17,17 @@ namespace gs
 			foreach ( var ipath in (root as IPathSet) )
 				ApplyToLeafPaths(ipath, LeafF);
 		}
+
+
+
+		public static List<IPath> FlattenPaths(IPath root) {
+			List<IPath> result = new List<IPath>();
+			ApplyToLeafPaths(root, (p) => {
+				result.Add(p);
+			});
+			return result;
+		}
+
+
 	}
 }

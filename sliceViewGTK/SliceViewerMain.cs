@@ -35,8 +35,19 @@ namespace SliceViewer
 			};
 
 
+
 			string sPath = "../../../sample_files/disc_single_layer.gcode";
 			//string sPath = "../../../sample_files/disc_0p6mm.gcode";
+
+
+			GCodeFile genGCode = MakerbotTests.OneLineTest();
+			string sWritePath = "../../../sample_output/generated.gcode";
+			StandardGCodeWriter writer = new StandardGCodeWriter();
+			using ( StreamWriter w = new StreamWriter(sWritePath) ) {
+				writer.WriteFile(genGCode, w);
+			}
+			sPath = sWritePath;
+
 
 			GenericGCodeParser parser = new GenericGCodeParser();
 			GCodeFile gcode;
@@ -47,12 +58,21 @@ namespace SliceViewer
 			}
 
 
+			// write back out gcode we loaded
+			//StandardGCodeWriter writer = new StandardGCodeWriter();
+			//using ( StreamWriter w = new StreamWriter("../../../sample_output/writeback.gcode") ) {
+			//	writer.WriteFile(gcode, w);
+			//}
+
 			GCodeToLayerPaths converter = new GCodeToLayerPaths();
 			MakerbotInterpreter interpreter = new MakerbotInterpreter();
 			interpreter.AddListener(converter);
 
 			InterpretArgs interpArgs = new InterpretArgs();
 			interpreter.Interpret(gcode, interpArgs);
+
+			CalculateExtruderMotion calc = new CalculateExtruderMotion(converter.Paths);
+			calc.TestCalculation();
 
 			PathSet Layer = converter.Paths;
 

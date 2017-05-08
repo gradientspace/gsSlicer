@@ -13,10 +13,10 @@ namespace gs
 		// todo: add speed
 		//  ?? extend PolyLine3d ??
 
-		public LinearPath3()
+		public LinearPath3(PathTypes type = PathTypes.Travel)
 		{
 			Path = new List<T>();
-			_pathtype = PathTypes.Travel;
+			_pathtype = type;
 		}
 		public LinearPath3(ILinearPath<T> copy) {
 			Path = new List<T>();
@@ -72,6 +72,10 @@ namespace gs
 		public void AppendVertex(T v) {
 			if ( Path.Count == 0 || End.Position.DistanceSquared(v.Position) > MathUtil.Epsilon )	
 				Path.Add(v);
+		}
+		public void UpdateVertex(int i, T v)
+		{
+			Path[i] = v;
 		}
 		public T Start { 
 			get { return Path[0]; }
