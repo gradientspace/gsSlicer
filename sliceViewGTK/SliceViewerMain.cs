@@ -8,18 +8,17 @@ using SkiaSharp;
 using g3;
 using gs;
 
-namespace SliceViewer 
+namespace SliceViewer
 {
 
 
 	class MainClass
 	{
 
-        
+
 		public static void Main(string[] args)
 		{
-			ExceptionManager.UnhandledException += delegate(UnhandledExceptionArgs expArgs)
-			{
+			ExceptionManager.UnhandledException += delegate (UnhandledExceptionArgs expArgs) {
 				Console.WriteLine(expArgs.ExceptionObject.ToString());
 				expArgs.ExitApplication = true;
 			};
@@ -29,24 +28,26 @@ namespace SliceViewer
 			var window = new Window("SliceViewer");
 			window.SetDefaultSize(900, 600);
 			window.SetPosition(WindowPosition.Center);
-			window.DeleteEvent += delegate
-			{
+			window.DeleteEvent += delegate {
 				Gtk.Application.Quit();
 			};
 
 
 
-			string sPath = "../../../sample_files/disc_single_layer.gcode";
+			//string sPath = "../../../sample_files/disc_single_layer.gcode";
 			//string sPath = "../../../sample_files/disc_0p6mm.gcode";
+			string sPath = "../../../sample_files/square_linearfill.gcode";
 
 
-			GCodeFile genGCode = MakerbotTests.OneLineTest();
+#if true
+			GCodeFile genGCode = MakerbotTests.SimpleFillTest();
 			string sWritePath = "../../../sample_output/generated.gcode";
 			StandardGCodeWriter writer = new StandardGCodeWriter();
 			using ( StreamWriter w = new StreamWriter(sWritePath) ) {
 				writer.WriteFile(genGCode, w);
 			}
 			sPath = sWritePath;
+#endif
 
 
 			GenericGCodeParser parser = new GenericGCodeParser();
@@ -71,7 +72,8 @@ namespace SliceViewer
 			InterpretArgs interpArgs = new InterpretArgs();
 			interpreter.Interpret(gcode, interpArgs);
 
-			CalculateExtruderMotion calc = new CalculateExtruderMotion(converter.Paths);
+			MakerbotSettings settings = new MakerbotSettings();
+			CalculateExtrusion calc = new CalculateExtrusion(converter.Paths, settings);
 			calc.TestCalculation();
 
 			PathSet Layer = converter.Paths;

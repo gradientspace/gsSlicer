@@ -1,16 +1,13 @@
 ﻿<Properties StartupConfiguration="{6348C5CD-6696-4B59-9851-43924A326BD4}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="gsGCode/builders/MakerbotAssembler.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/tests/MakerbotTests.cs">
     <Files>
-      <File FileName="gsGCode/GCodeLine.cs" Line="19" Column="13" />
-      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="75" Column="1" />
-      <File FileName="gsGCode/builders/GCodeFileAccumulator.cs" Line="16" Column="1" />
-      <File FileName="gsGCode/builders/GCodeBuilder.cs" Line="60" Column="17" />
-      <File FileName="gsGCode/builders/MakerbotAssembler.cs" Line="195" Column="50" />
-      <File FileName="gsGCode/builders/AdditiveSettings.cs" Line="19" Column="2" />
-      <File FileName="gsGCode/builders/MakerbotSettings.cs" Line="31" Column="4" />
-      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="109" Column="28" />
-      <File FileName="gsSlicer/tests/CalculateExtruderMotion.cs" Line="80" Column="40" />
-      <File FileName="gsSlicer/PathInterfaces.cs" Line="9" Column="3" />
+      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="43" Column="53" />
+      <File FileName="gsGCode/builders/MakerbotAssembler.cs" Line="35" Column="1" />
+      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="103" Column="3" />
+      <File FileName="gsSlicer/MakerbotCompiler.cs" Line="73" Column="85" />
+      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="189" Column="8" />
+      <File FileName="gsSlicer/PathSetBuilder.cs" Line="44" Column="23" />
+      <File FileName="gsGCode/builders/AdditiveSettings.cs" Line="34" Column="41" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.ItemProperties.SliceViewer PreferredExecutionTarget="MonoDevelop.Default" />

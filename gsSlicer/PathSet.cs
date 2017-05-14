@@ -59,6 +59,18 @@ namespace gs
 			return Paths.GetEnumerator();
 		}
 
+		public virtual Vector3d StartPosition {
+			get {
+				return Paths[0].StartPosition;
+			}
+		}
+
+		public virtual Vector3d EndPosition {
+			get {
+				return Paths[Paths.Count - 1].EndPosition;
+			}
+		}
+
 
 		public AxisAlignedBox3d Bounds
 		{

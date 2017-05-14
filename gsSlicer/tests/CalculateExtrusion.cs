@@ -4,23 +4,30 @@ using g3;
 
 namespace gs 
 {
-	public class CalculateExtruderMotion 
+	public class CalculateExtrusion 
 	{
 		public PathSet Paths;
+		public SingleMaterialFFFSettings Settings;
 
-		public double FilamentDiam = 1.75;
-		public double NozzleDiam = 0.4;
-		public double LayerHeight = 0.2;
+		double FilamentDiam = 1.75;
+		double NozzleDiam = 0.4;
+		double LayerHeight = 0.2;
+		double FixedRetractDistance = 1.3;
 
+		// [RMS] this is a fudge factor thatwe maybe should not use?
 		public double HackCorrection = 1.052;
 
-		public double FixedRetractDistance = 1.3;
 
 
-
-		public CalculateExtruderMotion(PathSet paths) 
+		public CalculateExtrusion(PathSet paths, SingleMaterialFFFSettings settings) 
 		{
 			Paths = paths;
+			Settings = settings;
+
+			FilamentDiam = settings.FilamentDiamMM;
+			NozzleDiam = settings.NozzleDiamMM;
+			LayerHeight = settings.LayerHeightMM;
+			FixedRetractDistance = settings.RetractDistanceMM;
 		}
 
 
@@ -40,10 +47,10 @@ namespace gs
 
 
 
-		public void Calculate()
+		public void Calculate(Vector3d vStartPos, double fStartA)
 		{
-			double curA = 0;
-			Vector3d curPos = Vector3d.Zero;
+			double curA = fStartA;
+			Vector3d curPos = vStartPos;
 			double curRate = 0;
 
 			bool inRetract = false;

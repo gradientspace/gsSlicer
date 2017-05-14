@@ -54,6 +54,8 @@ namespace gs
 		bool IsPlanar { get; }
 		bool IsLinear { get; }
 
+		Vector3d StartPosition { get; }
+		Vector3d EndPosition { get; }
 		AxisAlignedBox3d Bounds { get; }
 	}
 
@@ -97,6 +99,18 @@ namespace gs
 		public virtual bool IsLinear { 
 			get {
 				return false;
+			}
+		}
+
+		public virtual Vector3d StartPosition {
+			get {
+				return Vector3d.Zero;
+			}
+		}
+
+		public virtual Vector3d EndPosition {
+			get {
+				return Vector3d.Zero;
 			}
 		}
 

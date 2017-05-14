@@ -190,7 +190,9 @@ namespace SliceViewer
 							paint.StrokeWidth = 1;
 
 							Vector2f pt = xformF(polyPath.Start.Position.xy);
-							if ( polyPath.Type == PathTypes.Deposition || polyPath.Type == PathTypes.Travel ) {
+							if ( polyPath.Type == PathTypes.Deposition ) {
+								canvas.DrawCircle(pt.x, pt.y, pointR, paint);
+							} else if (polyPath.Type == PathTypes.Travel ) {
 								canvas.DrawCircle(pt.x, pt.y, pointR, paint);	
 							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
 								paint.Style = SKPaintStyle.Fill;

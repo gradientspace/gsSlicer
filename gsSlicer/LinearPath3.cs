@@ -51,6 +51,18 @@ namespace gs
 			set { _pathtype = value; }
 		}
 
+		public virtual Vector3d StartPosition {
+			get {
+				return Path[0].Position;
+			}
+		}
+
+		public virtual Vector3d EndPosition {
+			get {
+				return Path[Path.Count - 1].Position;
+			}
+		}
+
 		public AxisAlignedBox3d Bounds { 
 			get {
 				return BoundsUtil.Bounds(this, (vtx) => { return vtx.Position; });
