@@ -1,13 +1,17 @@
 ﻿<Properties StartupConfiguration="{6348C5CD-6696-4B59-9851-43924A326BD4}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/tests/MakerbotTests.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/thirdparty/clipper_library/ClipperUtil.cs">
     <Files>
-      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="43" Column="53" />
-      <File FileName="gsGCode/builders/MakerbotAssembler.cs" Line="35" Column="1" />
-      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="103" Column="3" />
+      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="44" Column="55" />
+      <File FileName="gsGCode/builders/MakerbotAssembler.cs" Line="108" Column="25" />
+      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="98" Column="77" />
+      <File FileName="gsSlicer/PathSetBuilder.cs" Line="94" Column="48" />
       <File FileName="gsSlicer/MakerbotCompiler.cs" Line="73" Column="85" />
       <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="189" Column="8" />
-      <File FileName="gsSlicer/PathSetBuilder.cs" Line="44" Column="23" />
-      <File FileName="gsGCode/builders/AdditiveSettings.cs" Line="34" Column="41" />
+      <File FileName="gsSlicer/ShellsFillPolygon.cs" Line="64" Column="1" />
+      <File FileName="gsSlicer/PathScheduler.cs" Line="69" Column="14" />
+      <File FileName="gsSlicer/DenseLinesFillPolygon.cs" Line="128" Column="37" />
+      <File FileName="geometry3Sharp/curve/Polygon2d.cs" Line="244" Column="3" />
+      <File FileName="gsSlicer/thirdparty/clipper_library/ClipperUtil.cs" Line="23" Column="32" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.ItemProperties.SliceViewer PreferredExecutionTarget="MonoDevelop.Default" />
@@ -18,5 +22,6 @@
     </BreakpointStore>
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+  <AuthorInfo Name="ryan schmidt" Email="rms@gradientspace.com" Copyright="2017" Company="gradientspace" Trademark="" />
   <MultiItemStartupConfigurations />
 </Properties>

@@ -50,6 +50,11 @@
     <Compile Include="tests\MakerbotTests.cs" />
     <Compile Include="MakerbotCompiler.cs" />
     <Compile Include="PathSetBuilder.cs" />
+    <Compile Include="IFillPolygon.cs" />
+    <Compile Include="ShellsFillPolygon.cs" />
+    <Compile Include="FillPaths2d.cs" />
+    <Compile Include="PathScheduler.cs" />
+    <Compile Include="DenseLinesFillPolygon.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
@@ -59,6 +64,10 @@
     <ProjectReference Include="..\gsGCode\gsGCode.csproj">
       <Project>{25DE77C9-14A4-4562-9A24-0BF1E612D9A9}</Project>
       <Name>gsGCode</Name>
+    </ProjectReference>
+    <ProjectReference Include="thirdparty\clipper_library\clipper_library.csproj">
+      <Project>{9B062971-A88E-4A3D-B3C9-12B78D15FA66}</Project>
+      <Name>clipper_library</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

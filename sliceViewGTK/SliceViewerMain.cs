@@ -40,7 +40,8 @@ namespace SliceViewer
 
 
 #if true
-			GCodeFile genGCode = MakerbotTests.SimpleFillTest();
+			//GCodeFile genGCode = MakerbotTests.SimpleFillTest();
+			GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
 			string sWritePath = "../../../sample_output/generated.gcode";
 			StandardGCodeWriter writer = new StandardGCodeWriter();
 			using ( StreamWriter w = new StreamWriter(sWritePath) ) {
