@@ -77,6 +77,9 @@
     </Reference>
     <Reference Include="Mono.Posix" />
     <Reference Include="Mono.Cairo" />
+    <Reference Include="Svg">
+      <HintPath>..\packages\Svg.2.3.0\lib\net35\Svg.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SliceViewerMain.cs" />

@@ -36,12 +36,19 @@ namespace SliceViewer
 
 			//string sPath = "../../../sample_files/disc_single_layer.gcode";
 			//string sPath = "../../../sample_files/disc_0p6mm.gcode";
-			string sPath = "../../../sample_files/square_linearfill.gcode";
+			//string sPath = "../../../sample_files/square_linearfill.gcode";
+			string sPath = "../../../sample_files/thin_hex_test_part.gcode";
 
 
 #if true
 			//GCodeFile genGCode = MakerbotTests.SimpleFillTest();
-			GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
+			//GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
+
+			GeneralPolygon2d poly = GetPolygonFromMesh("../../../sample_files/bunny_open.obj");
+			//GCodeFile genGCode = MakerbotTests.ShellsPolygonTest(poly);
+			//GCodeFile genGCode = MakerbotTests.StackedPolygonTest(poly, 2);
+			GCodeFile genGCode = MakerbotTests.StackedScaledPolygonTest(poly, 20, 0.5);
+
 			string sWritePath = "../../../sample_output/generated.gcode";
 			StandardGCodeWriter writer = new StandardGCodeWriter();
 			using ( StreamWriter w = new StreamWriter(sWritePath) ) {
@@ -103,6 +110,26 @@ namespace SliceViewer
 
 		}
 
+
+
+
+		static GeneralPolygon2d GetPolygonFromMesh(string sPath) {
+			DMesh3 mesh = StandardMeshReader.ReadMesh(sPath);
+			MeshBoundaryLoops loops = new MeshBoundaryLoops(mesh);
+
+			PlanarComplex complex = new PlanarComplex();
+
+			foreach (var loop in loops ) {
+				Polygon2d poly = new Polygon2d();
+				DCurve3 curve = MeshUtil.ExtractLoopV(mesh, loop.Vertices);
+				foreach (Vector3d v in curve.Vertices)
+					poly.AppendVertex(v.xy);
+				complex.AddPolygon(poly);
+			}
+
+			PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(0.0, false);
+			return solids.Polygons[0];
+		}
 
 
 

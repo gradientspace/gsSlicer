@@ -24,6 +24,8 @@ namespace gs
 		public List<FillPaths2d> Paths { get; set; }
 
 
+		SegmentSet2d BoundaryPolygonCache;
+
 		public DenseLinesFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
@@ -33,13 +35,23 @@ namespace gs
 
 		public bool Compute()
 		{
-			// first shell is either polygon, or inset from that polygon
-			List<GeneralPolygon2d> current = (InsetFromInputPolygon) ?
-				ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true) :
-			   	new List<GeneralPolygon2d>() { Polygon };
+			if ( InsetFromInputPolygon ) {
+				BoundaryPolygonCache = new SegmentSet2d(Polygon);
+				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
+				foreach (GeneralPolygon2d poly in current) {
+					SegmentSet2d polyCache = new SegmentSet2d(poly);
+					Paths.Add(ComputeFillPaths(poly, polyCache));
+				}
 
-			foreach (GeneralPolygon2d poly in current)
-				Paths.Add(ComputeFillPaths(poly));
+			} else {
+				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
+				BoundaryPolygonCache = new SegmentSet2d(boundary);
+
+				SegmentSet2d polyCache = new SegmentSet2d(Polygon);
+				Paths.Add(ComputeFillPaths(Polygon, polyCache));
+
+			}
+
 
 			return true;
 		}
@@ -47,9 +59,10 @@ namespace gs
 
 
 
-		protected FillPaths2d ComputeFillPaths(GeneralPolygon2d poly) 
+		protected FillPaths2d ComputeFillPaths(GeneralPolygon2d poly, SegmentSet2d polyCache) 
 		{
-			List<List<Segment2d>> StepSpans = ComputeSegments(poly);
+			List<List<Segment2d>> StepSpans = ComputeSegments(poly, polyCache);
+			int N = StepSpans.Count;
 
 			// [TODO] need a pathfinder here, that can chain segments efficiently
 
@@ -59,53 +72,114 @@ namespace gs
 			PolyLine2d cur = new PolyLine2d();
 			Vector2d prev = Vector2d.Zero;
 
-			int N = StepSpans.Count;
-			for (int i = 0; i < N; ++i ) {
-				int M = StepSpans[i].Count;
-				if (M != 1)
-					throw new Exception("DenseLineFill.ComputeFillPaths: only handling M = 1...");
+			int iStart = 0;
+			int iCur = iStart;
+			// [TODO] pick 'best' starting span?
 
-				Segment2d seg = StepSpans[i][0];
 
-				// if we are not in a path, start one - easy!
-				if ( cur.VertexCount == 0 ) {
-					cur.AppendVertex(seg.P0);
-					cur.AppendVertex(seg.P1);
-					prev = seg.P1;
-					continue;
+			// make repeated sweeps over spans until we used them all
+			// [TODO] support reversing direction when we hit end? less travel.
+			// [TODO] support branching lookahead? in some situations it coule be
+			//    better to 'go back' around an island, then to continue in the
+			//    direction we are moving.
+
+			bool all_spans_used = false;
+			while (all_spans_used == false) {
+				all_spans_used = true;
+
+				for (int i = iCur; i < N; ++i) {
+					List<Segment2d> spans = StepSpans[i];
+					int M = spans.Count;
+
+					// if we hit no-spans case, terminate current path and start a new one
+					if (M == 0) {
+						if (cur != null && cur.VertexCount > 0) {
+							paths.Curves.Add(cur);
+							cur = new PolyLine2d();
+						}
+						continue;
+					}
+					all_spans_used = false;
+
+					// find closest point to our previous point
+					bool reverse = false;
+					int j = find_nearest_span_endpoint(spans, prev, out reverse);
+					Vector2d P0 = spans[j].Endpoint(reverse ? 1 : 0);
+					Vector2d P1 = spans[j].Endpoint(reverse ? 0 : 1);
+
+
+					// if we are not in a path, start one - easy!
+					if (cur.VertexCount == 0) {
+						cur.AppendVertex(P0);
+						cur.AppendVertex(P1);
+						prev = cur.End;
+						spans.RemoveAt(j);
+						continue;
+					}
+
+					// distance to start of closest available segment
+					double next_dist = prev.Distance(P0);
+
+					// if too far, we have to check for intersections, etc
+					if (next_dist > PathSpacing * WeirdFudgeFactor) {
+						bool terminate = false;
+
+						Segment2d seg = new Segment2d(prev, P0);
+						int hit_i = 0;
+						if ( BoundaryPolygonCache.FindAnyIntersection(seg, out hit_i) != null )
+							terminate = true;
+
+						// [TODO] an alternative to terminating is to reverse
+						//   existing path. however this may have its own
+						//   problems...
+
+						if (terminate) {
+							// too far! end this path and start a new one
+							paths.Curves.Add(cur);
+							cur = new PolyLine2d();
+						}
+					}
+
+					cur.AppendVertex(P0);
+					cur.AppendVertex(P1);
+					prev = cur.End;
+					spans.RemoveAt(j);
 				}
-
-				double d0 = prev.Distance(seg.P0);
-				double d1 = prev.Distance(seg.P1);
-
-				// if closest starting point is too far away to connect to,
-				// close current path and start a new one
-				if ( Math.Min(d0,d1) > PathSpacing*WeirdFudgeFactor) {
-					// too far! end this path and start a new one
-					paths.Curves.Add(cur);
-					cur = new PolyLine2d();
-				}
-
-				// start segment at point closer to previous point
-				if ( d0 < d1 ) {
-					cur.AppendVertex(seg.P0);
-					cur.AppendVertex(seg.P1);
-				} else {
-					cur.AppendVertex(seg.P1);
-					cur.AppendVertex(seg.P0);					
-				}
-				prev = cur.End;
 			}
 
+			// if we still have an open path, end it
 			if ( cur.VertexCount > 0 )
 				paths.Curves.Add(cur);
+			
 			return paths;
 		}
 
 
 
+		// finds segment endpoint in spans closest to input point
+		int find_nearest_span_endpoint(List<Segment2d> spans, Vector2d prev, out bool reverse)
+		{
+			reverse = false;
+			int N = spans.Count;
+			int iNearest = -1;
+			double dNearest = double.MaxValue;
+			for (int i = 0; i < N; ++i) {
+				double d0 = prev.DistanceSquared(spans[i].P0);
+				double d1 = prev.DistanceSquared(spans[i].P1);
+				double min = Math.Min(d0, d1);
+				if ( min < dNearest ) {
+					dNearest = min;
+					iNearest = i;
+					if (d1 < d0)
+						reverse = true;
+				}
+			}
+			return iNearest;
+		}
 
-		protected List<List<Segment2d>> ComputeSegments(GeneralPolygon2d poly) {
+
+
+		protected List<List<Segment2d>> ComputeSegments(GeneralPolygon2d poly, SegmentSet2d polyCache) {
 
 			double angleRad = AngleDeg * MathUtil.Deg2Rad;
 			Vector2d dir = new Vector2d(Math.Cos(angleRad), Math.Sin(angleRad));
@@ -133,22 +207,13 @@ namespace gs
 			double range = axisInterval.Length;
 			int N = (int)(range / PathSpacing);
 
-			// [TODO] should be using a spatial DS here, no? or at least can sort along axis!!
-			// [TODO] maybe should keep separate, and use bboxes of holes??
-			List<Segment2d> segs = new List<Segment2d>(poly.Outer.SegmentItr());
-			foreach (var hole in poly.Holes)
-				segs.AddRange(hole.SegmentItr());
-
-
 			List<List<Segment2d>> PerRaySpans = new List<List<Segment2d>>();
 			for (int ti = 0; ti <= N; ++ti ) {
 				double t = (double)ti / (double)N;
 				Vector2d o = startCorner + (t * range) * axis;
 				Segment2d ray = new Segment2d(o, o + extent * dir);
 
-				List<Segment2d> spans = ComputeAllRaySpans(ray, startCorner, axis, t, segs);
-				if (spans.Count != 1)
-					throw new Exception("DenseLinesFill.ComputeSegments: have not handled hard cases!!");
+				List<Segment2d> spans = compute_polygon_ray_spans(ray, startCorner, axis, t, polyCache);
 				PerRaySpans.Add(spans);
 			}
 
@@ -158,33 +223,11 @@ namespace gs
 
 
 		// yikes not robust at all!!
-		protected List<Segment2d> ComputeAllRaySpans(Segment2d ray, Vector2d axis_origin, Vector2d axis, double axisT, List<Segment2d> loopSegments) 
+		protected List<Segment2d> compute_polygon_ray_spans(Segment2d ray, Vector2d axis_origin, Vector2d axis, double axisT, SegmentSet2d segments) 
 		{
-			List<double> hits = new List<double>();
 
-			int N = loopSegments.Count;
-			for (int i = 0; i < N; ++i ) {
-
-				// why doesn't this work??
-				//Interval1d interval = Interval1d.Unsorted(
-					//(loopSegments[i].P0 - axis_origin).Dot(axis),
-					//(loopSegments[i].P1 - axis_origin).Dot(axis) );
-				//if (!interval.Contains(axisT))
-					//continue;
-
-				IntrSegment2Segment2 intr = new IntrSegment2Segment2(ray, loopSegments[i]);
-				if (intr.Find()) {
-					// skip non-simple intersections, they are "on" a segment and
-					// we don't need it (right?)
-
-					// NO SUPER WRONG AAAHHHH span might be needed to terminate ray!!
-					// Maybe try slightly perturbing in this case??
-
-					if ( intr.IsSimpleIntersection )
-						hits.Add(intr.Parameter0);
-				}
-			}
-
+			List<double> hits = new List<double>();     // todo reusable buffer
+			segments.FindAllIntersections(ray, hits, null, null, true);
 			hits.Sort();
 
 			if (hits.Count % 2 != 0)
@@ -199,6 +242,10 @@ namespace gs
 
 			return spans;
 		}
+
+
+
+
 
 
 	}

@@ -86,10 +86,14 @@ namespace gs
 			poly.AppendVertex(new Vector2d(-r, r));
 			GeneralPolygon2d shape = new GeneralPolygon2d() { Outer = poly };
 
+			Polygon2d hole = Polygon2d.MakeCircle(r / 2, 6, 30*MathUtil.Deg2Rad);
+			hole.Reverse();
+			shape.AddHole(hole);
+
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
 			shells_gen.PathSpacing = settings.FillPathSpacingMM;
 			shells_gen.ToolWidth = settings.NozzleDiamMM;
-			shells_gen.Layers = 5;
+			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
 			scheduler.Append(shells_gen.Shells);
@@ -114,6 +118,179 @@ namespace gs
 
 			return fileAccum.File;
 		}
+
+
+
+
+
+
+		public static GCodeFile ShellsPolygonTest(GeneralPolygon2d shape)
+		{
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+
+			MakerbotSettings settings = new MakerbotSettings();
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+			double StepY = settings.FillPathSpacingMM;
+
+			PathSetBuilder paths = new PathSetBuilder();
+			paths.Initialize(cc.NozzlePosition);
+			Vector3d currentPos = paths.Position;
+
+			// layer-up
+			currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+			PathScheduler scheduler = new PathScheduler(paths, settings);
+
+			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+			shells_gen.PathSpacing = settings.FillPathSpacingMM;
+			shells_gen.ToolWidth = settings.NozzleDiamMM;
+			shells_gen.Layers = 2;
+			shells_gen.Compute();
+
+			scheduler.Append(shells_gen.Shells);
+
+			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
+				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+					InsetFromInputPolygon = false,
+					PathSpacing = settings.FillPathSpacingMM,
+					ToolWidth = settings.NozzleDiamMM
+				};
+				infill_gen.Compute();
+				scheduler.Append(infill_gen.Paths);
+			}
+
+			cc.AppendPaths(paths.Paths);
+
+			cc.End();
+
+			return fileAccum.File;
+		}
+
+
+
+
+
+
+
+		public static GCodeFile StackedPolygonTest(GeneralPolygon2d shape, int nLayers)
+		{
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+
+			MakerbotSettings settings = new MakerbotSettings();
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+			double StepY = settings.FillPathSpacingMM;
+
+			PathSetBuilder paths = new PathSetBuilder();
+			paths.Initialize(cc.NozzlePosition);
+			Vector3d currentPos = paths.Position;
+
+
+			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+			shells_gen.PathSpacing = settings.FillPathSpacingMM;
+			shells_gen.ToolWidth = settings.NozzleDiamMM;
+			shells_gen.Layers = 2;
+			shells_gen.Compute();
+
+			List<FillPaths2d> infill_paths = new List<FillPaths2d>();
+			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
+				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+					InsetFromInputPolygon = false,
+					PathSpacing = settings.FillPathSpacingMM,
+					ToolWidth = settings.NozzleDiamMM
+				};
+				infill_gen.Compute();
+				infill_paths.AddRange(infill_gen.Paths);
+			}
+
+			for (int i = 0; i < nLayers; ++i) {
+				// layer-up
+				paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+				// add paths
+				PathScheduler scheduler = new PathScheduler(paths, settings);
+				scheduler.Append(shells_gen.Shells);
+				scheduler.Append(infill_paths);
+			}
+
+			cc.AppendPaths(paths.Paths);
+			cc.End();
+
+			return fileAccum.File;
+		}
+
+
+
+
+
+		public static GCodeFile StackedScaledPolygonTest(GeneralPolygon2d shapeIn, int nLayers, double fTopScale)
+		{
+			if (fTopScale < 0.25 || fTopScale > 1.5)
+				throw new Exception("not a good idea?");
+
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+
+			MakerbotSettings settings = new MakerbotSettings();
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+			double StepY = settings.FillPathSpacingMM;
+
+			for (int i = 0; i < nLayers; ++i ) {
+				double t = (double)i / (double)(nLayers-1);
+				double scale = MathUtil.Lerp(1, fTopScale, t);
+
+				PathSetBuilder paths = new PathSetBuilder();
+				paths.Initialize(cc.NozzlePosition);
+				Vector3d currentPos = paths.Position;
+
+				// layer-up
+				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+				PathScheduler scheduler = new PathScheduler(paths, settings);
+
+				GeneralPolygon2d shape = new GeneralPolygon2d(shapeIn);
+				shape.Scale(scale*Vector2d.One, Vector2d.Zero);
+
+				ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+				shells_gen.PathSpacing = settings.FillPathSpacingMM;
+				shells_gen.ToolWidth = settings.NozzleDiamMM;
+				shells_gen.Layers = 2;
+				shells_gen.Compute();
+
+				scheduler.Append(shells_gen.Shells);
+
+				foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
+					DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+						InsetFromInputPolygon = false,
+						PathSpacing = settings.FillPathSpacingMM,
+						ToolWidth = settings.NozzleDiamMM
+					};
+					infill_gen.Compute();
+					scheduler.Append(infill_gen.Paths);
+				}
+
+				cc.AppendPaths(paths.Paths);
+
+			}
+
+			cc.End();
+
+			return fileAccum.File;
+		}
+
 
 
 	}
