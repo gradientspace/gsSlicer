@@ -10,7 +10,6 @@ namespace SliceViewer
 {
 	class SliceViewCanvas : DrawingArea
 	{
-		public PathSet Paths = new PathSet();
 
 
 		public bool ShowOpenEndpoints = true;
@@ -32,54 +31,32 @@ namespace SliceViewer
 			Events = Gdk.EventMask.ExposureMask | Gdk.EventMask.LeaveNotifyMask |
 			            Gdk.EventMask.ButtonPressMask | Gdk.EventMask.ButtonReleaseMask | Gdk.EventMask.PointerMotionMask |
 			            Gdk.EventMask.ScrollMask;
+
+			SetPaths(new PathSet());
 		}
 
+		PathSet Paths;
+		LayersDetector Layers;
+		int currentLayer = 0;
+		Func<Vector3d, byte> LayerFilterF = (v) => { return 255; };
 
-		// zoom
-		private void OnScrollEvent(object o, ScrollEventArgs args)
-		{
-			if (args.Event.Direction == Gdk.ScrollDirection.Up)
-				Zoom *= 1.05f;
-			else
-				Zoom = Math.Max( 0.25f, Zoom * (1.0f / 1.05f) );
-			QueueDraw();
+		public void SetPaths(PathSet paths) {
+			Paths = paths;
+			Layers = new LayersDetector(Paths);
+			CurrentLayer = 0;
 		}
 
-
-		// pan support
-		bool left_down = false;
-		Vector2f start_pos = Vector2f.Zero;
-		Vector2f pan_start;
-		private void OnButtonPressEvent(object o, ButtonPressEventArgs args) {
-			if (args.Event.Button == 1) {
-				left_down = true;
-				start_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
-				pan_start = Translate;
-			}
-		}
-		private void OnButtonReleaseEvent(object o, ButtonReleaseEventArgs args) {
-			if ( left_down )
-				left_down = false;
-		}
-		private void OnMotionNotifyEvent(object o, MotionNotifyEventArgs args)
-		{
-			if ( left_down ) {
-				Vector2f cur_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
-				Vector2f delta = cur_pos - start_pos;
-				delta.y = -delta.y;
-				delta *= 1.0f;  // speed
-				Translate = pan_start + delta/Zoom;
+		public int CurrentLayer {
+			get { return currentLayer; }
+			set {
+				currentLayer = MathUtil.Clamp(value, 0, Layers.Layers - 1);
+				Interval1d layer_zrange = Layers.GetLayerZInterval(currentLayer);
+				LayerFilterF = (v) => {
+					return (layer_zrange.Contains(v.z)) ? (byte)255 : (byte)0;
+				};
 				QueueDraw();
 			}
 		}
-
-
-		void Reset()
-		{
-			Zoom = 1.0f;
-			Translate = Vector2f.Zero;
-		}
-
 
 
 
@@ -173,6 +150,12 @@ namespace SliceViewer
                         paint.Style = SKPaintStyle.Stroke;
 
 						Action<LinearPath3<PathVertex>> drawPath3F = (polyPath) => {
+
+							Vector3d v0 = polyPath.Start.Position;
+							byte layer_alpha = LayerFilterF(v0);
+							if (layer_alpha == 0)
+								return;
+
 							SKPath path = MakePath(polyPath, mapToSkiaF);
 							if ( polyPath.Type == PathTypes.Deposition ) {
 								paint.Color = extrudeColor;
@@ -185,6 +168,8 @@ namespace SliceViewer
 							} else {
 								paint.Color = startColor;
 							}
+							paint.Color = SkiaUtil.Color(paint.Color, layer_alpha);
+
 							canvas.DrawPath(path, paint);
 
 							paint.StrokeWidth = 1;
@@ -236,5 +221,73 @@ namespace SliceViewer
 
 			//return true;
 		}
+
+
+
+
+
+
+
+		// zoom
+		private void OnScrollEvent(object o, ScrollEventArgs args)
+		{
+			if (args.Event.Direction == Gdk.ScrollDirection.Up)
+				Zoom *= 1.05f;
+			else
+				Zoom = Math.Max(0.25f, Zoom * (1.0f / 1.05f));
+			QueueDraw();
+		}
+
+
+		// pan support
+		bool left_down = false;
+		Vector2f start_pos = Vector2f.Zero;
+		Vector2f pan_start;
+		private void OnButtonPressEvent(object o, ButtonPressEventArgs args)
+		{
+			if (args.Event.Button == 1) {
+				left_down = true;
+				start_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
+				pan_start = Translate;
+			}
+		}
+		private void OnButtonReleaseEvent(object o, ButtonReleaseEventArgs args)
+		{
+			if (left_down)
+				left_down = false;
+		}
+		private void OnMotionNotifyEvent(object o, MotionNotifyEventArgs args)
+		{
+			if (left_down) {
+				Vector2f cur_pos = new Vector2f((float)args.Event.X, (float)args.Event.Y);
+				Vector2f delta = cur_pos - start_pos;
+				delta.y = -delta.y;
+				delta *= 1.0f;  // speed
+				Translate = pan_start + delta / Zoom;
+				QueueDraw();
+			}
+		}
+
+
+		void Reset()
+		{
+			Zoom = 1.0f;
+			Translate = Vector2f.Zero;
+			QueueDraw();
+		}
+
+
+
+
+
+
+
+
+
 	}
+
+
+
+
+
 }

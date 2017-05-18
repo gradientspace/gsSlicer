@@ -70,6 +70,15 @@ namespace gs
 		}
 
 
+		public bool HasFinitePositions {
+			get { return true; }
+		}
+		public IEnumerable<Vector3d> AllPositionsItr() {
+			foreach (var v in Path)
+				yield return v.Position;
+		}
+
+
 		public IEnumerator<T> GetEnumerator() {
 			return Path.GetEnumerator();
 		}

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using g3;
 
 namespace gs 
@@ -93,6 +94,17 @@ namespace gs
 				return box;				
 			}
 		}
+
+
+		public bool HasFinitePositions {
+			get { return false; }
+		}
+		public IEnumerable<Vector3d> AllPositionsItr()
+		{
+			return Enumerable.Empty<Vector3d>();
+		}
+
+
 
 		public List<double> GetZValues() {
 			HashSet<double> Zs = new HashSet<double>();

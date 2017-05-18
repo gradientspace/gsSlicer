@@ -15,6 +15,9 @@ namespace SliceViewer
 	class MainClass
 	{
 
+		public static Window MainWindow;
+		public static SliceViewCanvas View; 
+
 
 		public static void Main(string[] args)
 		{
@@ -25,10 +28,10 @@ namespace SliceViewer
 
 			Gtk.Application.Init();
 
-			var window = new Window("SliceViewer");
-			window.SetDefaultSize(900, 600);
-			window.SetPosition(WindowPosition.Center);
-			window.DeleteEvent += delegate {
+			MainWindow = new Window("SliceViewer");
+			MainWindow.SetDefaultSize(900, 600);
+			MainWindow.SetPosition(WindowPosition.Center);
+			MainWindow.DeleteEvent += delegate {
 				Gtk.Application.Quit();
 			};
 
@@ -84,23 +87,15 @@ namespace SliceViewer
 			CalculateExtrusion calc = new CalculateExtrusion(converter.Paths, settings);
 			calc.TestCalculation();
 
-			PathSet Layer = converter.Paths;
+			PathSet Paths = converter.Paths;
 
-			//PathSet Layer = new PathSet();
-			//LinearPath2 path = new LinearPath2();
-			//path.AppendVertex(new Vector2d(100, 100));
-			//path.AppendVertex(new Vector2d(400, 100));
-			//path.AppendVertex(new Vector2d(400, 400));
-			//path.AppendVertex(new Vector2d(100, 400));
-			//path.AppendVertex(new Vector2d(100, 105));
-			//Layer.Append(path);
+            View = new SliceViewCanvas();
+			View.SetPaths(Paths);
+            MainWindow.Add(View);
 
+			MainWindow.KeyReleaseEvent += Window_KeyReleaseEvent;
 
-            var darea = new SliceViewCanvas();
-			darea.Paths = Layer;
-            window.Add(darea);
-
-            window.ShowAll();
+            MainWindow.ShowAll();
 
             Gtk.Application.Run();
         }
@@ -109,6 +104,18 @@ namespace SliceViewer
 		{
 
 		}
+
+
+		private static void Window_KeyReleaseEvent(object sender, KeyReleaseEventArgs args)
+		{
+			if (args.Event.Key == Gdk.Key.Up) {
+				View.CurrentLayer = View.CurrentLayer + 1;
+			} else if (args.Event.Key == Gdk.Key.Down) {
+				View.CurrentLayer = View.CurrentLayer - 1;
+			}
+		}
+
+
 
 
 

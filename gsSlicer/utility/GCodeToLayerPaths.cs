@@ -12,7 +12,9 @@ namespace gs
 	{
 	}
 
-
+	/// <summary>
+	/// Convert a GCodeFile to a single huge PathSet
+	/// </summary>
 	public class GCodeToLayerPaths : IGCodeListener
 	{
 		public PathSet Paths;

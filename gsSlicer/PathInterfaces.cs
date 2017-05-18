@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using g3;
 
@@ -57,6 +58,9 @@ namespace gs
 		Vector3d StartPosition { get; }
 		Vector3d EndPosition { get; }
 		AxisAlignedBox3d Bounds { get; }
+
+		bool HasFinitePositions { get; }
+		IEnumerable<Vector3d> AllPositionsItr();
 	}
 
 	public interface ILinearPath<T> : IPath, IEnumerable<T>
@@ -119,6 +123,14 @@ namespace gs
 				return AxisAlignedBox3d.Zero;
 			}
 		}
+
+		public bool HasFinitePositions { 
+			get { return false; }
+		}
+		public IEnumerable<Vector3d> AllPositionsItr() {
+			return Enumerable.Empty<Vector3d>();
+		}
+
 	}
 
 }

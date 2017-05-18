@@ -41,7 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="gcode\GCodeToLayerPaths.cs" />
+    <Compile Include="utility\GCodeToLayerPaths.cs" />
     <Compile Include="PathSet.cs" />
     <Compile Include="PathInterfaces.cs" />
     <Compile Include="LinearPath3.cs" />
@@ -55,6 +55,7 @@
     <Compile Include="FillPaths2d.cs" />
     <Compile Include="PathScheduler.cs" />
     <Compile Include="DenseLinesFillPolygon.cs" />
+    <Compile Include="utility\LayersDetector.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
@@ -71,7 +72,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="gcode\" />
+    <Folder Include="utility\" />
     <Folder Include="tests\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
