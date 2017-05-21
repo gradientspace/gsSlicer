@@ -6,6 +6,9 @@ namespace gs
 {
 	public static class PathUtil 
 	{
+		public static readonly Index3i ConnectorVFlag = new Index3i((int)PathVertexFlags.IsConnector, 0, 0);
+
+
 		public static void ApplyToLeafPaths(IPath root, Action<IPath> LeafF) {
 			if ( root is IPathSet ) {
 				ApplyToLeafPaths( root as IPathSet, LeafF );

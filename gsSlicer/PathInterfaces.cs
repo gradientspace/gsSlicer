@@ -15,6 +15,19 @@ namespace gs
 		Custom
 	};
 		
+	/// <summary>
+	/// PathVertex.Flags field is 3 ints that can be used for whatever purpose.
+	/// First int we assume is one of these values, or a client-defined value.
+	/// </summary>
+	public enum PathVertexFlags {
+		NoFlags = 0,
+
+		IsConnector,				// move to this vertex is a 'connector' move
+
+		ClientDefinedFlag = 100		// use a value > this for custom flags 
+	}
+
+
 
 	public interface IPathVertex {
 		Vector3d Position { get; set; }
@@ -23,8 +36,9 @@ namespace gs
 	public struct PathVertex : IPathVertex 
 	{
 		public Vector3d Position { get; set; }
-		public double FeedRate;
-		public Vector3d Extrusion {get; set; }
+		public double FeedRate { get; set; }
+		public Vector3d Extrusion { get; set; }
+		public Index3i Flags { get; set; }
 
 		public object Source { get; set; }
 
@@ -32,6 +46,7 @@ namespace gs
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = Vector3d.Zero;
+			Flags = Index3i.Zero;
 			Source = null;
 		}
 
@@ -39,6 +54,7 @@ namespace gs
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = new Vector3d(ExtruderA, 0, 0);
+			Flags = Index3i.Zero;
 			Source = null;
 		}
 

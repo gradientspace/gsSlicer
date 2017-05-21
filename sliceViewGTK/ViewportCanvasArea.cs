@@ -60,25 +60,7 @@ namespace SliceViewer
 
 
 
-
-
-
-        SKPath MakePath(PolyLine2d polyLine, Func<Vector2d, SKPoint> mapF)
-        {
-			SKPath p = new SKPath();
-            p.MoveTo(mapF(polyLine[0]));
-			for ( int i = 1; i < polyLine.VertexCount; i++ )
-				p.LineTo( mapF(polyLine[i]) );
-            return p;
-        }
-		SKPath MakePath(PolyLine3d polyLine, Func<Vector2d, SKPoint> mapF)
-		{
-			SKPath p = new SKPath();
-			p.MoveTo(mapF(polyLine[0].xy));
-			for ( int i = 1; i < polyLine.VertexCount; i++ )
-				p.LineTo( mapF(polyLine[i].xy) );
-			return p;
-		}     
+		    
 		SKPath MakePath<T>(LinearPath3<T> path, Func<Vector2d, SKPoint> mapF) where T : IPathVertex
 		{
 			SKPath p = new SKPath();

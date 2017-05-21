@@ -15,8 +15,13 @@ namespace gs
 		double FixedRetractDistance = 1.3;
 
 		// [RMS] this is a fudge factor thatwe maybe should not use?
-		public double HackCorrection = 1.052;
+		//public double HackCorrection = 1.052;    // fitting to error from makerbot slicer
+		public double HackCorrection = 1.0;
 
+
+		// output statistics
+		public int NumPaths = 0;
+		public double ExtrusionLength = 0;
 
 
 		public CalculateExtrusion(PathSet paths, SingleMaterialFFFSettings settings) 
@@ -30,12 +35,16 @@ namespace gs
 			FixedRetractDistance = settings.RetractDistanceMM;
 		}
 
-
-		public double calculate_extrude(double dist, double moveRate) {
-
-
+		/// <summary>
+		/// This function computes the amount of filament to extrude (ie how
+		/// much to turn extruder stepper) along pathLen distance, at moveRate speed.
+		/// volumeScale allows for local tuning of this.
+		/// </summary>
+		public double calculate_extrude(double pathLen, double moveRate, double volumeScale = 1.0) 
+		{
 			double section_area = NozzleDiam * LayerHeight * HackCorrection;
-			double linear_vol = dist * section_area;
+			double linear_vol = pathLen * section_area;
+			linear_vol *= volumeScale;
 
 			double fil_rad = FilamentDiam/2;
 			double fil_area = Math.PI*fil_rad*fil_rad;
@@ -65,7 +74,6 @@ namespace gs
 				});
 			}
 			int N = allPaths.Count;
-			System.Console.WriteLine("CalculateExtruderMotion: have {0} paths", N);
 
 
 			for ( int pi = 0; pi < N; ++pi ) {
@@ -85,6 +93,7 @@ namespace gs
 
 					Vector3d newPos = path[i].Position;
 					double newRate = path[i].FeedRate;
+					//Index3i flags = path[i].Flags;
 
 					if ( path.Type != PathTypes.Deposition ) {
 						if ( ! inRetract ) {
@@ -104,7 +113,9 @@ namespace gs
 						curPos = newPos;
 						curRate = newRate;
 
-						double feed = calculate_extrude(dist, curRate);
+						double vol_scale = 1;
+
+						double feed = calculate_extrude(dist, curRate, vol_scale);
 						curA += feed;
 					}
 
@@ -113,14 +124,17 @@ namespace gs
 					path.UpdateVertex(i, v);
 
 				}
-
-
 			}
 
+			NumPaths = N;
+			ExtrusionLength = curA;
+
+		} // Calculate()
+
+
+		bool is_connection(Index3i flags) {
+			return flags.a == (int)PathVertexFlags.IsConnector;
 		}
-
-
-
 
 
 

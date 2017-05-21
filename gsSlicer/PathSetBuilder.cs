@@ -81,21 +81,34 @@ namespace gs
 		}
 
 
-		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed) {
+		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, List<Index3i> flags = null) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
 			extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
-			foreach (Vector2d pos2 in toPoints) {
-				Vector3d pos = new Vector3d(pos2.x, pos2.y, currentPos.z);
-				extrusion.AppendVertex(new PathVertex(pos, fSpeed));
+			if (flags == null) {
+				for (int i = 0; i < toPoints.Count; ++i) {
+					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
+					extrusion.AppendVertex(new PathVertex(pos, fSpeed));
+				}
+			} else {
+				for (int i = 0; i < toPoints.Count; ++i) {
+					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
+					extrusion.AppendVertex(new PathVertex(pos, fSpeed){ Flags = flags[i] });
+				}
 			}
 			AppendPath(extrusion);
 			return currentPos;
 		}
-		public virtual Vector3d AppendExtrude(List<Vector3d> toPoints, double fSpeed) {
+
+		public virtual Vector3d AppendExtrude(List<Vector3d> toPoints, double fSpeed, List<Index3i> flags = null) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
 			extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
-			foreach (Vector3d pos in toPoints)
-				extrusion.AppendVertex(new PathVertex(pos, fSpeed));
+			if (flags == null) {
+				for (int i = 0; i < toPoints.Count; ++i)
+					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed));
+			} else {
+				for (int i = 0; i < toPoints.Count; ++i)
+					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed) { Flags = flags[i] });
+			}
 			AppendPath(extrusion);
 			return currentPos;
 		}

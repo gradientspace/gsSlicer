@@ -1,11 +1,17 @@
 ﻿<Properties StartupConfiguration="{6348C5CD-6696-4B59-9851-43924A326BD4}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="sliceViewGTK/SliceViewerMain.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="sliceViewGTK/ViewportCanvasArea.cs">
     <Files>
-      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="110" Column="36" />
-      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="235" Column="51" />
-      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="50" Column="32" />
-      <File FileName="gsSlicer/utility/LayersDetector.cs" Line="40" Column="51" />
-      <File FileName="gsSlicer/PathInterfaces.cs" Line="131" Column="36" />
+      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="48" Column="4" />
+      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="376" Column="88" />
+      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="66" Column="28" />
+      <File FileName="gsSlicer/tests/CalculateExtrusion.cs" Line="7" Column="23" />
+      <File FileName="gsSlicer/DenseLinesFillPolygon.cs" Line="151" Column="28" />
+      <File FileName="gsSlicer/FillPaths2d.cs" Line="51" Column="3" />
+      <File FileName="gsSlicer/PathSet.cs" Line="1" Column="1" />
+      <File FileName="gsSlicer/PathInterfaces.cs" Line="25" Column="63" />
+      <File FileName="gsSlicer/PathScheduler.cs" Line="99" Column="23" />
+      <File FileName="gsSlicer/PathSetBuilder.cs" Line="101" Column="3" />
+      <File FileName="gsGCode/settings/AdditiveSettings.cs" Line="55" Column="19" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.ItemProperties.SliceViewer PreferredExecutionTarget="MonoDevelop.Default" />

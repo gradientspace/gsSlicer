@@ -48,6 +48,7 @@ namespace gs
 
 			cc.End();
 
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
 
@@ -108,14 +109,11 @@ namespace gs
 				scheduler.Append(infill_gen.Paths);
 			}
 
-
-			currentPos = paths.Position;
-
-
 			cc.AppendPaths(paths.Paths);
 
 			cc.End();
 
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
 
@@ -168,6 +166,7 @@ namespace gs
 
 			cc.End();
 
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
 
@@ -225,6 +224,7 @@ namespace gs
 			cc.AppendPaths(paths.Paths);
 			cc.End();
 
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
 
@@ -288,9 +288,94 @@ namespace gs
 
 			cc.End();
 
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
 
+
+
+
+
+
+
+
+		public static GCodeFile SliceMeshTest(DMesh3 mesh)
+		{
+
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+			MakerbotSettings settings = new MakerbotSettings();
+
+			AxisAlignedBox3d bounds = mesh.CachedBounds;
+			int nLayers = (int)(bounds.Diagonal.z / settings.LayerHeightMM);
+
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+			double StepY = settings.FillPathSpacingMM;
+
+
+			for (int i = 0; i <= nLayers; ++i) {
+				System.Console.WriteLine("Layer {0} of {1}", i, nLayers);
+
+				double z = ((double)i + 0.5) * settings.LayerHeightMM;
+				DMesh3 sliceMesh = new DMesh3(mesh);
+				MeshPlaneCut cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z), Vector3d.AxisZ);
+				cut.Cut();
+
+				// [TODO] holes ?
+
+				List<GeneralPolygon2d> polygons = new List<GeneralPolygon2d>();
+				foreach ( EdgeLoop loop in cut.CutLoops ) {
+					Polygon2d poly = new Polygon2d();
+					foreach ( int vid in loop.Vertices ) {
+						Vector3d v = sliceMesh.GetVertex(vid);
+						poly.AppendVertex(v.xy);
+					}
+					polygons.Add(new GeneralPolygon2d(poly));
+				}
+
+
+				PathSetBuilder paths = new PathSetBuilder();
+				paths.Initialize(cc.NozzlePosition);
+				Vector3d currentPos = paths.Position;
+
+				// layer-up
+				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+				PathScheduler scheduler = new PathScheduler(paths, settings);
+
+				foreach(GeneralPolygon2d shape in polygons) {
+					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.ToolWidth = settings.NozzleDiamMM;
+					shells_gen.Layers = 2;
+					shells_gen.Compute();
+
+					scheduler.Append(shells_gen.Shells);
+
+					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
+						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+							InsetFromInputPolygon = false,
+							PathSpacing = settings.FillPathSpacingMM,
+							ToolWidth = settings.NozzleDiamMM
+						};
+						infill_gen.Compute();
+						scheduler.Append(infill_gen.Paths);
+					}
+				}
+
+				cc.AppendPaths(paths.Paths);
+
+			}
+
+			cc.End();
+
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
+			return fileAccum.File;
+		}
 
 
 	}

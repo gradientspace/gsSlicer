@@ -30,7 +30,7 @@ namespace gs
 				foreach (Polygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
 				}
-				foreach (PolyLine2d curve in polySet.Curves) {
+				foreach (FillPolyline2d curve in polySet.Curves) {
 					AppendPolyline2d(curve);
 				}
 			}
@@ -67,7 +67,7 @@ namespace gs
 
 
 		// [TODO] would it ever make sense to break polyline to avoid huge travel??
-		public void AppendPolyline2d(PolyLine2d curve)
+		public void AppendPolyline2d(FillPolyline2d curve)
 		{
 			Vector3d currentPos = Builder.Position;
 			Vector2d currentPos2 = currentPos.xy;
@@ -84,16 +84,24 @@ namespace gs
 			Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
 
 			List<Vector2d> loopV;
+			List<Index3i> flags = null;
 			if (bReverse) {
 				loopV = new List<Vector2d>(N);
 				for (int i = N - 1; i >= 0; --i)
 					loopV.Add(curve[i]);
+				if (curve.HasFlags) {
+					flags = new List<Index3i>(N);
+					for (int i = N - 1; i >= 0; --i)
+						flags.Add(curve.GetFlag(i));
+				}
 			} else {
 				loopV = new List<Vector2d>(curve);
+				if (curve.HasFlags)
+					flags = new List<Index3i>(curve.Flags());
 			}
 
 			// [TODO] speed here...
-			Builder.AppendExtrude(loopV, Settings.FirstLayerExtrudeSpeed);
+			Builder.AppendExtrude(loopV, Settings.FirstLayerExtrudeSpeed, flags);
 		}
 
 

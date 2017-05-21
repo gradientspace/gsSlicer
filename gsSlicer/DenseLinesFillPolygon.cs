@@ -64,12 +64,14 @@ namespace gs
 			List<List<Segment2d>> StepSpans = ComputeSegments(poly, polyCache);
 			int N = StepSpans.Count;
 
+			double hard_max_dist = 5 * PathSpacing;
+
 			// [TODO] need a pathfinder here, that can chain segments efficiently
 
 			// (for now just do dumb things?)
 
 			FillPaths2d paths = new FillPaths2d();
-			PolyLine2d cur = new PolyLine2d();
+			FillPolyline2d cur = new FillPolyline2d();
 			Vector2d prev = Vector2d.Zero;
 
 			int iStart = 0;
@@ -95,7 +97,7 @@ namespace gs
 					if (M == 0) {
 						if (cur != null && cur.VertexCount > 0) {
 							paths.Curves.Add(cur);
-							cur = new PolyLine2d();
+							cur = new FillPolyline2d();
 						}
 						continue;
 					}
@@ -129,6 +131,9 @@ namespace gs
 						if ( BoundaryPolygonCache.FindAnyIntersection(seg, out hit_i) != null )
 							terminate = true;
 
+						if (terminate == false && next_dist > hard_max_dist)
+							terminate = true;
+
 						// [TODO] an alternative to terminating is to reverse
 						//   existing path. however this may have its own
 						//   problems...
@@ -136,11 +141,14 @@ namespace gs
 						if (terminate) {
 							// too far! end this path and start a new one
 							paths.Curves.Add(cur);
-							cur = new PolyLine2d();
+							cur = new FillPolyline2d();
 						}
 					}
 
-					cur.AppendVertex(P0);
+					if (cur.VertexCount > 0)
+						cur.AppendVertex(P0, PathUtil.ConnectorVFlag);
+					else
+						cur.AppendVertex(P0);
 					cur.AppendVertex(P1);
 					prev = cur.End;
 					spans.RemoveAt(j);
@@ -150,7 +158,14 @@ namespace gs
 			// if we still have an open path, end it
 			if ( cur.VertexCount > 0 )
 				paths.Curves.Add(cur);
-			
+
+			paths.OptimizeCurves(2*PathSpacing, (seg) => {
+				int hit_i = 0;
+				if (BoundaryPolygonCache.FindAnyIntersection(seg, out hit_i) != null)
+					return false;
+				return true;
+			});
+
 			return paths;
 		}
 
@@ -181,6 +196,8 @@ namespace gs
 
 		protected List<List<Segment2d>> ComputeSegments(GeneralPolygon2d poly, SegmentSet2d polyCache) {
 
+			List<List<Segment2d>> PerRaySpans = new List<List<Segment2d>>();
+
 			double angleRad = AngleDeg * MathUtil.Deg2Rad;
 			Vector2d dir = new Vector2d(Math.Cos(angleRad), Math.Sin(angleRad));
 
@@ -201,13 +218,12 @@ namespace gs
 			axisInterval.a += ToolWidth * 0.1;
 			axisInterval.b -= ToolWidth * 0.1;
 			if (axisInterval.b < axisInterval.a)
-				throw new Exception("DenseLinesFillPolygon: interval is empty - what to do in this case??");
+				return PerRaySpans;		// [RMS] is this right? I guess so. interval is too small to fill?
 
 			Vector2d startCorner = axisInterval.a * axis + dirInterval.a * dir;
 			double range = axisInterval.Length;
 			int N = (int)(range / PathSpacing);
 
-			List<List<Segment2d>> PerRaySpans = new List<List<Segment2d>>();
 			for (int ti = 0; ti <= N; ++ti ) {
 				double t = (double)ti / (double)N;
 				Vector2d o = startCorner + (t * range) * axis;

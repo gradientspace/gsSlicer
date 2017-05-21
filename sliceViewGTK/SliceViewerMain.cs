@@ -45,12 +45,15 @@ namespace SliceViewer
 
 #if true
 			//GCodeFile genGCode = MakerbotTests.SimpleFillTest();
-			//GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
+			GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
 
-			GeneralPolygon2d poly = GetPolygonFromMesh("../../../sample_files/bunny_open.obj");
+			//GeneralPolygon2d poly = GetPolygonFromMesh("../../../sample_files/bunny_open.obj");
 			//GCodeFile genGCode = MakerbotTests.ShellsPolygonTest(poly);
 			//GCodeFile genGCode = MakerbotTests.StackedPolygonTest(poly, 2);
-			GCodeFile genGCode = MakerbotTests.StackedScaledPolygonTest(poly, 20, 0.5);
+			//GCodeFile genGCode = MakerbotTests.StackedScaledPolygonTest(poly, 20, 0.5);
+
+			//DMesh3 mesh = StandardMeshReader.ReadMesh("../../../sample_files/bunny_solid_2p5cm.obj");
+			//GCodeFile genGCode = MakerbotTests.SliceMeshTest(mesh);
 
 			string sWritePath = "../../../sample_output/generated.gcode";
 			StandardGCodeWriter writer = new StandardGCodeWriter();
@@ -83,9 +86,9 @@ namespace SliceViewer
 			InterpretArgs interpArgs = new InterpretArgs();
 			interpreter.Interpret(gcode, interpArgs);
 
-			MakerbotSettings settings = new MakerbotSettings();
-			CalculateExtrusion calc = new CalculateExtrusion(converter.Paths, settings);
-			calc.TestCalculation();
+			//MakerbotSettings settings = new MakerbotSettings();
+			//CalculateExtrusion calc = new CalculateExtrusion(converter.Paths, settings);
+			//calc.TestCalculation();
 
 			PathSet Paths = converter.Paths;
 
@@ -109,9 +112,15 @@ namespace SliceViewer
 		private static void Window_KeyReleaseEvent(object sender, KeyReleaseEventArgs args)
 		{
 			if (args.Event.Key == Gdk.Key.Up) {
-				View.CurrentLayer = View.CurrentLayer + 1;
+				if ( (args.Event.State & Gdk.ModifierType.ShiftMask) != 0 )
+					View.CurrentLayer = View.CurrentLayer + 10;
+				else
+					View.CurrentLayer = View.CurrentLayer + 1;
 			} else if (args.Event.Key == Gdk.Key.Down) {
-				View.CurrentLayer = View.CurrentLayer - 1;
+				if ((args.Event.State & Gdk.ModifierType.ShiftMask) != 0)
+					View.CurrentLayer = View.CurrentLayer - 10;
+				else
+					View.CurrentLayer = View.CurrentLayer - 1;
 			}
 		}
 
