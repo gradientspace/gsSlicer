@@ -40,12 +40,14 @@ namespace SliceViewer
 			//string sPath = "../../../sample_files/disc_single_layer.gcode";
 			//string sPath = "../../../sample_files/disc_0p6mm.gcode";
 			//string sPath = "../../../sample_files/square_linearfill.gcode";
-			string sPath = "../../../sample_files/thin_hex_test_part.gcode";
+			//string sPath = "../../../sample_files/thin_hex_test_part.gcode";
+			string sPath = "../../../sample_files/box_infill_50.gcode";
 
 
 #if true
 			//GCodeFile genGCode = MakerbotTests.SimpleFillTest();
-			GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
+			//GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
+			GCodeFile genGCode = MakerbotTests.InfillBoxTest();
 
 			//GeneralPolygon2d poly = GetPolygonFromMesh("../../../sample_files/bunny_open.obj");
 			//GCodeFile genGCode = MakerbotTests.ShellsPolygonTest(poly);

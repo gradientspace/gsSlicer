@@ -42,7 +42,7 @@ namespace gs
 				pos.y += StepY; 	fill.Add(pos);
 			}
 			pos.x += 100; 			fill.Add(pos);
-			currentPos = paths.AppendExtrude(fill, settings.FirstLayerExtrudeSpeed);
+			currentPos = paths.AppendExtrude(fill, settings.CarefulExtrudeSpeed);
 
 			cc.AppendPaths(paths.Paths);
 
@@ -314,9 +314,6 @@ namespace gs
 
 			cc.Begin();
 
-			double StepY = settings.FillPathSpacingMM;
-
-
 			for (int i = 0; i <= nLayers; ++i) {
 				System.Console.WriteLine("Layer {0} of {1}", i, nLayers);
 
@@ -376,6 +373,90 @@ namespace gs
 			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
+
+
+
+
+
+
+
+		public static GCodeFile InfillBoxTest()
+		{
+			int HeightLayers = 20;
+			int RoofFloorLayers = 2;
+			double InfillScale = 3.0f;
+			double[] infill_angles = new double[] { -45, 45 };
+			int infill_layer_k = 0;
+
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+			MakerbotSettings settings = new MakerbotSettings();
+
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+
+			Polygon2d poly = new Polygon2d();
+			double r = 10;
+			poly.AppendVertex(new Vector2d(-r, -r));
+			poly.AppendVertex(new Vector2d(r, -r));
+			poly.AppendVertex(new Vector2d(r, r));
+			poly.AppendVertex(new Vector2d(-r, r));
+			GeneralPolygon2d gpoly = new GeneralPolygon2d() { Outer = poly };
+			List<GeneralPolygon2d> polygons = new List<GeneralPolygon2d>() { gpoly };
+
+
+			for (int i = 0; i < HeightLayers; ++i) {
+				System.Console.WriteLine("Layer {0} of {1}", i, HeightLayers);
+
+				//bool is_infill = (i >= RoofFloorLayers && i < HeightLayers - RoofFloorLayers);
+				bool is_infill = (i >= RoofFloorLayers);
+				double fillScale = (is_infill) ? InfillScale : 1.0f;
+
+				PathSetBuilder paths = new PathSetBuilder();
+				paths.Initialize(cc.NozzlePosition);
+				Vector3d currentPos = paths.Position;
+
+				// layer-up
+				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+				PathScheduler scheduler = new PathScheduler(paths, settings);
+				if (is_infill)
+					scheduler.SpeedMode = PathScheduler.SpeedModes.Rapid;
+
+				foreach (GeneralPolygon2d shape in polygons) {
+					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.ToolWidth = settings.NozzleDiamMM;
+					shells_gen.Layers = 2;
+					shells_gen.Compute();
+
+					scheduler.AppendShells(shells_gen.Shells);
+
+					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
+						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+							InsetFromInputPolygon = false,
+							PathSpacing = fillScale * settings.FillPathSpacingMM,
+							ToolWidth = settings.NozzleDiamMM,
+							AngleDeg = infill_angles[infill_layer_k]
+						};
+						infill_gen.Compute();
+						scheduler.Append(infill_gen.Paths);
+					}
+				}
+
+				cc.AppendPaths(paths.Paths);
+				infill_layer_k = (infill_layer_k + 1) % infill_angles.Length;
+			}
+
+			cc.End();
+
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
+			return fileAccum.File;
+		}
+
 
 
 	}

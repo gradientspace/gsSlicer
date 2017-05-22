@@ -9,6 +9,11 @@ namespace gs
 		public PathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
 
+		public enum SpeedModes {
+			Careful, Rapid, MaxSpeed
+		}
+		public SpeedModes SpeedMode = SpeedModes.Careful; 
+
 
 
 		public PathScheduler(PathSetBuilder builder, SingleMaterialFFFSettings settings)
@@ -20,12 +25,7 @@ namespace gs
 
 
 		// dumbest possible scheduler...
-		public void Append(List<FillPaths2d> paths) {
-
-			Vector3d currentPos = Builder.Position;
-
-			// [TODO] assume we are at same z-height?
-
+		public virtual void Append(List<FillPaths2d> paths) {
 			foreach (FillPaths2d polySet in paths) {
 				foreach (Polygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
@@ -34,11 +34,31 @@ namespace gs
 					AppendPolyline2d(curve);
 				}
 			}
-
 		}
 
 
+		/// <summary>
+		/// Assumes paths are "shells" contours, and that we want to print
+		/// outermost shells last. 
+		/// [TODO] smarter handling of nested shell-sets
+		/// </summary>
+		public virtual void AppendShells(List<FillPaths2d> paths)
+		{
+			foreach (FillPaths2d polySet in paths) {
+				if (polySet.Curves.Count > 0)
+					throw new Exception("PathScheduler.AppendShells: don't support open-curves here yet");
+			}
 
+			List<Polygon2d> OuterLoops = paths[0].Loops;
+			for (int i = 1; i < paths.Count; ++i) {
+				foreach (Polygon2d loop in paths[i].Loops)
+					AppendPolygon2d(loop);
+			}
+
+			// add outermost loops
+			foreach (Polygon2d poly in OuterLoops)
+				AppendPolygon2d(poly);
+		}
 
 
 
@@ -60,7 +80,7 @@ namespace gs
 			}
 
 			// [TODO] speed here...
-			Builder.AppendExtrude(loopV, Settings.FirstLayerExtrudeSpeed);
+			Builder.AppendExtrude(loopV, Settings.CarefulExtrudeSpeed);
 		}
 
 
@@ -101,7 +121,9 @@ namespace gs
 			}
 
 			// [TODO] speed here...
-			Builder.AppendExtrude(loopV, Settings.FirstLayerExtrudeSpeed, flags);
+			double useSpeed = (SpeedMode == SpeedModes.Careful) ?
+				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
+			Builder.AppendExtrude(loopV, useSpeed, flags);
 		}
 
 
