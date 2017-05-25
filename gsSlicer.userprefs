@@ -1,13 +1,13 @@
 ﻿<Properties StartupConfiguration="{6348C5CD-6696-4B59-9851-43924A326BD4}|Default">
-  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/ShellsFillPolygon.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="gsSlicer/thirdparty/clipper_library/ClipperUtil.cs">
     <Files>
-      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="47" Column="9" />
-      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="434" Column="20" />
-      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="66" Column="28" />
-      <File FileName="gsSlicer/tests/CalculateExtrusion.cs" Line="96" Column="8" />
-      <File FileName="gsSlicer/DenseLinesFillPolygon.cs" Line="17" Column="27" />
-      <File FileName="gsSlicer/PathScheduler.cs" Line="55" Column="1" />
-      <File FileName="gsSlicer/ShellsFillPolygon.cs" Line="35" Column="15" />
+      <File FileName="sliceViewGTK/SliceViewerMain.cs" Line="62" Column="16" />
+      <File FileName="gsSlicer/tests/MakerbotTests.cs" Line="448" Column="60" />
+      <File FileName="sliceViewGTK/ViewportCanvasArea.cs" Line="170" Column="65" />
+      <File FileName="gsSlicer/DenseLinesFillPolygon.cs" Line="340" Column="8" />
+      <File FileName="gsSlicer/PathScheduler.cs" Line="34" Column="1" />
+      <File FileName="gsSlicer/FillPaths2d.cs" Line="52" Column="18" />
+      <File FileName="gsSlicer/thirdparty/clipper_library/ClipperUtil.cs" Line="220" Column="21" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.ItemProperties.SliceViewer PreferredExecutionTarget="MonoDevelop.Default" />
@@ -15,7 +15,6 @@
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
     <BreakpointStore>
       <Breakpoint file="/Users/rms/git/gsSlicer/gsGCode/builders/GCodeFileBuilder.cs" relfile="gsGCode/builders/GCodeFileBuilder.cs" line="16" column="1" />
-      <Breakpoint file="/Users/rms/git/gsSlicer/gsSlicer/tests/MakerbotTests.cs" relfile="gsSlicer/tests/MakerbotTests.cs" line="436" column="1" />
     </BreakpointStore>
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches />

@@ -13,6 +13,7 @@ namespace gs
 		public double ToolWidth = 0.4;
 		public double PathSpacing = 0.4;
 		public double AngleDeg = 45.0;
+		public double PathShift = 0;
 
 		// [RMS] improve this...
 		public double WeirdFudgeFactor = 1.5f;
@@ -159,12 +160,14 @@ namespace gs
 			if ( cur.VertexCount > 0 )
 				paths.Curves.Add(cur);
 
+			// chain open paths, etc
 			paths.OptimizeCurves(2*PathSpacing, (seg) => {
 				int hit_i = 0;
 				if (BoundaryPolygonCache.FindAnyIntersection(seg, out hit_i) != null)
 					return false;
 				return true;
 			});
+
 
 			return paths;
 		}
@@ -215,7 +218,7 @@ namespace gs
 			dirInterval.b += 10 * ToolWidth;
 			double extent = dirInterval.Length;
 
-			axisInterval.a += ToolWidth * 0.1;
+			axisInterval.a += ToolWidth * 0.1 + PathShift;
 			axisInterval.b -= ToolWidth * 0.1;
 			if (axisInterval.b < axisInterval.a)
 				return PerRaySpans;		// [RMS] is this right? I guess so. interval is too small to fill?
@@ -258,9 +261,6 @@ namespace gs
 
 			return spans;
 		}
-
-
-
 
 
 

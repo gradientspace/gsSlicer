@@ -139,12 +139,12 @@ namespace SliceViewer
 								return;
 
 							SKPath path = MakePath(polyPath, mapToSkiaF);
-							if ( polyPath.Type == PathTypes.Deposition ) {
+							if (polyPath.Type == PathTypes.Deposition) {
 								paint.Color = extrudeColor;
-							} else if ( polyPath.Type == PathTypes.Travel ) {
+							} else if (polyPath.Type == PathTypes.Travel) {
 								paint.Color = travelColor;
 								paint.StrokeWidth = 3;
-							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
+							} else if (polyPath.Type == PathTypes.PlaneChange) {
 								paint.StrokeWidth = 0.5f;
 								paint.Color = planeColor;
 							} else {
@@ -157,15 +157,28 @@ namespace SliceViewer
 							paint.StrokeWidth = 1;
 
 							Vector2f pt = xformF(polyPath.Start.Position.xy);
-							if ( polyPath.Type == PathTypes.Deposition ) {
+							if (polyPath.Type == PathTypes.Deposition) {
 								canvas.DrawCircle(pt.x, pt.y, pointR, paint);
-							} else if (polyPath.Type == PathTypes.Travel ) {
-								canvas.DrawCircle(pt.x, pt.y, pointR, paint);	
-							} else if ( polyPath.Type == PathTypes.PlaneChange ) {
+							} else if (polyPath.Type == PathTypes.Travel) {
+								canvas.DrawCircle(pt.x, pt.y, pointR, paint);
+							} else if (polyPath.Type == PathTypes.PlaneChange) {
 								paint.Style = SKPaintStyle.Fill;
 								canvas.DrawCircle(pt.x, pt.y, 4f, paint);
 								paint.Style = SKPaintStyle.Stroke;
 							}
+
+							// this will not work when we are reading gcode file... !
+							//paint.Color = SkiaUtil.Color(255, 0, 0);
+							//paint.StrokeWidth = 3;
+							//paint.Style = SKPaintStyle.Stroke;
+							//for (int i = 1; i < polyPath.VertexCount; ++i) {
+							//	PathVertex v = polyPath[i];
+							//	if (v.Flags.a == (int)PathVertexFlags.IsConnector) {
+							//		pt = (Vector2f)(v.Position.xy + polyPath[i - 1].Position.xy) * 0.5f;
+							//		pt = xformF(pt);
+							//		canvas.DrawCircle(pt.x, pt.y, 5, paint);
+							//	}
+							//}
 
 							paint.StrokeWidth = 1;
 							paint.Color = startColor;

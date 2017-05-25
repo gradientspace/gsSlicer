@@ -382,11 +382,15 @@ namespace gs
 
 		public static GCodeFile InfillBoxTest()
 		{
-			int HeightLayers = 20;
+			double r = 19.7;				// box 'radius'
+			int HeightLayers = 10;
 			int RoofFloorLayers = 2;
-			double InfillScale = 3.0f;
+			double InfillScale = 6.0;
 			double[] infill_angles = new double[] { -45, 45 };
+			//double[] infill_angles = new double[] { -45 };
 			int infill_layer_k = 0;
+			bool enable_rapid = true;
+			bool enable_layer_offset = true;
 
 			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
 			GCodeBuilder builder = new GCodeBuilder(fileAccum);
@@ -399,7 +403,6 @@ namespace gs
 
 
 			Polygon2d poly = new Polygon2d();
-			double r = 10;
 			poly.AppendVertex(new Vector2d(-r, -r));
 			poly.AppendVertex(new Vector2d(r, -r));
 			poly.AppendVertex(new Vector2d(r, r));
@@ -407,6 +410,11 @@ namespace gs
 			GeneralPolygon2d gpoly = new GeneralPolygon2d() { Outer = poly };
 			List<GeneralPolygon2d> polygons = new List<GeneralPolygon2d>() { gpoly };
 
+			//GeneralPolygon2d sub = new GeneralPolygon2d(Polygon2d.MakeCircle(r / 2, 12));
+			////sub.Translate(r * Vector2d.One);
+			//List<GeneralPolygon2d> result =
+			//	ClipperUtil.PolygonBoolean(polygons, sub, ClipperUtil.BooleanOp.Difference);
+			//polygons = result;
 
 			for (int i = 0; i < HeightLayers; ++i) {
 				System.Console.WriteLine("Layer {0} of {1}", i, HeightLayers);
@@ -423,7 +431,7 @@ namespace gs
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
 				PathScheduler scheduler = new PathScheduler(paths, settings);
-				if (is_infill)
+				if (is_infill && enable_rapid)
 					scheduler.SpeedMode = PathScheduler.SpeedModes.Rapid;
 
 				foreach (GeneralPolygon2d shape in polygons) {
@@ -440,7 +448,9 @@ namespace gs
 							InsetFromInputPolygon = false,
 							PathSpacing = fillScale * settings.FillPathSpacingMM,
 							ToolWidth = settings.NozzleDiamMM,
-							AngleDeg = infill_angles[infill_layer_k]
+							AngleDeg = infill_angles[infill_layer_k],
+							PathShift = (enable_layer_offset == false || i % 2 == 0) 
+								? 0 : (fillScale * settings.FillPathSpacingMM *(0.5))
 						};
 						infill_gen.Compute();
 						scheduler.Append(infill_gen.Paths);
