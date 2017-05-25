@@ -19,26 +19,38 @@ namespace gs
 
 		public override void AppendVertex(Vector2d v) {
 			base.AppendVertex(v);
-			alloc_flags();
-			flags.Add(Index3i.Zero);
+			if (flags != null)
+				flags.Add(Index3i.Zero);
 		}
 		public override void AppendVertices(IEnumerable<Vector2d> v) {
 			base.AppendVertices(v);
-			alloc_flags();
-			foreach (var x in v)
-				flags.Add(Index3i.Zero);
+			if (flags != null) {
+				foreach (var x in v)
+					flags.Add(Index3i.Zero);
+			}
+		}
+
+		public override void Reverse() {
+			base.Reverse();
+			if (flags != null)
+				flags.Reverse();
+		}
+		public override void Simplify(double clusterTol = 0.0001,
+							  		  double lineDeviationTol = 0.01,
+		                              bool bSimplifyStraightLines = true) {
+			throw new Exception("not supported yet...");
 		}
 
 
 		public void AppendVertex(Vector2d v, Index3i flag) {
+			alloc_flags();			
 			base.AppendVertex(v);
-			alloc_flags();
 			flags.Add(flag);
 			has_flags = true;
 		}
 		public void AppendVertices(IEnumerable<Vector2d> v, IEnumerable<Index3i> f) {
+			alloc_flags();			
 			base.AppendVertices(v);
-			alloc_flags();
 			flags.AddRange(f);
 			has_flags = true;
 		}

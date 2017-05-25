@@ -35,12 +35,18 @@ namespace gs
         {
             return GetIntScale(poly.Outer);
         }
+		public static double GetIntScale(List<GeneralPolygon2d> poly)
+		{
+			double max = 100;
+			foreach (var v in poly)
+				max = Math.Max(max, GetIntScale(v.Outer));
+			return max;
+		}
 
-
-        public static List<IntPoint> ConvertToClipper(Polygon2d poly, double nIntScale)
+        public static CPolygon ConvertToClipper(Polygon2d poly, double nIntScale)
         {
             int N = poly.VertexCount;
-            List<IntPoint> clipper_poly = new List<IntPoint>(N);
+            CPolygon clipper_poly = new CPolygon(N);
             for (int i = 0; i < N; ++i) {
                 Vector2d v = poly[i];
                 clipper_poly.Add(new IntPoint(nIntScale * v.x, nIntScale * v.y));
@@ -48,9 +54,9 @@ namespace gs
             return clipper_poly;
         }
 
-        public static List<List<IntPoint>> ConvertToClipper(GeneralPolygon2d polys, double nIntScale)
+        public static CPolygonList ConvertToClipper(GeneralPolygon2d polys, double nIntScale)
         {
-            List<List<IntPoint>> clipper_polys = new List<List<IntPoint>>();
+            List<CPolygon> clipper_polys = new List<CPolygon>();
             clipper_polys.Add(ConvertToClipper(polys.Outer, nIntScale));
             foreach (Polygon2d hole in polys.Holes)
                 clipper_polys.Add(ConvertToClipper(hole, nIntScale));
@@ -59,7 +65,7 @@ namespace gs
 
 
 
-        public static Polygon2d ConvertFromClipper(List<IntPoint> clipper_poly, double nIntScale)
+        public static Polygon2d ConvertFromClipper(CPolygon clipper_poly, double nIntScale)
         {
             double scale = 1.0 / (double)nIntScale;
 
@@ -202,6 +208,96 @@ namespace gs
             return polys;
         }
 
+
+
+		public enum BooleanOp {
+			Union, Difference, Intersection, Xor
+		}
+		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, GeneralPolygon2d poly2, BooleanOp opType)
+		{
+			return PolygonBoolean(new List<GeneralPolygon2d>() { poly1 }, 
+			                      new List<GeneralPolygon2d>() { poly2 }, opType);
+		}
+		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, BooleanOp opType)
+		{
+			return PolygonBoolean(new List<GeneralPolygon2d>() { poly1 }, poly2, opType);
+		}
+		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, BooleanOp opType)
+		{
+			return PolygonBoolean(poly1, new List<GeneralPolygon2d>() { poly2 }, opType);
+		}
+		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, BooleanOp opType ) {
+			double nIntScale = Math.Max(GetIntScale(poly1), GetIntScale(poly2));
+
+			try {
+				Clipper clipper = new Clipper(Clipper.ioStrictlySimple);
+
+				foreach (GeneralPolygon2d sub in poly1) {
+					CPolygonList cpoly = ConvertToClipper(sub, nIntScale);
+					clipper.AddPaths(cpoly, PolyType.ptSubject, true);
+				}
+				foreach (GeneralPolygon2d clip in poly2) {
+					CPolygonList cpoly = ConvertToClipper(clip, nIntScale);
+					clipper.AddPaths(cpoly, PolyType.ptClip, true);
+				}
+
+				ClipType cType = ClipType.ctUnion;
+				if (opType == BooleanOp.Difference)
+					cType = ClipType.ctDifference;
+				else if (opType == BooleanOp.Intersection)
+					cType = ClipType.ctIntersection;
+				else if (opType == BooleanOp.Xor)
+					cType = ClipType.ctXor;
+
+				PolyTree tree = new PolyTree();
+				bool bOK = clipper.Execute(cType, tree);
+				if (bOK == false) {
+					System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper failed");
+					return null;					
+				}
+
+				List<GeneralPolygon2d> result = new List<GeneralPolygon2d>();
+				for (int ci = 0; ci < tree.ChildCount; ++ci)
+					Convert(tree.Childs[ci], result, nIntScale);
+				return result;
+
+			} catch (Exception e) {
+				System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper threw exception: " + e.Message);
+				return null;
+			}
+
+		}
+
+
+		/// <summary>
+		/// Extract set of nested solids (ie polygon-with-holes) from treeNode
+		/// </summary>
+		public static void Convert(PolyNode treeNode, List<GeneralPolygon2d> polys, double nIntScale) {
+			if (treeNode.IsHole)
+				throw new Exception("ClipperUtil.Convert: should not have a hole here");
+			if (treeNode.IsOpen)
+				throw new Exception("ClipperUtil.Convert: found open contour??");
+
+			GeneralPolygon2d poly = new GeneralPolygon2d();
+			polys.Add(poly);
+
+			poly.Outer = ConvertFromClipper(treeNode.Contour, nIntScale);
+			for (int ci = 0; ci < treeNode.ChildCount; ++ci) {
+				PolyNode holeNode = treeNode.Childs[ci];
+				if (holeNode.IsHole == false)
+					throw new Exception("CliperUtil.Convert: how is this not a hole?");
+				if (holeNode.IsOpen)
+					throw new Exception("ClipperUtil.Convert: found open hole contour??");
+
+				Polygon2d hole = ConvertFromClipper(holeNode.Contour, nIntScale);
+				poly.AddHole(hole, false);
+
+				// recurse for new top-level children
+				for (int ti = 0; ti < holeNode.ChildCount; ti++ )
+					Convert(holeNode.Childs[ti], polys, nIntScale);
+			}
+
+		}
 
 
     }
