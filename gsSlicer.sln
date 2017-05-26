@@ -10,7 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Performance1.psess = Performance1.psess
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SliceViewer", "sliceViewGTK\SliceViewer.csproj", "{6348C5CD-6696-4B59-9851-43924A326BD4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dlpViewer", "dlpView\dlpViewer.csproj", "{6348C5CD-6696-4B59-9851-43924A326BD4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "gsSlicer", "gsSlicer\gsSlicer.csproj", "{6C2E415E-37D9-4C5A-8FD5-60B0133872CF}"
 EndProject
@@ -49,6 +49,9 @@ Global
 		{6348C5CD-6696-4B59-9851-43924A326BD4}.Release|x64.ActiveCfg = Release|x86
 		{6348C5CD-6696-4B59-9851-43924A326BD4}.Release|x86.ActiveCfg = Release|x86
 		{6348C5CD-6696-4B59-9851-43924A326BD4}.Release|x86.Build.0 = Release|x86
+		{6348C5CD-6696-4B59-9851-43924A326BD4}.Debug|x64.Build.0 = Debug|x86
+		{6348C5CD-6696-4B59-9851-43924A326BD4}.Release|Any CPU.Build.0 = Release|x86
+		{6348C5CD-6696-4B59-9851-43924A326BD4}.Release|x64.Build.0 = Release|x86
 		{6C2E415E-37D9-4C5A-8FD5-60B0133872CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6C2E415E-37D9-4C5A-8FD5-60B0133872CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6C2E415E-37D9-4C5A-8FD5-60B0133872CF}.Debug|x64.ActiveCfg = Debug|Any CPU
