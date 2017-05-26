@@ -232,7 +232,7 @@ namespace gs
 				Vector2d o = startCorner + (t * range) * axis;
 				Segment2d ray = new Segment2d(o, o + extent * dir);
 
-				List<Segment2d> spans = compute_polygon_ray_spans(ray, startCorner, axis, t, polyCache);
+				List<Segment2d> spans = compute_polygon_ray_spans(poly, ray, startCorner, axis, t, polyCache);
 				PerRaySpans.Add(spans);
 			}
 
@@ -242,12 +242,20 @@ namespace gs
 
 
 		// yikes not robust at all!!
-		protected List<Segment2d> compute_polygon_ray_spans(Segment2d ray, Vector2d axis_origin, Vector2d axis, double axisT, SegmentSet2d segments) 
+		protected List<Segment2d> compute_polygon_ray_spans(GeneralPolygon2d poly, Segment2d ray, Vector2d axis_origin, Vector2d axis, double axisT, SegmentSet2d segments) 
 		{
 
 			List<double> hits = new List<double>();     // todo reusable buffer
 			segments.FindAllIntersections(ray, hits, null, null, true);
 			hits.Sort();
+
+			bool clean = true;
+			for (int i = 0; i < hits.Count - 1 && clean; ++i ) {
+				if ( hits[i+1]-hits[i] < MathUtil.Epsilonf ) 
+					clean = false;
+			}
+			if (!clean)
+				hits = extract_valid_segments(poly, ray, hits);
 
 			if (hits.Count % 2 != 0)
 				throw new Exception("DenseLineFill.ComputeAllSpans: have not handled hard cases...");
@@ -263,6 +271,57 @@ namespace gs
 		}
 
 
+
+
+		/// <summary>
+		/// hits is a sorted list of t-values along ray. This function
+		/// tries to pull out the valid pairs, ie where the segment between the
+		/// pair is inside poly.
+		/// 
+		/// numerical problems:
+		///    - no guarantee that all intersection t's are in hits list 
+		///       (although we are being conservative in SegmentSet2d, testing extent+eps)
+		///    - poly.Contains() could return false for points very near to border
+		///       (in unfortunate case this means we discard valid segments. in 
+		///        pathological case it means we produce invalid ones)
+		/// </summary>
+		List<double> extract_valid_segments(GeneralPolygon2d poly, Segment2d ray, List<double> hits) {
+			double eps = MathUtil.Epsilonf;
+
+			List<double> result = new List<double>();
+			int i = 0;
+			int j = i + 1;
+
+			while (j < hits.Count) {
+
+				// find next non-dupe
+				while (hits[j] - hits[i] < eps) {
+					j++;
+				}
+
+				// ok check if midpoint is inside or outside
+				double mid_t = (hits[i] + hits[j]) * 0.5;
+				Vector2d mid = ray.PointAt(mid_t);
+
+				// not robust...eek
+				bool isInside = poly.Contains(mid);
+				if ( isInside ) {
+					// ok we add this segment, and then we start looking at next point (?)
+					result.Add(hits[i]);
+					result.Add(hits[j]);
+					i = j + 1;
+					j = i + 1;
+				} else {
+					// ok we were not inside, so start search at j
+					i = j;
+					j++;
+				}
+
+
+			}
+
+			return result;
+		}
 
 	}
 }
