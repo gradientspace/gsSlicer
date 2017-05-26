@@ -210,6 +210,40 @@ namespace gs
 
 
 
+		/// <summary>
+		/// Compute offset polygon from all input polys (ie separate islands may merge)
+		/// </summary>
+		public static List<GeneralPolygon2d> ComputeOffsetPolygon(List<GeneralPolygon2d> polys, double fOffset, bool bMiter = false)
+		{
+			double nIntScale = GetIntScale(polys);
+
+			ClipperOffset co = new ClipperOffset();
+			PolyTree tree = new PolyTree();
+			try {
+				foreach ( GeneralPolygon2d poly in polys ) {
+					CPolygonList clipper_poly = ConvertToClipper(poly, nIntScale);
+					if (bMiter)
+						co.AddPaths(clipper_poly, JoinType.jtMiter, EndType.etClosedPolygon);
+					else
+						co.AddPaths(clipper_poly, JoinType.jtRound, EndType.etClosedPolygon);
+				}
+				co.Execute(ref tree, fOffset * nIntScale);
+
+				List<GeneralPolygon2d> result = new List<GeneralPolygon2d>();
+				for (int ci = 0; ci < tree.ChildCount; ++ci)
+					Convert(tree.Childs[ci], result, nIntScale);
+				return result;
+
+			} catch (Exception e) {
+				System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
+				return null;
+			}
+
+		}
+
+
+
+
 		public enum BooleanOp {
 			Union, Difference, Intersection, Xor
 		}

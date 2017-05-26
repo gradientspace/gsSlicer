@@ -167,19 +167,6 @@ namespace SliceViewer
 								paint.Style = SKPaintStyle.Stroke;
 							}
 
-							// this will not work when we are reading gcode file... !
-							//paint.Color = SkiaUtil.Color(255, 0, 0);
-							//paint.StrokeWidth = 3;
-							//paint.Style = SKPaintStyle.Stroke;
-							//for (int i = 1; i < polyPath.VertexCount; ++i) {
-							//	PathVertex v = polyPath[i];
-							//	if (v.Flags.a == (int)PathVertexFlags.IsConnector) {
-							//		pt = (Vector2f)(v.Position.xy + polyPath[i - 1].Position.xy) * 0.5f;
-							//		pt = xformF(pt);
-							//		canvas.DrawCircle(pt.x, pt.y, 5, paint);
-							//	}
-							//}
-
 							paint.StrokeWidth = 1;
 							paint.Color = startColor;
 						};
