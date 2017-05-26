@@ -36,7 +36,7 @@ gsSlicerEXE/bin/
 packages/
 sliceViewGTK/bin/
 sliceViewGTK/obj/x86/
-sample_output
+
 gsSlicer/thirdparty/clipper_library/bin
 gsSlicer/thirdparty/clipper_library/obj
 *.userprefs
@@ -45,3 +45,7 @@ dlpView/bin
 dlpView/obj
 
 !/sample_files/*.obj
+
+sample_output/*
+!/sample_output/gitkeepdir.txt
+
