@@ -56,6 +56,9 @@
     <Compile Include="PathScheduler.cs" />
     <Compile Include="DenseLinesFillPolygon.cs" />
     <Compile Include="utility\LayersDetector.cs" />
+    <Compile Include="slicing\PlanarSlice.cs" />
+    <Compile Include="slicing\PlanarSliceStack.cs" />
+    <Compile Include="slicing\MeshPlanarSlicer.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
@@ -74,6 +77,7 @@
   <ItemGroup>
     <Folder Include="utility\" />
     <Folder Include="tests\" />
+    <Folder Include="slicing\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
