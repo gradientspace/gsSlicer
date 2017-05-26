@@ -21,5 +21,18 @@ namespace gs
 		}
 
 
+
+		public AxisAlignedBox3d Bounds {
+			get {
+				AxisAlignedBox3d box = AxisAlignedBox3d.Empty;
+				foreach (PlanarSlice slice in Slices) {
+					AxisAlignedBox2d b = slice.Bounds;
+					box.Contain(new Vector3d(b.Min.x, b.Min.y, slice.Z));
+					box.Contain(new Vector3d(b.Max.x, b.Max.y, slice.Z));
+				}
+				return box;
+			}
+		}
+
 	}
 }

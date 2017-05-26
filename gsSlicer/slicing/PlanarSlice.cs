@@ -23,5 +23,14 @@ namespace gs
 				Add(p);
 		}
 
+
+		public AxisAlignedBox2d Bounds {
+			get {
+				AxisAlignedBox2d box = AxisAlignedBox2d.Empty;
+				foreach (GeneralPolygon2d poly in Solids)
+					box.Contain(poly.Outer.GetBounds());
+				return box;
+			}
+		}
 	}
 }
