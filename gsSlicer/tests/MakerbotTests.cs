@@ -301,39 +301,29 @@ namespace gs
 
 		public static GCodeFile SliceMeshTest(DMesh3 mesh)
 		{
-
 			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
 			GCodeBuilder builder = new GCodeBuilder(fileAccum);
 			MakerbotSettings settings = new MakerbotSettings();
 
-			AxisAlignedBox3d bounds = mesh.CachedBounds;
-			int nLayers = (int)(bounds.Diagonal.z / settings.LayerHeightMM);
+			MeshPlanarSlicer slicer = new MeshPlanarSlicer();
+			slicer.LayerHeightMM = settings.LayerHeightMM;
+			slicer.AddMesh(mesh);
 
+			PlanarSliceStack stack = slicer.Compute();
+			int nLayers = stack.Slices.Count;
+
+			int RoofFloorLayers = 2;
+			double InfillScale = 3.0;
+			double[] infill_angles = new double[] { -45, 45 };
 
 			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
 
 			cc.Begin();
 
-			for (int i = 0; i <= nLayers; ++i) {
+			for (int i = 0; i < nLayers; ++i) {
 				System.Console.WriteLine("Layer {0} of {1}", i, nLayers);
 
-				double z = ((double)i + 0.5) * settings.LayerHeightMM;
-				DMesh3 sliceMesh = new DMesh3(mesh);
-				MeshPlaneCut cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z), Vector3d.AxisZ);
-				cut.Cut();
-
-				// [TODO] holes ?
-
-				List<GeneralPolygon2d> polygons = new List<GeneralPolygon2d>();
-				foreach ( EdgeLoop loop in cut.CutLoops ) {
-					Polygon2d poly = new Polygon2d();
-					foreach ( int vid in loop.Vertices ) {
-						Vector3d v = sliceMesh.GetVertex(vid);
-						poly.AppendVertex(v.xy);
-					}
-					polygons.Add(new GeneralPolygon2d(poly));
-				}
-
+				PlanarSlice slice = stack.Slices[i];
 
 				PathSetBuilder paths = new PathSetBuilder();
 				paths.Initialize(cc.NozzlePosition);
@@ -342,9 +332,12 @@ namespace gs
 				// layer-up
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
+				bool is_infill = (i >= RoofFloorLayers && i < nLayers - RoofFloorLayers-1);
+				double fillScale = (is_infill) ? InfillScale : 1.0f;
+
 				PathScheduler scheduler = new PathScheduler(paths, settings);
 
-				foreach(GeneralPolygon2d shape in polygons) {
+				foreach(GeneralPolygon2d shape in slice.Solids) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
 					shells_gen.PathSpacing = settings.FillPathSpacingMM;
 					shells_gen.ToolWidth = settings.NozzleDiamMM;
@@ -356,8 +349,9 @@ namespace gs
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
-							PathSpacing = settings.FillPathSpacingMM,
-							ToolWidth = settings.NozzleDiamMM
+							PathSpacing = fillScale * settings.FillPathSpacingMM,
+							ToolWidth = settings.NozzleDiamMM,
+							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
 						scheduler.Append(infill_gen.Paths);
@@ -380,9 +374,150 @@ namespace gs
 
 
 
+
+		public static GCodeFile SliceMeshTest_Roofs(DMesh3 mesh)
+		{
+			GCodeFileAccumulator fileAccum = new GCodeFileAccumulator();
+			GCodeBuilder builder = new GCodeBuilder(fileAccum);
+			MakerbotSettings settings = new MakerbotSettings();
+
+			MeshPlanarSlicer slicer = new MeshPlanarSlicer();
+			slicer.LayerHeightMM = settings.LayerHeightMM;
+			slicer.AddMesh(mesh);
+
+			PlanarSliceStack stack = slicer.Compute();
+			int nLayers = stack.Slices.Count;
+
+
+			int RoofFloorLayers = 2;
+			double InfillScale = 3.0;
+			double[] infill_angles = new double[] { -45, 45 };
+
+
+			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+
+			cc.Begin();
+
+
+			// compute shells for each layer
+			List<ShellsFillPolygon>[] LayerShells = new List<ShellsFillPolygon>[nLayers];
+			gParallel.ForEach(Interval1i.Range(nLayers), (layeri) => {
+				PlanarSlice slice = stack.Slices[layeri];
+				LayerShells[layeri] = new List<ShellsFillPolygon>();
+
+				foreach (GeneralPolygon2d shape in slice.Solids) {
+					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.ToolWidth = settings.NozzleDiamMM;
+					shells_gen.Layers = 2;
+					shells_gen.Compute();
+					LayerShells[layeri].Add(shells_gen);
+				}
+			});
+
+
+
+			for (int i = 0; i < nLayers; ++i) {
+				System.Console.WriteLine("Layer {0} of {1}", i, nLayers);
+
+				PlanarSlice slice = stack.Slices[i];
+
+				PathSetBuilder paths = new PathSetBuilder();
+				paths.Initialize(cc.NozzlePosition);
+				Vector3d currentPos = paths.Position;
+
+				// layer-up
+				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
+
+				bool is_infill = (i >= RoofFloorLayers && i < nLayers - RoofFloorLayers - 1);
+				double fillScale = (is_infill) ? InfillScale : 1.0f;
+
+				PathScheduler scheduler = new PathScheduler(paths, settings);
+
+
+				// find infill polys on next layer
+				List<GeneralPolygon2d> next_infill = new List<GeneralPolygon2d>();
+				if (is_infill) {
+					foreach ( ShellsFillPolygon shells in LayerShells[i+1]) {
+						next_infill.AddRange(shells.InnerPolygons);
+					}
+				}
+
+
+				List<ShellsFillPolygon> curShells = LayerShells[i];
+				for (int si = 0; si < curShells.Count; si++) {
+					ShellsFillPolygon shells_gen = curShells[si];
+
+					scheduler.Append(shells_gen.Shells);
+
+					// construct infill poly list
+					List<GeneralPolygon2d> infillPolys = new List<GeneralPolygon2d>();
+					List<GeneralPolygon2d> solidFillPolys = shells_gen.InnerPolygons;
+					if (is_infill) {
+						infillPolys = shells_gen.InnerPolygons;
+						solidFillPolys = ClipperUtil.PolygonBoolean(infillPolys, next_infill, ClipperUtil.BooleanOp.Difference);
+						if (solidFillPolys == null)
+							solidFillPolys = new List<GeneralPolygon2d>();
+
+						// [TODO] I think maybe we should actually do another set of contours for the
+						// solid region. At least one. This gives the solid & infill something to
+						// connect to, and gives the contours above a continuous bonding thread
+
+						// subtract solid fill from infill regions. However because we *don't*
+						// inset fill regions, we need to subtract (solid+offset), so that
+						// infill won't overlap solid region
+						if ( solidFillPolys.Count > 0 ) {
+							List<GeneralPolygon2d> solidWithBorder = 
+								ClipperUtil.ComputeOffsetPolygon(solidFillPolys, settings.NozzleDiamMM, true);
+							infillPolys = ClipperUtil.PolygonBoolean(infillPolys, solidWithBorder, ClipperUtil.BooleanOp.Difference);
+						}
+					}
+
+					// fill solid regions
+					foreach (GeneralPolygon2d solid_poly in solidFillPolys) {
+						DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(solid_poly) {
+							InsetFromInputPolygon = false,
+							PathSpacing = settings.FillPathSpacingMM,
+							ToolWidth = settings.NozzleDiamMM,
+							AngleDeg = infill_angles[i % infill_angles.Length]
+						};
+						solid_gen.Compute();
+						scheduler.Append(solid_gen.Paths);
+					}
+
+					// fill infill regions
+					foreach (GeneralPolygon2d infill_poly in infillPolys) {
+						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+							InsetFromInputPolygon = false,
+							PathSpacing = InfillScale * settings.FillPathSpacingMM,
+							ToolWidth = settings.NozzleDiamMM,
+							AngleDeg = infill_angles[i % infill_angles.Length]
+						};
+						infill_gen.Compute();
+						scheduler.Append(infill_gen.Paths);
+					}
+				}
+
+				cc.AppendPaths(paths.Paths);
+			}
+
+			cc.End();
+
+			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
+			return fileAccum.File;
+		}
+
+
+
+
+
+
+
+
+
 		public static GCodeFile InfillBoxTest()
 		{
-			double r = 19.7;				// box 'radius'
+			double r = 20;				// box 'radius'
 			int HeightLayers = 10;
 			int RoofFloorLayers = 2;
 			double InfillScale = 6.0;

@@ -47,7 +47,7 @@ namespace SliceViewer
 #if true
 			//GCodeFile genGCode = MakerbotTests.SimpleFillTest();
 			//GCodeFile genGCode = MakerbotTests.SimpleShellsTest();
-			GCodeFile genGCode = MakerbotTests.InfillBoxTest();
+			//GCodeFile genGCode = MakerbotTests.InfillBoxTest();
 
 			//GeneralPolygon2d poly = GetPolygonFromMesh("../../../sample_files/bunny_open.obj");
 			//GCodeFile genGCode = MakerbotTests.ShellsPolygonTest(poly);
@@ -55,7 +55,9 @@ namespace SliceViewer
 			//GCodeFile genGCode = MakerbotTests.StackedScaledPolygonTest(poly, 20, 0.5);
 
 			//DMesh3 mesh = StandardMeshReader.ReadMesh("../../../sample_files/bunny_solid_2p5cm.obj");
-			//GCodeFile genGCode = MakerbotTests.SliceMeshTest(mesh);
+			//DMesh3 mesh = StandardMeshReader.ReadMesh("../../../sample_files/bunny_solid_5cm_min.obj");
+			DMesh3 mesh = StandardMeshReader.ReadMesh("../../../sample_files/basic_step.obj");
+			GCodeFile genGCode = MakerbotTests.SliceMeshTest_Roofs(mesh);
 
 			string sWritePath = "../../../sample_output/generated.gcode";
 			StandardGCodeWriter writer = new StandardGCodeWriter();
