@@ -42,3 +42,5 @@ gsSlicer/thirdparty/clipper_library/obj
 *.userprefs
 dlpView/bin
 dlpView/obj
+
+!/sample_files/*.obj
