@@ -27,25 +27,14 @@
 *.exe
 *.out
 *.app
-gsSlicer/obj/
-gsSlicer/bin/
-.vs/gsSlicer/v14/.suo
-gsSlicer/gsSlicer.csproj.user
-gsSlicerEXE/obj/
-gsSlicerEXE/bin/
+obj/
+bin/
+*.suo
+gsSlicer.csproj.user
 packages/
-sliceViewGTK/bin/
-sliceViewGTK/obj/x86/
 
-gsSlicer/thirdparty/clipper_library/bin
-gsSlicer/thirdparty/clipper_library/obj
+thirdparty/clipper_library/bin
+thirdparty/clipper_library/obj
 *.userprefs
 
-dlpView/bin
-dlpView/obj
-
-!/sample_files/*.obj
-
-sample_output/*
-!/sample_output/gitkeepdir.txt
 
