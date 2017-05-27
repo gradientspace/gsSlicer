@@ -1,6 +1,3 @@
-[submodule "geometry3Sharp"]
-	path = geometry3Sharp
-	url = https://github.com/gradientspace/geometry3Sharp
 [submodule "gsGCode"]
 	path = gsGCode
 	url = https://github.com/gradientspace/gsGCode
