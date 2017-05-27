@@ -1,0 +1,8 @@
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/bin/Release/clipper_library.dll
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/bin/Release/clipper_library.pdb
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/bin/Release/geometry3.dll
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/bin/Release/geometry3.pdb
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/obj/Release/clipper_library.csprojResolveAssemblyReference.cache
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/obj/Release/clipper_library.csproj.CoreCompileInputs.cache
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/obj/Release/clipper_library.dll
+/Users/rms/git/gsSlicer/gsSlicer/thirdparty/clipper_library/obj/Release/clipper_library.pdb
