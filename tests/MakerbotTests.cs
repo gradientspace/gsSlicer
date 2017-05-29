@@ -390,6 +390,7 @@ namespace gs
 
 
 			int RoofFloorLayers = 2;
+			int InteriorSolidRegionContours = 1;
 			double InfillScale = 3.0;
 			double[] infill_angles = new double[] { -45, 45 };
 
@@ -523,14 +524,37 @@ namespace gs
 
 					// fill solid regions
 					foreach (GeneralPolygon2d solid_poly in solidFillPolys) {
-						DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(solid_poly) {
-							InsetFromInputPolygon = false,
-							PathSpacing = settings.FillPathSpacingMM,
-							ToolWidth = settings.NozzleDiamMM,
-							AngleDeg = infill_angles[i % infill_angles.Length]
-						};
-						solid_gen.Compute();
-						scheduler.Append(solid_gen.Paths);
+
+						List<GeneralPolygon2d> fillPolys = new List<GeneralPolygon2d>() { solid_poly };
+
+						// if we are on an infill layer, and this shell has some infill region,
+						// then we are going to draw contours around solid fill so it has
+						// something to stick to
+						// [TODO] should only be doing this if solid-fill is adjecent to infill region.
+						//   But how to determine this? not easly because we don't know which polys
+						//   came from where. Would need to do loop above per-polygon
+						if ( is_infill && infillPolys.Count > 0 && InteriorSolidRegionContours > 0) {
+							ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
+							interior_shells.PathSpacing = settings.FillPathSpacingMM;
+							interior_shells.ToolWidth = settings.NozzleDiamMM;
+							interior_shells.Layers = InteriorSolidRegionContours;
+							interior_shells.InsetFromInputPolygon = false;
+							interior_shells.Compute();
+							scheduler.AppendShells(interior_shells.Shells);
+							fillPolys = interior_shells.InnerPolygons;
+						}
+
+						// now actually fill solid regions
+						foreach (GeneralPolygon2d fillPoly in fillPolys) {
+							DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
+								InsetFromInputPolygon = false,
+								PathSpacing = settings.FillPathSpacingMM,
+								ToolWidth = settings.NozzleDiamMM,
+								AngleDeg = infill_angles[i % infill_angles.Length]
+							};
+							solid_gen.Compute();
+							scheduler.Append(solid_gen.Paths);
+						}
 					}
 
 					// fill infill regions
