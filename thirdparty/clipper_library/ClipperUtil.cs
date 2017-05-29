@@ -238,10 +238,13 @@ namespace gs
 				System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
 				return null;
 			}
-
 		}
-
-
+		public static List<GeneralPolygon2d> MiterOffset(List<GeneralPolygon2d> polys, double fOffset) {
+			return ComputeOffsetPolygon(polys, fOffset, true);
+		}
+		public static List<GeneralPolygon2d> RoundOffset(List<GeneralPolygon2d> polys, double fOffset) {
+			return ComputeOffsetPolygon(polys, fOffset, false);
+		}
 
 
 		public enum BooleanOp {
@@ -301,6 +304,52 @@ namespace gs
 			}
 
 		}
+
+
+
+
+		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		}
+		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		}
+		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		}
+		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		}
+
+
+
+		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
+		}
+		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
+		}
+		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
+		}
+		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
+		}
+
+
+		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		}
+		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		}
+		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		}
+		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		}
+
 
 
 		/// <summary>
