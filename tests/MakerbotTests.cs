@@ -434,13 +434,59 @@ namespace gs
 
 				PathScheduler scheduler = new PathScheduler(paths, settings);
 
+				// should be parameterizable? this is 45 degrees...
+				//   (is it? 45 if nozzlediam == layerheight...)
+				double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
 
-				// find infill polys on next layer
-				List<GeneralPolygon2d> next_infill = new List<GeneralPolygon2d>();
+				// construct region that needs to be solid for "roofs".
+				// This is the intersection of infill polygons for the next N layers
+				List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
 				if (is_infill) {
-					foreach ( ShellsFillPolygon shells in LayerShells[i+1]) {
-						next_infill.AddRange(shells.InnerPolygons);
+					foreach (ShellsFillPolygon shells in LayerShells[i + 1])
+						roof_cover.AddRange(shells.InnerPolygons);
+
+					// If we want > 1 roof layer, we need to look further ahead.
+					// The full area we need to print as "roof" is the infill minus
+					// the intersection of the infill areas above
+					for (int k = 2; k <= RoofFloorLayers; ++k) {
+						int ri = i + k;
+						if (ri < LayerShells.Length) {
+							List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
+							foreach (ShellsFillPolygon shells in LayerShells[ri])
+								infillN.AddRange(shells.InnerPolygons);
+
+							roof_cover = ClipperUtil.Intersection(roof_cover, infillN);
+						}
 					}
+
+					// add overhang allowance. Technically any non-vertical surface will result in
+					// non-empty roof regions. However we do not need to explicitly support roofs
+					// until they are "too horizontal". 
+					roof_cover = ClipperUtil.MiterOffset(roof_cover, fOverhangAllowance);
+				}
+
+
+
+				// construct region that needs to be solid for "floors"
+				List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
+				if (is_infill) {
+					foreach (ShellsFillPolygon shells in LayerShells[i-1])
+						floor_cover.AddRange(shells.InnerPolygons);
+
+					// If we want > 1 floor layer, we need to look further back.
+					for (int k = 2; k <= RoofFloorLayers; ++k) {
+						int ri = i - k;
+						if (ri > 0) {
+							List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
+							foreach (ShellsFillPolygon shells in LayerShells[ri])
+								infillN.AddRange(shells.InnerPolygons);
+
+							floor_cover = ClipperUtil.Intersection(floor_cover, infillN);
+						}
+					}
+
+					// add overhang allowance. 
+					floor_cover = ClipperUtil.MiterOffset(floor_cover, fOverhangAllowance);
 				}
 
 
@@ -455,7 +501,9 @@ namespace gs
 					List<GeneralPolygon2d> solidFillPolys = shells_gen.InnerPolygons;
 					if (is_infill) {
 						infillPolys = shells_gen.InnerPolygons;
-						solidFillPolys = ClipperUtil.PolygonBoolean(infillPolys, next_infill, ClipperUtil.BooleanOp.Difference);
+						List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(infillPolys, roof_cover);
+						List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(infillPolys, floor_cover);
+						solidFillPolys = ClipperUtil.Union(roofPolys, floorPolys);
 						if (solidFillPolys == null)
 							solidFillPolys = new List<GeneralPolygon2d>();
 
@@ -468,8 +516,8 @@ namespace gs
 						// infill won't overlap solid region
 						if ( solidFillPolys.Count > 0 ) {
 							List<GeneralPolygon2d> solidWithBorder = 
-								ClipperUtil.ComputeOffsetPolygon(solidFillPolys, settings.NozzleDiamMM, true);
-							infillPolys = ClipperUtil.PolygonBoolean(infillPolys, solidWithBorder, ClipperUtil.BooleanOp.Difference);
+								ClipperUtil.MiterOffset(solidFillPolys, settings.NozzleDiamMM);
+							infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder);
 						}
 					}
 
