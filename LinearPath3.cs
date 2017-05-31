@@ -46,6 +46,15 @@ namespace gs
 			}
 		}
 
+		public double Length {
+			get {
+				double sum = 0;
+				for (int i = 1; i < Path.Count; ++i)
+					sum += Path[i].Position.Distance(Path[i - 1].Position);
+				return sum;
+			}
+		}
+
 		public PathTypes Type {
 			get { return _pathtype; }
 			set { _pathtype = value; }

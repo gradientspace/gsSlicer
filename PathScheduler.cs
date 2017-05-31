@@ -68,6 +68,9 @@ namespace gs
 			Vector2d currentPos2 = currentPos.xy;
 
 			int N = poly.VertexCount;
+			if (N < 2)
+				throw new Exception("PathScheduler.AppendPolygon2d: degenerate curve!");
+
 			int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly);
 
 			Vector2d startPt = poly[iNearest];
@@ -93,6 +96,9 @@ namespace gs
 			Vector2d currentPos2 = currentPos.xy;
 
 			int N = curve.VertexCount;
+			if (N < 2)
+				throw new Exception("PathScheduler.AppendPolyline2d: degenerate curve!");
+
 			int iNearest = 0;
 			bool bReverse = false;
 			if (curve.Start.DistanceSquared(currentPos2) > curve.End.DistanceSquared(currentPos2)) {

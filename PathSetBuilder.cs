@@ -57,7 +57,8 @@ namespace gs
 			LinearPath travel = new LinearPath(PathTypes.Travel);
 			travel.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			travel.AppendVertex(new PathVertex(toPos, fSpeed));
-			AppendPath(travel);
+			if ( travel.Length > MathUtil.Epsilonf )		// discard tiny travels
+				AppendPath(travel);
 			return currentPos;
 		}
 		public virtual Vector3d AppendTravel(List<Vector2d> toPoints, double fSpeed) {
@@ -67,7 +68,8 @@ namespace gs
 				Vector3d pos = new Vector3d(pos2.x, pos2.y, currentPos.z);
 				travel.AppendVertex(new PathVertex(pos, fSpeed));
 			}
-			AppendPath(travel);
+			if (travel.Length > MathUtil.Epsilonf)
+				AppendPath(travel);
 			return currentPos;
 		}
 		public virtual Vector3d AppendTravel(List<Vector3d> toPoints, double fSpeed) {
@@ -76,7 +78,8 @@ namespace gs
 			foreach (Vector3d pos in toPoints) {
 				travel.AppendVertex(new PathVertex(pos, fSpeed));
 			}
-			AppendPath(travel);
+			if (travel.Length > MathUtil.Epsilonf)
+				AppendPath(travel);
 			return currentPos;
 		}
 
