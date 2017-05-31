@@ -263,9 +263,24 @@ namespace gs
 		{
 			return PolygonBoolean(poly1, new List<GeneralPolygon2d>() { poly2 }, opType);
 		}
-		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, BooleanOp opType ) {
-			double nIntScale = Math.Max(GetIntScale(poly1), GetIntScale(poly2));
+		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, BooleanOp opType ) 
+		{
+			// handle cases where one list is empty
+			if ( poly1.Count == 0 ) {
+				if (opType == BooleanOp.Difference || opType == BooleanOp.Intersection)
+					return new List<GeneralPolygon2d>();
+				else
+					return DeepCopy.List(poly2);
+			} else if ( poly2.Count == 0 ) {
+				if (opType == BooleanOp.Intersection)
+					return new List<GeneralPolygon2d>();
+				else
+					return DeepCopy.List(poly1);
+			}
 
+
+			double nIntScale = Math.Max(GetIntScale(poly1), GetIntScale(poly2));
+		
 			try {
 				Clipper clipper = new Clipper(Clipper.ioStrictlySimple);
 
