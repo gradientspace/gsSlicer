@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using g3;
 
 namespace gs
@@ -61,7 +62,7 @@ namespace gs
 		public bool HasFlags { 
 			get { return flags != null && has_flags; } 
 		}
-		public IReadOnlyCollection<Index3i> Flags() { return flags.AsReadOnly(); }
+		public ReadOnlyCollection<Index3i> Flags() { return flags.AsReadOnly(); }
 	}
 
 

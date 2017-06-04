@@ -38,3 +38,5 @@ thirdparty/clipper_library/obj
 *.userprefs
 
 
+# unity meta files
+*.meta
