@@ -78,20 +78,20 @@ namespace gs
 					cut.Cut();
 
 					// extract slice polygons
-					List<GeneralPolygon2d> polygons = new List<GeneralPolygon2d>();
+					PlanarComplex complex = new PlanarComplex();
 					foreach (EdgeLoop loop in cut.CutLoops) {
 						Polygon2d poly = new Polygon2d();
 						foreach (int vid in loop.Vertices) {
 							Vector3d v = sliceMesh.GetVertex(vid);
 							poly.AppendVertex(v.xy);
 						}
-						polygons.Add(new GeneralPolygon2d(poly));
+						complex.AddPolygon(poly);
 					}
 
-					// filter polygons?
+					PlanarComplex.SolidRegionInfo solids = 
+						complex.FindSolidRegions(0.001, false);
 
-
-					slices[i].Add(polygons);
+					slices[i].Add(solids.Polygons);
 				});  // end of parallel.foreach
 				              
 			} // end mesh iter
