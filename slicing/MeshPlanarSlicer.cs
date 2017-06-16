@@ -22,13 +22,22 @@ namespace gs
 		{
 		}
 
-		public void AddMesh(DMesh3 mesh) {
+		public bool AddMesh(DMesh3 mesh) {
+            if (mesh.IsClosed() == false)
+                return false;
+
 			Meshes.Add(mesh);
 			Bounds.Add(mesh.CachedBounds);
+
+            return true;
 		}
-		public void AddMeshes(IEnumerable<DMesh3> meshes) {
-			foreach (var m in meshes)
-				AddMesh(m);
+		public bool AddMeshes(IEnumerable<DMesh3> meshes) {
+            bool ok = true;
+            foreach (var m in meshes) {
+                if (!AddMesh(m))
+                    ok = false;
+            }
+            return ok;
 		}
 
 
