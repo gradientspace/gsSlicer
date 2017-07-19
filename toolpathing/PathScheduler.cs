@@ -4,7 +4,15 @@ using g3;
 
 namespace gs
 {
-	public class PathScheduler
+
+    public interface IPathScheduler
+    {
+        void AppendPaths(List<FillPaths2d> paths);
+        void AppendShells(List<FillPaths2d> paths);
+    }
+
+
+	public class PathScheduler : IPathScheduler
 	{
 		public PathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
@@ -25,7 +33,7 @@ namespace gs
 
 
 		// dumbest possible scheduler...
-		public virtual void Append(List<FillPaths2d> paths) {
+		public virtual void AppendPaths(List<FillPaths2d> paths) {
 			foreach (FillPaths2d polySet in paths) {
 				foreach (Polygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	

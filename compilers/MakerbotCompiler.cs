@@ -7,8 +7,20 @@ namespace gs
 	using LinearPath = LinearPath3<PathVertex>;
 
 
-	// TODO: abstract this to general compiler?
-	public class MakerbotCompiler
+
+    public interface ThreeAxisPrinterCompiler
+    {
+        // current nozzle position
+        Vector3d NozzlePosition { get; }
+
+        void Begin();
+        void AppendPaths(PathSet paths);
+        void End();
+    }
+
+
+
+	public class MakerbotCompiler : ThreeAxisPrinterCompiler
 	{
 		SingleMaterialFFFSettings Settings;
 		GCodeBuilder Builder;
