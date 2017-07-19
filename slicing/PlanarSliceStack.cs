@@ -21,6 +21,16 @@ namespace gs
 		}
 
 
+        public PlanarSlice this[int i] {
+            get { return Slices[i]; }
+        }
+
+        public int Count
+        {
+            get { return Slices.Count; }
+        }
+
+
 
 		public AxisAlignedBox3d Bounds {
 			get {

@@ -97,7 +97,7 @@ namespace gs
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
-			scheduler.Append(shells_gen.Shells);
+			scheduler.AppendPaths(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
@@ -106,7 +106,7 @@ namespace gs
 					ToolWidth = settings.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.Append(infill_gen.Paths);
+				scheduler.AppendPaths(infill_gen.Paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -150,7 +150,7 @@ namespace gs
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
-			scheduler.Append(shells_gen.Shells);
+			scheduler.AppendPaths(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
@@ -159,7 +159,7 @@ namespace gs
 					ToolWidth = settings.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.Append(infill_gen.Paths);
+				scheduler.AppendPaths(infill_gen.Paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -217,8 +217,8 @@ namespace gs
 
 				// add paths
 				PathScheduler scheduler = new PathScheduler(paths, settings);
-				scheduler.Append(shells_gen.Shells);
-				scheduler.Append(infill_paths);
+				scheduler.AppendPaths(shells_gen.Shells);
+				scheduler.AppendPaths(infill_paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -270,7 +270,7 @@ namespace gs
 				shells_gen.Layers = 2;
 				shells_gen.Compute();
 
-				scheduler.Append(shells_gen.Shells);
+				scheduler.AppendPaths(shells_gen.Shells);
 
 				foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 					DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
@@ -279,7 +279,7 @@ namespace gs
 						ToolWidth = settings.NozzleDiamMM
 					};
 					infill_gen.Compute();
-					scheduler.Append(infill_gen.Paths);
+					scheduler.AppendPaths(infill_gen.Paths);
 				}
 
 				cc.AppendPaths(paths.Paths);
@@ -344,7 +344,7 @@ namespace gs
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
 
-					scheduler.Append(shells_gen.Shells);
+					scheduler.AppendPaths(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
@@ -354,7 +354,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.Append(infill_gen.Paths);
+						scheduler.AppendPaths(infill_gen.Paths);
 					}
 				}
 
@@ -553,7 +553,7 @@ namespace gs
 				for (int si = 0; si < curShells.Count; si++) {
 					ShellsFillPolygon shells_gen = curShells[si];
 
-					scheduler.Append(shells_gen.Shells);
+					scheduler.AppendPaths(shells_gen.Shells);
 
 					// construct infill poly list
 					List<GeneralPolygon2d> infillPolys = new List<GeneralPolygon2d>();
@@ -611,7 +611,7 @@ namespace gs
 								AngleDeg = infill_angles[i % infill_angles.Length]
 							};
 							solid_gen.Compute();
-							scheduler.Append(solid_gen.Paths);
+							scheduler.AppendPaths(solid_gen.Paths);
 						}
 					}
 
@@ -624,7 +624,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.Append(infill_gen.Paths);
+						scheduler.AppendPaths(infill_gen.Paths);
 					}
 				}
 
@@ -743,7 +743,7 @@ namespace gs
 								? 0 : (fillScale * settings.FillPathSpacingMM *(0.5))
 						};
 						infill_gen.Compute();
-						scheduler.Append(infill_gen.Paths);
+						scheduler.AppendPaths(infill_gen.Paths);
 					}
 				}
 

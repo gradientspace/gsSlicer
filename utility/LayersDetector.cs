@@ -52,6 +52,13 @@ namespace gs
 			return new Interval1d(low, high);
 		}
 
+        public int GetLayerIndex(double fZ)
+        {
+            int i = 0;
+            while (i < LayerZ.Count && LayerZ[i] < fZ)
+                i++;
+            return MathUtil.Clamp(i-1, 0, Layers - 1);
+        }
 
 
 		public void Compute() 
