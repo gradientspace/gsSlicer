@@ -313,7 +313,7 @@ namespace gs
 			int nLayers = stack.Slices.Count;
 
 			int RoofFloorLayers = 2;
-			double InfillScale = 3.0;
+			double InfillScale = 1.0;
 			double[] infill_angles = new double[] { -45, 45 };
 
 			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
@@ -388,13 +388,13 @@ namespace gs
 			PlanarSliceStack stack = slicer.Compute();
 			int nLayers = stack.Slices.Count;
 
-
 			settings.SparseLinearInfillStepX = 3.0;
 
 			// [TODO] move to settings...
+			int NumShells = 3;
 			int InteriorSolidRegionContours = 1;
 			double[] infill_angles = new double[] { -45, 45 };
-			bool AddSupport = true;
+			bool AddSupport = false;
 
 			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
 
@@ -412,7 +412,7 @@ namespace gs
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
 					shells_gen.PathSpacing = settings.FillPathSpacingMM;
 					shells_gen.ToolWidth = settings.NozzleDiamMM;
-					shells_gen.Layers = 2;
+					shells_gen.Layers = NumShells;
 					shells_gen.Compute();
 					LayerShells[layeri].Add(shells_gen);
 				}

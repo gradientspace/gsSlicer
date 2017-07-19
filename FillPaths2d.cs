@@ -10,6 +10,14 @@ namespace gs
 		List<Index3i> flags;
 		bool has_flags = false;
 
+		public FillPolyline2d() : base()
+		{
+		}
+
+		public FillPolyline2d(Vector2d[] v) : base(v)
+		{
+		}
+
 		void alloc_flags() {
 			if (flags == null) {
 				flags = new List<Index3i>();
@@ -89,7 +97,14 @@ namespace gs
 				Append(p);
 		}
 
+		public void Append(FillPolyline2d path) {
+			Curves.Add(path);
+		}
 
+		public void Append(List<FillPolyline2d> paths) {
+			foreach (var p in paths)
+				Append(p);
+		}
 
 
 

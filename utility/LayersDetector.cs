@@ -17,6 +17,8 @@ namespace gs
 		public Dictionary<double, int> LayersCounts;
 		public List<double> LayerZ;
 
+		public double EstimatedLayerHeight;
+
 		public LayersDetector(PathSet paths)
 		{
 			Paths = paths;
@@ -39,10 +41,14 @@ namespace gs
 
 			iLayer = MathUtil.Clamp(iLayer, 0, Layers - 1);
 
-			double low = (iLayer <= 0) ? LayerZ[iLayer] :
-				(LayerZ[iLayer] + LayerZ[iLayer - 1]) * 0.5;
-			double high = (iLayer == Layers-1) ? LayerZ[iLayer] :
-				(LayerZ[iLayer] + LayerZ[iLayer + 1]) * 0.5;
+			double low = LayerZ[iLayer] - EstimatedLayerHeight * 0.45f;
+			double high = LayerZ[iLayer] + EstimatedLayerHeight * 0.45f;
+
+			//double low = (iLayer <= 0) ? LayerZ[iLayer] :
+			//	(LayerZ[iLayer] + LayerZ[iLayer - 1]) * 0.5;
+			//double high = (iLayer == Layers-1) ? LayerZ[iLayer] :
+				//(LayerZ[iLayer] + LayerZ[iLayer + 1]) * 0.5;
+			
 			return new Interval1d(low, high);
 		}
 
@@ -80,6 +86,24 @@ namespace gs
 
 			LayerZ = new List<double>(LayersCounts.Keys);
 			LayerZ.Sort();
+
+			// estimate layer height
+			Dictionary<double, int> LayerHeights = new Dictionary<double, int>();
+			for (int i = 0; i < LayerZ.Count - 1; ++i ) {
+				double dz = Math.Round(LayerZ[i + 1] - LayerZ[i], 3);
+				if (LayerHeights.ContainsKey(dz) == false)
+					LayerHeights[dz] = 0;
+				LayerHeights[dz] = LayerHeights[dz] + 1;
+			}
+			double best_height = 0; int max_count = 0;
+			foreach ( var pair in LayerHeights ) {
+				if ( pair.Value > max_count ) {
+					max_count = pair.Value;
+					best_height = pair.Key;
+				}
+			}
+			EstimatedLayerHeight = best_height;
+
 		}
 
 

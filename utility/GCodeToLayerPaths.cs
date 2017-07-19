@@ -41,25 +41,35 @@ namespace gs
 
 
 		public void BeginTravel() {
-			push_active_path();
 
 			var newPath = new LinearPath();
 			newPath.Type = PathTypes.Travel;
+			if (ActivePath != null && ActivePath.VertexCount > 0) {
+				PathVertex curp = new PathVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				newPath.AppendVertex(curp);
+			}
+
+			push_active_path();
 			ActivePath = newPath;		
 		}
 		public void BeginDeposition() {
-			push_active_path();
 				
 			var newPath = new LinearPath();
 			newPath.Type = PathTypes.Deposition;
+			if (ActivePath != null && ActivePath.VertexCount > 0) {
+				PathVertex curp = new PathVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				newPath.AppendVertex(curp);
+			}
+
+			push_active_path();
 			ActivePath = newPath;				
 		}
 
 
 		public void LinearMoveToAbsolute3d(LinearMoveData move)
 		{
-			if ( ActivePath == null )		// only required in some weird cases...
-				BeginTravel();
+			if (ActivePath == null)
+				throw new Exception("GCodeToLayerPaths.LinearMoveToAbsolute3D: ActivePath is null!");
 
 			// if we are doing a Z-move, convert to 3D path
 			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.Position.z != move.position.z);
