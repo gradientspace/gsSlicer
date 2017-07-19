@@ -176,13 +176,13 @@ namespace gs
                     // fill infill regions
                     foreach (GeneralPolygon2d infill_poly in infill_regions) 
                         fill_infill_region(layer_i, infill_poly, scheduler);
-
-                    // resulting paths for this layer (Currently we are just discarding this after compiling)
-                    PathSet layerPaths = paths.Paths;
-
-                    // compile this layer
-                    Compiler.AppendPaths(layerPaths);
                 }
+
+                // resulting paths for this layer (Currently we are just discarding this after compiling)
+                PathSet layerPaths = paths.Paths;
+
+                // compile this layer
+                Compiler.AppendPaths(layerPaths);
             }
 
             Compiler.End();
