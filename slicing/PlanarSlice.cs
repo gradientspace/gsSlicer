@@ -16,7 +16,10 @@ namespace gs
 		}
 
 		public void Add(GeneralPolygon2d poly) {
-			Solids.Add(poly);
+            if (poly.Outer.IsClockwise)
+                poly.Outer.Reverse();
+
+            Solids = ClipperUtil.PolygonBoolean(Solids, poly, ClipperUtil.BooleanOp.Union);
 		}
 		public void Add(IEnumerable<GeneralPolygon2d> polys) {
 			foreach (GeneralPolygon2d p in polys)
