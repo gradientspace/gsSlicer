@@ -4,12 +4,25 @@ using g3;
 
 namespace gs
 {
+    
 	public class PlanarSlice
 	{
 		public double Z = 0;
 		public List<GeneralPolygon2d> Solids = new List<GeneralPolygon2d>();
 
 		// [TODO] sheets ?
+
+
+        // allow integer tags on polygons, which we can use for arbitrary stuff
+        public IntTagSet<GeneralPolygon2d> Tags {
+            get {
+                if (tags == null)
+                    tags = new IntTagSet<GeneralPolygon2d>();
+                return tags;
+            }
+        }
+        IntTagSet<GeneralPolygon2d> tags;
+
 
 		public PlanarSlice()
 		{

@@ -11,6 +11,18 @@ namespace gs
     public class PrintMeshAssembly
     {
         public List<DMesh3> Meshes = new List<DMesh3>();
+
+
+        public AxisAlignedBox3d TotalBounds
+        {
+            get {
+                AxisAlignedBox3d bounds = AxisAlignedBox3d.Empty;
+                foreach (var mesh in Meshes)
+                    bounds.Contain(mesh.CachedBounds);
+                return bounds;
+            }
+        }
+
     }
 
 
@@ -40,6 +52,9 @@ namespace gs
         // implement progress bar, etc
         public Action<int> BeginLayerF = (layeri) => { };
 
+        // This is called before we process each shell. The Tag is transferred
+        // from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
+        public Action<IFillPolygon, int> BeginShellF = (shell_fill, tag) => { };
 
 
         protected ThreeAxisPrintGenerator()
@@ -96,6 +111,9 @@ namespace gs
 
         List<ShellsFillPolygon>[] LayerShells;
 
+        // tags on slice polygons get transferred to shells
+        IntTagSet<IFillPolygon> ShellTags = new IntTagSet<IFillPolygon>();
+
         // [TODO] these should be moved to settings, or something?
         double OverhangAllowanceMM;
         protected virtual double LayerFillAngleF(int layer_i)
@@ -130,7 +148,6 @@ namespace gs
             for ( int layer_i = 0; layer_i < nLayers; ++layer_i ) {
                 BeginLayerF(layer_i);
 
-                PlanarSlice slice = Slices[layer_i];
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
 
                 // make path-accumulator for this layer
@@ -158,6 +175,9 @@ namespace gs
                     // schedule shell paths that we pre-computed
                     ShellsFillPolygon shells_gen = layer_shells[si];
                     scheduler.AppendPaths(shells_gen.Shells);
+
+                    // all client to do configuration (eg change settings for example)
+                    BeginShellF(shells_gen, ShellTags.Get(shells_gen));
 
                     // solid fill areas are inner polygons of shell fills
                     List<GeneralPolygon2d> solid_fill_regions = shells_gen.InnerPolygons;
@@ -366,13 +386,18 @@ namespace gs
                 PlanarSlice slice = Slices[layeri];
                 LayerShells[layeri] = new List<ShellsFillPolygon>();
 
-                foreach (GeneralPolygon2d shape in slice.Solids) {
+                List<GeneralPolygon2d> solids = slice.Solids;
+
+                foreach (GeneralPolygon2d shape in solids) {
                     ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
                     shells_gen.PathSpacing = Settings.FillPathSpacingMM;
                     shells_gen.ToolWidth = Settings.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
                     shells_gen.Compute();
                     LayerShells[layeri].Add(shells_gen);
+
+                    if (slice.Tags.Has(shape))
+                        ShellTags.Add(shells_gen, slice.Tags.Get(shape));
                 }
             });
         }

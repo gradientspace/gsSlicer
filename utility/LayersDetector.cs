@@ -30,6 +30,9 @@ namespace gs
 		public int Layers {
 			get { return LayerZ.Count; }
 		}
+        public int Count {
+            get { return LayerZ.Count; }
+        }
 
 		public double GetLayerZ(int iLayer) {
 			return LayerZ[iLayer];
