@@ -35,7 +35,8 @@ namespace gs
         }
 
 		public double GetLayerZ(int iLayer) {
-			return LayerZ[iLayer];
+            iLayer = MathUtil.Clamp(iLayer, 0, Layers - 1);
+            return LayerZ[iLayer];
 		}
 
 		public Interval1d GetLayerZInterval(int iLayer) {
@@ -55,16 +56,27 @@ namespace gs
 			return new Interval1d(low, high);
 		}
 
+        /// <summary>
+        /// Find layer closest to fZ
+        /// </summary>
         public int GetLayerIndex(double fZ)
         {
             int i = 0;
-            while (i < LayerZ.Count && LayerZ[i] < fZ)
-                i++;
-            return MathUtil.Clamp(i-1, 0, Layers - 1);
+            double minDist = double.MaxValue;
+            while (i < LayerZ.Count) {
+                double d = Math.Abs(LayerZ[i] - fZ);
+                if (d < minDist) {
+                    minDist = d;
+                    i++;
+                } else {
+                    return i-1;
+                }
+            }
+            return LayerZ.Count - 1;
         }
 
 
-		public void Compute() 
+        public void Compute() 
 		{
 			LayersCounts = new Dictionary<double, int>();
 
