@@ -94,7 +94,7 @@ namespace gs
 							Vector3d v = sliceMesh.GetVertex(vid);
 							poly.AppendVertex(v.xy);
 						}
-						complex.AddPolygon(poly);
+						complex.Add(poly);
 					}
 
 					PlanarComplex.SolidRegionInfo solids = 
