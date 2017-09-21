@@ -42,23 +42,25 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="utility\GCodeToLayerPaths.cs" />
-    <Compile Include="PathSet.cs" />
-    <Compile Include="PathInterfaces.cs" />
-    <Compile Include="LinearPath3.cs" />
-    <Compile Include="PathUtil.cs" />
     <Compile Include="tests\CalculateExtrusion.cs" />
     <Compile Include="tests\MakerbotTests.cs" />
-    <Compile Include="MakerbotCompiler.cs" />
-    <Compile Include="PathSetBuilder.cs" />
-    <Compile Include="IFillPolygon.cs" />
-    <Compile Include="ShellsFillPolygon.cs" />
-    <Compile Include="FillPaths2d.cs" />
-    <Compile Include="PathScheduler.cs" />
-    <Compile Include="DenseLinesFillPolygon.cs" />
     <Compile Include="utility\LayersDetector.cs" />
     <Compile Include="slicing\PlanarSlice.cs" />
     <Compile Include="slicing\PlanarSliceStack.cs" />
     <Compile Include="slicing\MeshPlanarSlicer.cs" />
+    <Compile Include="compilers\MakerbotCompiler.cs" />
+    <Compile Include="generators\MakerbotPrintGenerator.cs" />
+    <Compile Include="generators\ThreeAxisPrintGenerator.cs" />
+    <Compile Include="toolpaths\FillPaths2d.cs" />
+    <Compile Include="toolpaths\LinearPath3.cs" />
+    <Compile Include="toolpaths\PathInterfaces.cs" />
+    <Compile Include="toolpaths\PathSet.cs" />
+    <Compile Include="toolpaths\PathSetBuilder.cs" />
+    <Compile Include="toolpaths\PathUtil.cs" />
+    <Compile Include="toolpathing\DenseLinesFillPolygon.cs" />
+    <Compile Include="toolpathing\IFillPolygon.cs" />
+    <Compile Include="toolpathing\PathScheduler.cs" />
+    <Compile Include="toolpathing\ShellsFillPolygon.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">

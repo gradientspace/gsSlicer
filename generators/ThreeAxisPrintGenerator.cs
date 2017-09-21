@@ -71,7 +71,7 @@ namespace gs
 
 
 
-        public virtual void Initialize(PrintMeshAssembly meshes, 
+        public void Initialize(PrintMeshAssembly meshes, 
                                PlanarSliceStack slices,
                                SingleMaterialFFFSettings settings,
                                ThreeAxisPrinterCompiler compiler)
