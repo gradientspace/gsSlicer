@@ -57,10 +57,12 @@
     <Compile Include="toolpaths\PathSet.cs" />
     <Compile Include="toolpaths\PathSetBuilder.cs" />
     <Compile Include="toolpaths\PathUtil.cs" />
-    <Compile Include="toolpathing\DenseLinesFillPolygon.cs" />
+    <Compile Include="toolpathing\RasterFillPolygon.cs" />
     <Compile Include="toolpathing\IFillPolygon.cs" />
     <Compile Include="toolpathing\PathScheduler.cs" />
     <Compile Include="toolpathing\ShellsFillPolygon.cs" />
+    <Compile Include="toolpathing\DenseLinesFillPolygon %28copy%29.cs" />
+    <Compile Include="generators\SLSPrintGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">
