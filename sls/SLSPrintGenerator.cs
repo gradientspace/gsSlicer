@@ -9,21 +9,20 @@ namespace gs
 
 
     /// <summary>
-    /// This is the top-level class that generates a GCodeFile for a stack of slices.
-    /// Currently must subclass to provide resulting GCodeFile.
+
     /// </summary>
     public abstract class SLSPrintGenerator
     {
         // Data structures that must be provided by client
         protected PrintMeshAssembly PrintMeshes;
         protected PlanarSliceStack Slices;
-        protected ThreeAxisPrinterCompiler Compiler;
+        protected ThreeAxisLaserCompiler Compiler;
         public SingleMaterialFFFSettings Settings;      // public because you could modify
                                                         // this during process, ie in BeginLayerF
                                                         // to implement per-layer settings
 
         // available after calling Generate()
-        public GCodeFile Result;
+        public PathSet Result;
 
         // replace this with your own error message handler
         public Action<string, string> ErrorF = (message, stack_trace) => {
@@ -46,7 +45,7 @@ namespace gs
         public SLSPrintGenerator(PrintMeshAssembly meshes, 
                                        PlanarSliceStack slices,
                                        SingleMaterialFFFSettings settings,
-                                       ThreeAxisPrinterCompiler compiler)
+                                       ThreeAxisLaserCompiler compiler)
         {
             Initialize(meshes, slices, settings, compiler);
         }
@@ -56,7 +55,7 @@ namespace gs
         public void Initialize(PrintMeshAssembly meshes, 
                                PlanarSliceStack slices,
                                SingleMaterialFFFSettings settings,
-                               ThreeAxisPrinterCompiler compiler)
+                               ThreeAxisLaserCompiler compiler)
         {
             PrintMeshes = meshes;
             Slices = slices;
@@ -81,7 +80,7 @@ namespace gs
 
 
         // subclasses must implement this to return GCodeFile result
-        protected abstract GCodeFile extract_result();
+        protected abstract PathSet extract_result();
 
 
 
@@ -100,7 +99,7 @@ namespace gs
         double OverhangAllowanceMM;
         protected virtual double LayerFillAngleF(int layer_i)
         {
-            return (layer_i % 2 == 0) ? -45 : 45;
+            return (layer_i % 2 == 0) ? 0 : 90;
         }
 
 
@@ -130,25 +129,19 @@ namespace gs
             for ( int layer_i = 0; layer_i < nLayers; ++layer_i ) {
                 BeginLayerF(layer_i);
 
-                bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
-
                 // make path-accumulator for this layer
                 PathSetBuilder paths = new PathSetBuilder();
-                paths.Initialize(Compiler.NozzlePosition);
+
+                // TODO FIX
+                //paths.Initialize(Compiler.NozzlePosition);
+                paths.Initialize( (double)(layer_i) * Settings.LayerHeightMM * Vector3d.AxisZ ); 
+
                 // layer-up (ie z-change)
                 paths.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
                 // rest of code does not directly access path builder, instead if
                 // sends paths to scheduler.
                 PathScheduler scheduler = new PathScheduler(paths, Settings);
-
-                // generate roof and floor regions. This could be done in parallel, or even pre-computed
-                List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
-                List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
-                if (is_infill) {
-                    roof_cover = make_roof(layer_i);
-                    floor_cover = make_floor(layer_i);
-                }
 
                 // a layer can contain multiple disjoint regions. Process each separately.
                 List<ShellsFillPolygon> layer_shells = LayerShells[layer_i];
@@ -164,20 +157,9 @@ namespace gs
                     // solid fill areas are inner polygons of shell fills
                     List<GeneralPolygon2d> solid_fill_regions = shells_gen.InnerPolygons;
 
-                    // if this is an infill layer, compute infill regions, and remaining solid regions
-                    // (ie roof/floor regions, and maybe others)
-                    List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
-                    if (is_infill)
-                        infill_regions = make_infill(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
-                    bool has_infill = (infill_regions.Count > 0);
-
                     // fill solid regions
-                    foreach (GeneralPolygon2d solid_poly in solid_fill_regions) 
-                        fill_solid_region(layer_i, solid_poly, scheduler, has_infill);
-
-                    // fill infill regions
-                    foreach (GeneralPolygon2d infill_poly in infill_regions) 
-                        fill_infill_region(layer_i, infill_poly, scheduler);
+                    foreach (GeneralPolygon2d solid_poly in solid_fill_regions)
+                        fill_solid_region(layer_i, solid_poly, scheduler, false);
                 }
 
                 // resulting paths for this layer (Currently we are just discarding this after compiling)
@@ -190,23 +172,6 @@ namespace gs
             Compiler.End();
         }
 
-
-
-
-        /// <summary>
-        /// fill polygon with sparse infill strategy
-        /// </summary>
-        protected virtual void fill_infill_region(int layer_i, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
-        {
-            DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
-                InsetFromInputPolygon = false,
-                PathSpacing = Settings.SparseLinearInfillStepX * Settings.FillPathSpacingMM,
-                ToolWidth = Settings.NozzleDiamMM,
-                AngleDeg = LayerFillAngleF(layer_i)
-            };
-            infill_gen.Compute();
-            scheduler.AppendPaths(infill_gen.Paths);
-        }
 
 
 
@@ -242,122 +207,29 @@ namespace gs
 
             // now actually fill solid regions
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
-                DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
-                    InsetFromInputPolygon = false,
-                    PathSpacing = Settings.FillPathSpacingMM,
-                    ToolWidth = Settings.NozzleDiamMM,
-                    AngleDeg = LayerFillAngleF(layer_i)
+                TiledFillPolygon tiled_fill = new TiledFillPolygon(fillPoly) {
+                    TileSize = 13.1*Settings.FillPathSpacingMM,
+                    TileOverlap = 0.3* Settings.FillPathSpacingMM
                 };
-                solid_gen.Compute();
-                scheduler.AppendPaths(solid_gen.Paths);
+                tiled_fill.TileFillGeneratorF = (tilePoly, index) => {
+                    int odd = ((index.x+index.y) % 2 == 0) ? 1 : 0;
+                    RasterFillPolygon solid_gen = new RasterFillPolygon(tilePoly) {
+                        InsetFromInputPolygon = false,
+                        PathSpacing = Settings.FillPathSpacingMM,
+                        ToolWidth = Settings.NozzleDiamMM,
+                        AngleDeg = LayerFillAngleF(layer_i + odd)
+                    };
+                    return solid_gen;
+                };
+
+                tiled_fill.Compute();
+                scheduler.AppendPaths(tiled_fill.Paths);
             }
         }
 
 
 
-        /// <summary>
-        /// Determine the sparse infill and solid fill regions for a layer, given the input regions that
-        /// need to be filled, and the roof/floor areas above/below this layer. 
-        /// </summary>
-        protected virtual List<GeneralPolygon2d> make_infill(int layer_i, List<GeneralPolygon2d> fillRegions, 
-                                                             List<GeneralPolygon2d> roof_cover, 
-                                                             List<GeneralPolygon2d> floor_cover, 
-                                                             out List<GeneralPolygon2d> solid_regions)
-                                                            
-        {
-            List<GeneralPolygon2d> infillPolys = fillRegions;
-
-            List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(fillRegions, roof_cover);
-            List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(fillRegions, floor_cover);
-            solid_regions = ClipperUtil.Union(roofPolys, floorPolys);
-            if (solid_regions == null)
-                solid_regions = new List<GeneralPolygon2d>();
-
-            // [TODO] I think maybe we should actually do another set of contours for the
-            // solid region. At least one. This gives the solid & infill something to
-            // connect to, and gives the contours above a continuous bonding thread
-
-            // subtract solid fill from infill regions. However because we *don't*
-            // inset fill regions, we need to subtract (solid+offset), so that
-            // infill won't overlap solid region
-            if (solid_regions.Count > 0) {
-                List<GeneralPolygon2d> solidWithBorder =
-                    ClipperUtil.MiterOffset(solid_regions, Settings.NozzleDiamMM);
-                infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder);
-            }
-
-            return infillPolys;
-        }
-
-
-
-
-        /// <summary>
-        /// construct region that needs to be solid for "roofs".
-        /// This is the intersection of infill polygons for the next N layers.
-        /// </summary>
-        protected virtual List<GeneralPolygon2d> make_roof(int layer_i)
-        {
-            List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
-
-            foreach (ShellsFillPolygon shells in LayerShells[layer_i + 1])
-                roof_cover.AddRange(shells.InnerPolygons);
-
-            // If we want > 1 roof layer, we need to look further ahead.
-            // The full area we need to print as "roof" is the infill minus
-            // the intersection of the infill areas above
-            for (int k = 2; k <= Settings.RoofLayers; ++k) {
-                int ri = layer_i + k;
-                if (ri < LayerShells.Length) {
-                    List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
-                    foreach (ShellsFillPolygon shells in LayerShells[ri])
-                        infillN.AddRange(shells.InnerPolygons);
-
-                    roof_cover = ClipperUtil.Intersection(roof_cover, infillN);
-                }
-            }
-
-            // add overhang allowance. Technically any non-vertical surface will result in
-            // non-empty roof regions. However we do not need to explicitly support roofs
-            // until they are "too horizontal". 
-            var result = ClipperUtil.MiterOffset(roof_cover, OverhangAllowanceMM);
-            return result;
-        }
-
-
-
-
-        /// <summary>
-        /// construct region that needs to be solid for "floors"
-        /// </summary>
-        protected virtual List<GeneralPolygon2d> make_floor(int layer_i)
-        {
-            List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
-
-            foreach (ShellsFillPolygon shells in LayerShells[layer_i - 1])
-                floor_cover.AddRange(shells.InnerPolygons);
-
-            // If we want > 1 floor layer, we need to look further back.
-            for (int k = 2; k <= Settings.FloorLayers; ++k) {
-                int ri = layer_i - k;
-                if (ri > 0) {
-                    List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
-                    foreach (ShellsFillPolygon shells in LayerShells[ri])
-                        infillN.AddRange(shells.InnerPolygons);
-
-                    floor_cover = ClipperUtil.Intersection(floor_cover, infillN);
-                }
-            }
-
-            // add overhang allowance. 
-            var result = ClipperUtil.MiterOffset(floor_cover, OverhangAllowanceMM);
-            return result;
-        }
-
-
-
-
-
+  
 
         protected virtual void precompute_shells()
         {
@@ -375,6 +247,7 @@ namespace gs
                     shells_gen.PathSpacing = Settings.FillPathSpacingMM;
                     shells_gen.ToolWidth = Settings.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
+                    shells_gen.InsetInnerPolygons = false;
                     shells_gen.Compute();
                     LayerShells[layeri].Add(shells_gen);
 

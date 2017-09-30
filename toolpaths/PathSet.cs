@@ -88,7 +88,9 @@ namespace gs
 			get {
 				AxisAlignedBox3d box = AxisAlignedBox3d.Empty;
 				foreach ( var p in Paths ) {
-					if ( p.Type == PathTypes.Deposition )
+                    if (p is PathSet)
+                        box.Contain((p as PathSet).ExtrudeBounds);
+					else if ( p.Type == PathTypes.Deposition )
 						box.Contain(p.Bounds);
 				}
 				return box;				

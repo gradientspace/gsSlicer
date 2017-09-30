@@ -5,14 +5,28 @@ using g3;
 
 namespace gs
 {
-	public class ShellsFillPolygon : IFillPolygon
-	{
+    /// <summary>
+    /// Fill the input GPolygon with N offset shells. Generates list of 2d paths (.Shells) and
+    /// also returns border polygons of "inner" region inside shells (.InnerPolygons)
+    /// 
+    /// Parameters:
+    ///     .Layers:     number of shells
+    ///     .ToolWidth:  thickness of 'tool', this is the space between subsequent shells
+    ///     
+    /// Options:
+    ///     .InsetFromInputPolygon    : if true, initial shell is inset half a ToolWidth from input Polygon
+    ///                                 (ie outer edge of tool would be "on" Polygon)
+    ///     .InsetInnerPolygons       : if true, inner polygons are inset a tool-width from innermost shell (ie are
+    ///                                 path you would put next shell on). If false, inner polygons lie on innermost shell.
+    /// </summary>
+	public class ShellsFillPolygon : IPathsFillPolygon
+    {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
 
 		// parameters
 		public double ToolWidth = 0.4;
-		public double PathSpacing = 0.4;
+		public double PathSpacing = 0.4;    // [TODO] this parameter is currently ignored?
 		public int Layers = 2;
 
 		public double DiscardTinyPerimterLengthMM = 1.0;
@@ -28,11 +42,16 @@ namespace gs
 		// otherwise first layer is polygon
 		public bool InsetFromInputPolygon = true;
 
-		// shell layers
-		public List<FillPaths2d> Shells { get; set; }
+        // if true, inset InnerPolygons by a tool-width from last Shell,
+        // otherwise InnerPolygons lies on that Shell
+        public bool InsetInnerPolygons = true;
 
-		// remaining interior polygons (to fill w/ other strategy?)
-		public List<GeneralPolygon2d> InnerPolygons { get; set; }
+		// shell layers. Size of List == Layers
+		public List<FillPaths2d> Shells { get; set; }
+        public List<FillPaths2d> GetFillPaths() { return Shells; }
+
+        // remaining interior polygons (to fill w/ other strategy, etc)
+        public List<GeneralPolygon2d> InnerPolygons { get; set; }
 
 
 		public ShellsFillPolygon(GeneralPolygon2d poly)
@@ -53,6 +72,7 @@ namespace gs
 			List<GeneralPolygon2d> current = (InsetFromInputPolygon) ?
 				ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true) :
 			   	new List<GeneralPolygon2d>() { Polygon };
+            List<GeneralPolygon2d> current_prev = null;
 
 			// convert previous layer to shell, and then compute next layer
 			List<GeneralPolygon2d> failedShells = new List<GeneralPolygon2d>();
@@ -86,26 +106,32 @@ namespace gs
 						all_next.AddRange(filtered);
 				}
 
-				current = all_next;
+                current_prev = current;
+                current = all_next;
 			}
 
 
-			// failedShells have no space for internal contours. But 
-			// we might be able to fit a single line...
-			//foreach (GeneralPolygon2d gpoly in failedShells) {
-			//	if (gpoly.Perimeter < DiscardTinyPerimterLengthMM ||
-			//		 gpoly.Area < DiscardTinyPolygonAreaMM2)
-			//		continue;
+            // failedShells have no space for internal contours. But 
+            // we might be able to fit a single line...
+            //foreach (GeneralPolygon2d gpoly in failedShells) {
+            //	if (gpoly.Perimeter < DiscardTinyPerimterLengthMM ||
+            //		 gpoly.Area < DiscardTinyPolygonAreaMM2)
+            //		continue;
 
-			//	List<FillPolyline2d> thin_shells = thin_offset(gpoly);
-			//	Shells[Shells.Count - 1].Append(thin_shells);
-			//}
+            //	List<FillPolyline2d> thin_shells = thin_offset(gpoly);
+            //	Shells[Shells.Count - 1].Append(thin_shells);
+            //}
 
 
-			// remaining inner polygons
-			InnerPolygons = current;
-			InnerPolygons.AddRange(nextShellTooThin);
-			return true;
+            // remaining inner polygons
+            if (InsetInnerPolygons) {
+                InnerPolygons = current;
+                InnerPolygons.AddRange(nextShellTooThin);
+            } else {
+                InnerPolygons = current_prev;
+                InnerPolygons.AddRange(nextShellTooThin);
+            }
+            return true;
 		}
 
 

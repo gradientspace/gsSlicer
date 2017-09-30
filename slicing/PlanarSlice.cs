@@ -30,7 +30,7 @@ namespace gs
 
 		public void Add(GeneralPolygon2d poly) {
             if (poly.Outer.IsClockwise)
-                poly.Outer.Reverse();
+                poly.Reverse();
 
             Solids = ClipperUtil.PolygonBoolean(Solids, poly, ClipperUtil.BooleanOp.Union);
 		}

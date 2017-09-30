@@ -4,8 +4,8 @@ using g3;
 
 namespace gs
 {
-	public class DenseLinesFillPolygon : IFillPolygon
-	{
+	public class DenseLinesFillPolygon : IPathsFillPolygon
+    {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
 
@@ -23,9 +23,10 @@ namespace gs
 
 		// fill paths
 		public List<FillPaths2d> Paths { get; set; }
+        public List<FillPaths2d> GetFillPaths() { return Paths; }
 
 
-		SegmentSet2d BoundaryPolygonCache;
+        SegmentSet2d BoundaryPolygonCache;
 
 		public DenseLinesFillPolygon(GeneralPolygon2d poly)
 		{

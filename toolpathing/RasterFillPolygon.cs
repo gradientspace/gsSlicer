@@ -4,8 +4,8 @@ using g3;
 
 namespace gs
 {
-	public class RasterFillPolygon : IFillPolygon
-	{
+	public class RasterFillPolygon : IPathsFillPolygon
+    {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
 
@@ -16,16 +16,17 @@ namespace gs
 		public double PathShift = 0;
 
 		// [RMS] improve this...
-		public double WeirdFudgeFactor = 1.5f;
+		public double OverlapFactor = 0.0f;
 
 		// if true, we inset half of tool-width from Polygon
 		public bool InsetFromInputPolygon = true;
 
 		// fill paths
 		public List<FillPaths2d> Paths { get; set; }
+        public List<FillPaths2d> GetFillPaths() { return Paths; }
 
 
-		SegmentSet2d BoundaryPolygonCache;
+        SegmentSet2d BoundaryPolygonCache;
 
 		public RasterFillPolygon(GeneralPolygon2d poly)
 		{
@@ -160,7 +161,7 @@ namespace gs
 		{
 
 			List<double> hits = new List<double>();     // todo reusable buffer
-			segments.FindAllIntersections(ray, hits, null, null, true);
+			segments.FindAllIntersections(ray, hits, null, null, false);
 			hits.Sort();
 
 			bool clean = true;
@@ -209,9 +210,11 @@ namespace gs
 			while (j < hits.Count) {
 
 				// find next non-dupe
-				while (hits[j] - hits[i] < eps) {
+				while (j < hits.Count && hits[j] - hits[i] < eps) {
 					j++;
 				}
+                if (j == hits.Count)
+                    continue;
 
 				// ok check if midpoint is inside or outside
 				double mid_t = (hits[i] + hits[j]) * 0.5;
