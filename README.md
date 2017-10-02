@@ -26,7 +26,7 @@ Experimental support for SLS contours & hatching is available in **GenericSLSPri
 
 # Usage
 
-This project is a source code library, not usable directly. GUI and command-line front ends are under development but very basic at this point, in the (https://github.com/gradientspace/gsSlicerApps)[gsSlicerApps] project.
+This project is a source code library, not usable directly. GUI and command-line front ends are under development but very basic at this point, in the [gsSlicerApps](https://github.com/gradientspace/gsSlicerApps) project.
 
 For an example of how to convert a mesh into GCode, see **GenerateGCodeForMeshes()** in *gsSlicerApps/sliceViewGTK/SliceViewerMain.cs*
 
