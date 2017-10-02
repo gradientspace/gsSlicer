@@ -11,13 +11,24 @@ or email [rms@gradientspace.com](mailto:rms@gradientspace.com?subject=gsSlicer).
 
 gsSlicer is an in-development open-source library for things like slicing 3D triangle meshes into planar polygons, filling those polygons with contour & raster fill paths, figuring out how much material to extrude along the paths, and then outputting GCode. The included **SliceViewer** project is also a GCode viewer/utility.
 
-The goal with this project is to create a well-structured slicing engine that is designed from the ground up to be extensible. Although the initial focus will be on FDM/FFF-style printers, many of the parts of the system should be applicable to other processes like SLA, etc. Hopefully. Fingers crossed. At least, we'll definitely solve the meshes-to-slices problem for you.
+The goal with this project is to create a well-structured slicing engine that is designed from the ground up to be extensible. Although the initial focus will be on FDM/FFF-style printers, many of the parts of the system will be applicable to other processes like SLA, etc. Hopefully. Fingers crossed. At least, we'll definitely solve the meshes-to-slices problem for you.
 
 # Current Status
 
-**Under Active Development**. There is no standalone slicing "tool" yet. Basic mesh slicing is possible but you have to edit the filename in SliceViewer code! It does contours and infill, and (just barely) roofs, but not floors, or support, or lots of other important slicing things. Has hardly been tested. Only works for a Makerbot Replicator 2. And so on!
+**Under Active Development**. Generated GCode has been used for non-trivial prints, however the output has not been extensively tested. 
 
-So, unless you want to work with the code, check back later.
+Shells, solid and sparse infill, roof and floors, have been implemented. Support volumes calculated but not yet filled. **MakerbotPrintGenerator** is top-level driver for FDM printing.
+
+Experimental support for SLS contours & hatching is available in **GenericSLSPrintGenerator**. 
+
+**Supported Printers**: At this time, only Makerbot Replicator 2.
+
+
+# Usage
+
+This project is a source code library, not usable directly. GUI and command-line front ends are under development but very basic at this point, in the (https://github.com/gradientspace/gsSlicerApps)[gsSlicerApps] project.
+
+For an example of how to convert a mesh into GCode, see **GenerateGCodeForMeshes()** in *gsSlicerApps/sliceViewGTK/SliceViewerMain.cs*
 
 
 # Dependencies
@@ -30,5 +41,4 @@ The slicing & path planning library **gsSlicer** depends on:
 
 No GPL/LGPL involved. All the code you would need to make an .exe that slices a mesh is available for unrestricted commercial use.
 
-The **SliceViewer** project code is also MIT-license, but it depends on Gdk/Gtk/GtkSharp (LGPL) and the SkiaSharp wrapper (MIT) around the Skia library (BSD).  
 
