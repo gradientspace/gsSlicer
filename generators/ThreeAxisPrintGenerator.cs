@@ -253,6 +253,7 @@ namespace gs
                 interior_shells.ToolWidth = Settings.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
+                interior_shells.IsInternalShell = true;
                 interior_shells.Compute();
                 scheduler.AppendShells(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;

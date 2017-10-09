@@ -54,6 +54,11 @@ namespace gs
         public List<GeneralPolygon2d> InnerPolygons { get; set; }
 
 
+        // [RMS] hack that lets us know this is an 'internal' shell which may be processed differently
+        public bool IsInternalShell = false;
+
+
+
 		public ShellsFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
@@ -78,8 +83,7 @@ namespace gs
 			List<GeneralPolygon2d> failedShells = new List<GeneralPolygon2d>();
 			List<GeneralPolygon2d> nextShellTooThin = new List<GeneralPolygon2d>();
 			for (int i = 0; i < Layers; ++i ) {
-				FillPaths2d paths = new FillPaths2d();
-				paths.Append(current);
+                FillPaths2d paths = ShellPolysToPaths(current, i);
 				Shells.Add(paths);
 
 				List<GeneralPolygon2d> all_next = new List<GeneralPolygon2d>();
@@ -136,6 +140,39 @@ namespace gs
 
 
 
+        public virtual FillPaths2d ShellPolysToPaths(List<GeneralPolygon2d> shell_polys, int nShell)
+        {
+            FillPaths2d paths = new FillPaths2d();
+
+            bool disable_filtering = false;
+            foreach (GeneralPolygon2d shell in shell_polys) {
+                if ( (nShell == 0 && IsInternalShell == false) || disable_filtering) {
+                    paths.Append(shell);
+                    continue;
+                }
+
+                PathOverlapRepair repair = new PathOverlapRepair();
+                repair.OverlapRadius = PathSpacing*0.75;
+                repair.Add(shell);
+                repair.Compute();
+
+                DGraph2Util.Curves c = DGraph2Util.ExtractCurves(repair.GetResultGraph());
+
+                //if (IsInternalShell && c.Paths.Count == 1 && c.Paths[0].VertexCount > 10)
+                //    Util.gDevAssert(false);
+
+                foreach (var polygon in c.Loops)
+                    paths.Append(polygon);
+                foreach (var polyline in c.Paths)
+                    paths.Append(new FillPolyline2d(polyline));
+            }
+            return paths;
+        }
+
+
+
+
+
 		public List<FillPolyline2d> thin_offset(GeneralPolygon2d p) {
 
 			List<FillPolyline2d> result = new List<FillPolyline2d>();
@@ -144,7 +181,7 @@ namespace gs
 			if (p.Holes.Count == 0)
 				return result;
 
-			// computer desired offset from outer polygon
+			// compute desired offset from outer polygon
 			GeneralPolygon2d outer = new GeneralPolygon2d(p.Outer);
 			List<GeneralPolygon2d> offsets =
 				ClipperUtil.ComputeOffsetPolygon(outer, -ToolWidth, true);
