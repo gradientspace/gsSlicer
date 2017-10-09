@@ -18,7 +18,11 @@ namespace gs
 		{
 		}
 
-		void alloc_flags() {
+        public FillPolyline2d(PolyLine2d p) : base(p)
+        {
+        }
+
+        void alloc_flags() {
 			if (flags == null) {
 				flags = new List<Index3i>();
 				for (int i = 0; i < vertices.Count; ++i)
@@ -97,7 +101,16 @@ namespace gs
 				Append(p);
 		}
 
-		public void Append(FillPolyline2d path) {
+        public void Append(Polygon2d poly) {
+            Loops.Add(new Polygon2d(poly));
+        }
+
+        public void Append(List<Polygon2d> polys) {
+            foreach (var p in polys)
+                Append(p);
+        }
+
+        public void Append(FillPolyline2d path) {
 			Curves.Add(path);
 		}
 
