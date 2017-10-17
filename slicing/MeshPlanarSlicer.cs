@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using g3;
 
 namespace gs
@@ -16,6 +17,11 @@ namespace gs
 			Base, EpsilonBase, MidLine
 		}
 		SliceLocations SliceLocation = SliceLocations.MidLine;
+
+
+        // these can be used for progress tracking
+        public int TotalCompute = 0;
+        public int Progress = 0;
 
 
 		public MeshPlanarSlicer()
@@ -53,8 +59,8 @@ namespace gs
 			if (nLayers > MaxLayerCount)
 				throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
 
-			// make list of slice heights (could be irregular)
-			List<double> heights = new List<double>();
+            // make list of slice heights (could be irregular)
+            List<double> heights = new List<double>();
 			for (int i = 0; i < nLayers + 1; ++i) {
 				double t = zrange.a + (double)i * LayerHeightMM;
 				if (SliceLocation == SliceLocations.EpsilonBase)
@@ -70,8 +76,11 @@ namespace gs
 			for (int i = 0; i < NH; ++i)
 				slices[i] = new PlanarSlice() { Z = heights[i] };
 
-			// this sucks. oh well!
-			for (int mi = 0; mi < Meshes.Count; ++mi ) {
+            TotalCompute = Meshes.Count * nLayers;
+            Progress = 0;
+
+            // this sucks. oh well!
+            for (int mi = 0; mi < Meshes.Count; ++mi ) {
 				DMesh3 mesh = Meshes[mi];
 				AxisAlignedBox3d bounds = Bounds[mi];
 
@@ -101,6 +110,8 @@ namespace gs
 						complex.FindSolidRegions(0.001, false);
 
 					slices[i].Add(solids.Polygons);
+
+                    Interlocked.Increment(ref Progress);
 				});  // end of parallel.foreach
 				              
 			} // end mesh iter
@@ -109,7 +120,6 @@ namespace gs
 
 			PlanarSliceStack stack = new PlanarSliceStack();
 			stack.Add(slices);
-
 
 			return stack;
 		}
