@@ -57,6 +57,8 @@ namespace gs
         // [RMS] hack that lets us know this is an 'internal' shell which may be processed differently
         public bool IsInternalShell = false;
 
+        // if true, we try to filter out self-overlaps (is expensive)
+        public bool FilterSelfOverlaps = false;
 
 
 		public ShellsFillPolygon(GeneralPolygon2d poly)
@@ -144,9 +146,8 @@ namespace gs
         {
             FillPaths2d paths = new FillPaths2d();
 
-            bool disable_filtering = false;
             foreach (GeneralPolygon2d shell in shell_polys) {
-                if ( (nShell == 0 && IsInternalShell == false) || disable_filtering) {
+                if ( (nShell == 0 && IsInternalShell == false) || FilterSelfOverlaps == false ) {
                     paths.Append(shell);
                     continue;
                 }

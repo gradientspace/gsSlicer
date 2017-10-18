@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using g3;
 
 namespace gs
@@ -97,6 +98,12 @@ namespace gs
         }
 
 
+        public virtual void GetProgress(out int curProgress, out int maxProgress)
+        {
+            curProgress = CurProgress;
+            maxProgress = TotalProgress;
+        }
+
 
         // subclasses must implement this to return GCodeFile result
         protected abstract GCodeFile extract_result();
@@ -114,6 +121,10 @@ namespace gs
         // tags on slice polygons get transferred to shells
         IntTagSet<IFillPolygon> ShellTags = new IntTagSet<IFillPolygon>();
 
+        // basic progress monitoring
+        int TotalProgress = 1;
+        int CurProgress = 0;
+
         // [TODO] these should be moved to settings, or something?
         double OverhangAllowanceMM;
         protected virtual double LayerFillAngleF(int layer_i)
@@ -128,11 +139,12 @@ namespace gs
         /// </summary>
         protected virtual void generate_result()
         {
-
             // should be parameterizable? this is 45 degrees...  (is it? 45 if nozzlediam == layerheight...)
             //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
             OverhangAllowanceMM = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
 
+            TotalProgress = 2 * (Slices.Count-1);
+            CurProgress = 0;
 
             // initialize compiler and get start nozzle position
             Compiler.Begin();
@@ -203,6 +215,8 @@ namespace gs
 
                 // compile this layer
                 Compiler.AppendPaths(layerPaths);
+
+                Interlocked.Increment(ref CurProgress);
             }
 
             Compiler.End();
@@ -394,12 +408,15 @@ namespace gs
                     shells_gen.PathSpacing = Settings.FillPathSpacingMM;
                     shells_gen.ToolWidth = Settings.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
+                    shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                     shells_gen.Compute();
                     LayerShells[layeri].Add(shells_gen);
 
                     if (slice.Tags.Has(shape))
                         ShellTags.Add(shells_gen, slice.Tags.Get(shape));
                 }
+
+                Interlocked.Increment(ref CurProgress);
             });
         }
 
