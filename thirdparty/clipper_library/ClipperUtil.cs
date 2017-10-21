@@ -8,6 +8,7 @@ namespace gs
 {
     using CPolygon = List<IntPoint>;
     using CPolygonList = List<List<IntPoint>>;
+    using CPolyPath = List<IntPoint>;
 
     public static class ClipperUtil
     {
@@ -62,6 +63,16 @@ namespace gs
             return clipper_polys;
         }
 
+        public static CPolyPath ConvertToClipper(PolyLine2d pline, double nIntScale)
+        {
+            int N = pline.VertexCount;
+            CPolyPath clipper_path = new CPolyPath(N);
+            for (int i = 0; i < N; ++i) {
+                Vector2d v = pline[i];
+                clipper_path.Add(new IntPoint(nIntScale * v.x, nIntScale * v.y));
+            }
+            return clipper_path;
+        }
 
 
         public static Polygon2d ConvertFromClipper(CPolygon clipper_poly, double nIntScale)
@@ -70,6 +81,20 @@ namespace gs
 
             int N = clipper_poly.Count;
             Polygon2d poly = new Polygon2d();
+            for (int i = 0; i < N; ++i) {
+                IntPoint p = clipper_poly[i];
+                Vector2d v = new Vector2d((double)p.X * scale, (double)p.Y * scale);
+                poly.AppendVertex(v);
+            }
+            return poly;
+        }
+
+        public static PolyLine2d ConvertFromClipperPath(CPolyPath clipper_poly, double nIntScale)
+        {
+            double scale = 1.0 / (double)nIntScale;
+
+            int N = clipper_poly.Count;
+            PolyLine2d poly = new PolyLine2d();
             for (int i = 0; i < N; ++i) {
                 IntPoint p = clipper_poly[i];
                 Vector2d v = new Vector2d((double)p.X * scale, (double)p.Y * scale);
@@ -393,8 +418,60 @@ namespace gs
 				for (int ti = 0; ti < holeNode.ChildCount; ti++ )
 					Convert(holeNode.Childs[ti], polys, nIntScale);
 			}
-
 		}
+
+
+
+        /// <summary>
+        /// remove portions of polyline that are inside set of solids
+        /// </summary>
+        public static List<PolyLine2d> ClipAgainstPolygon(List<GeneralPolygon2d> solids, PolyLine2d polyline)
+        {
+            double nIntScale = GetIntScale(solids);
+            List<PolyLine2d> result = new List<PolyLine2d>();
+
+            Clipper clip = new Clipper();
+            PolyTree tree = new PolyTree();
+            try {
+
+                foreach (GeneralPolygon2d poly in solids) {
+                    CPolygonList clipper_poly = ConvertToClipper(poly, nIntScale);
+                    clip.AddPaths(clipper_poly, PolyType.ptClip, true);
+                }
+
+                CPolyPath path = ConvertToClipper(polyline, nIntScale);
+                clip.AddPath(path, PolyType.ptSubject, false);
+
+                clip.Execute(ClipType.ctDifference, tree);
+
+                for (int ci = 0; ci < tree.ChildCount; ++ci) {
+                    if (tree.Childs[ci].IsOpen == false)
+                        continue;
+                    PolyLine2d clippedPath = ConvertFromClipperPath(tree.Childs[ci].Contour, nIntScale);
+
+                    // clipper just cuts up the polylines, we still have to figure out containment ourselves.
+                    // Currently just checking based on point around middle of polyline...
+                    // [TODO] can we get clipper to not return the inside ones?
+                    Vector2d qp = (clippedPath.VertexCount > 2) ?
+                        clippedPath[clippedPath.VertexCount / 2] : clippedPath.Segment(0).Center;
+                    bool inside = false;
+                    foreach (var poly in solids) {
+                        if (poly.Contains(qp)) {
+                            inside = true;
+                            break;
+                        }
+                    }
+                    if (inside == false )
+                        result.Add(clippedPath);
+                }
+
+            } catch (Exception e) {
+                // [TODO] what to do here?
+                System.Diagnostics.Debug.WriteLine("ClipperUtil.ClipAgainstPolygon: Clipper threw exception: " + e.Message);
+            }
+
+            return result;
+        }
 
 
     }

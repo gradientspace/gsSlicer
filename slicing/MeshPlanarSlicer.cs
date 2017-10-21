@@ -11,12 +11,20 @@ namespace gs
 		List<AxisAlignedBox3d> Bounds = new List<AxisAlignedBox3d>();
 
 		public double LayerHeightMM = 0.2;
+        public double OpenPathDefaultWidthMM = 0.4;
 		public int MaxLayerCount = 10000;		// just for sanity-check
 
 		public enum SliceLocations {
 			Base, EpsilonBase, MidLine
 		}
 		SliceLocations SliceLocation = SliceLocations.MidLine;
+
+
+        public enum OpenPathsModes
+        {
+            Embedded, Clipped
+        }
+        OpenPathsModes DefaultOpenPathMode = OpenPathsModes.Embedded;
 
 
         // these can be used for progress tracking
@@ -29,9 +37,6 @@ namespace gs
 		}
 
 		public bool AddMesh(DMesh3 mesh) {
-            if (mesh.IsClosed() == false)
-                return false;
-
 			Meshes.Add(mesh);
 			Bounds.Add(mesh.CachedBounds);
 
@@ -73,8 +78,10 @@ namespace gs
 
 			// process each *slice* in parallel
 			PlanarSlice[] slices = new PlanarSlice[NH];
-			for (int i = 0; i < NH; ++i)
-				slices[i] = new PlanarSlice() { Z = heights[i] };
+            for (int i = 0; i < NH; ++i) {
+                slices[i] = new PlanarSlice() { Z = heights[i] };
+                slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
+            }
 
             TotalCompute = Meshes.Count * nLayers;
             Progress = 0;
@@ -83,6 +90,7 @@ namespace gs
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
 				DMesh3 mesh = Meshes[mi];
 				AxisAlignedBox3d bounds = Bounds[mi];
+                bool closed = mesh.IsClosed();
 
 				// each layer is independent because we are slicing new mesh
 				gParallel.ForEach(Interval1i.Range(NH), (i) => {
@@ -95,30 +103,67 @@ namespace gs
 					MeshPlaneCut cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z), Vector3d.AxisZ);
 					cut.Cut();
 
-					// extract slice polygons
-					PlanarComplex complex = new PlanarComplex();
-					foreach (EdgeLoop loop in cut.CutLoops) {
-						Polygon2d poly = new Polygon2d();
-						foreach (int vid in loop.Vertices) {
-							Vector3d v = sliceMesh.GetVertex(vid);
-							poly.AppendVertex(v.xy);
-						}
-						complex.Add(poly);
-					}
+                    Polygon2d[] polys = new Polygon2d[cut.CutLoops.Count];
+                    for ( int li = 0; li < polys.Length; ++li) {
+                        EdgeLoop loop = cut.CutLoops[li];
+                        polys[li] = new Polygon2d();
+                        foreach (int vid in loop.Vertices) {
+                            Vector3d v = sliceMesh.GetVertex(vid);
+                            polys[li].AppendVertex(v.xy);
+                        }
+                    }
 
-					PlanarComplex.SolidRegionInfo solids = 
-						complex.FindSolidRegions(0.001, false);
+                    PolyLine2d[] paths = new PolyLine2d[cut.CutSpans.Count];
+                    for (int pi = 0; pi < paths.Length; ++pi) {
+                        EdgeSpan span = cut.CutSpans[pi];
+                        paths[pi] = new PolyLine2d();
+                        foreach (int vid in span.Vertices) {
+                            Vector3d v = sliceMesh.GetVertex(vid);
+                            paths[pi].AppendVertex(v.xy);
+                        }
+                    }
 
-					slices[i].Add(solids.Polygons);
+                    if (closed) {
+                        // extract slice polygons
+                        PlanarComplex complex = new PlanarComplex();
+                        foreach (Polygon2d poly in polys)
+                            complex.Add(poly);
+
+                        PlanarComplex.SolidRegionInfo solids =
+                            complex.FindSolidRegions(0.001, false);
+
+                        slices[i].AddPolygons(solids.Polygons);
+
+                    } else {
+
+                        foreach (PolyLine2d pline in paths) {
+                            if ( DefaultOpenPathMode == OpenPathsModes.Embedded )
+                                slices[i].AddEmbeddedPath(pline);   
+                            else
+                                slices[i].AddClippedPath(pline);
+                        }
+
+                        // [TODO] 
+                        //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
+                        foreach (Polygon2d poly in polys) {
+                            PolyLine2d pline = new PolyLine2d(poly, true);
+                            if (DefaultOpenPathMode == OpenPathsModes.Embedded)
+                                slices[i].AddEmbeddedPath(pline);
+                            else
+                                slices[i].AddClippedPath(pline);
+                        }
+                    }
 
                     Interlocked.Increment(ref Progress);
 				});  // end of parallel.foreach
 				              
 			} // end mesh iter
 
-			// resolve planar intersections?
+            // resolve planar intersections, etc
+            for (int i = 0; i < NH; ++i)
+                slices[i].Resolve();
 
-			PlanarSliceStack stack = new PlanarSliceStack();
+            PlanarSliceStack stack = new PlanarSliceStack();
 			stack.Add(slices);
 
 			return stack;
