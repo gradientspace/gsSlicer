@@ -20,11 +20,12 @@ namespace gs
     /// </summary>
     public class PathOverlapRepair
     {
-        DGraph2 Graph;
+        public DGraph2 Graph;
 
         public double OverlapRadius = 0.4f;
-
         public double FinalFlatCollapseAngleThreshDeg = 2.5;
+
+        public Func<int, bool> PreserveEdgeFilterF = (eid) => { return false; };
 
 
         public PathOverlapRepair()
@@ -37,11 +38,11 @@ namespace gs
             Graph = graph;
         }
 
-        public void Add(GeneralPolygon2d path)
+        public void Add(GeneralPolygon2d path, int outer_gid = -1, int hole_gid = -1)
         {
-            Graph.AppendPolygon(path.Outer);
+            Graph.AppendPolygon(path.Outer, outer_gid);
             foreach (Polygon2d hole in path.Holes)
-                Graph.AppendPolygon(hole);
+                Graph.AppendPolygon(hole, hole_gid);
         }
 
 
@@ -63,7 +64,14 @@ namespace gs
 
 
 
-
+        bool is_fixed_v(int vid)
+        {
+            foreach ( int eid in Graph.VtxEdgesItr(vid) ) {
+                if (PreserveEdgeFilterF(eid))
+                    return true;
+            }
+            return false;
+        }
 
 
         void FilterSelfOverlaps_r2(double overlapRadius, bool bResample = true)
@@ -94,6 +102,8 @@ namespace gs
             // find sharp corners
             List<int> sharp_corners = new List<int>();
             foreach (int vid in Graph.VertexIndices()) {
+                if (is_fixed_v(vid))
+                    continue;
                 double open_angle = Graph.OpeningAngle(vid);
                 if (open_angle < sharp_thresh_deg)
                     sharp_corners.Add(vid);
@@ -112,7 +122,6 @@ namespace gs
                 Graph.AppendEdge(newvid, otherv);
             }
 
-
             // Step 1: erode from boundary vertices
             List<int> boundaries = new List<int>();
             foreach (int vid in Graph.VertexIndices()) {
@@ -129,7 +138,6 @@ namespace gs
                 }
             }
 
-
             //
             // Step 2: find any other possible self-overlaps and erode them.
             //
@@ -138,6 +146,8 @@ namespace gs
             // on either side. Prefer to erode on side with higher curvature.
             List<Vector2d> remaining_v = new List<Vector2d>(Graph.MaxVertexID);
             foreach (int vid in Graph.VertexIndices()) {
+                if (is_fixed_v(vid))
+                    continue;
                 double open_angle = Graph.OpeningAngle(vid);
                 if (open_angle == double.MaxValue)
                     continue;
@@ -154,8 +164,10 @@ namespace gs
                 double dist = MinSelfSegDistance(vid, 2 * dist_thresh);
                 if (dist < dist_thresh) {
                     List<int> nbrs = new List<int>(Graph.GetVtxEdges(vid));
-                    foreach (int eid in nbrs)
-                        decimate_forward(vid, eid, dist_thresh);
+                    foreach (int eid in nbrs) {
+                        if ( Graph.IsEdge(eid) )    // may have been decimated!
+                            decimate_forward(vid, eid, dist_thresh);
+                    }
                 }
             }
 
@@ -279,9 +291,13 @@ namespace gs
             int cur_eid = first_eid;
             int cur_vid = start_vid;
 
+            System.Diagnostics.Debug.Assert(Graph.IsEdge(cur_eid));
+
             bool stop = false;
             while (!stop) {
                 Index2i nextinfo = DGraph2Util.NextEdgeAndVtx(cur_eid, cur_vid, Graph);
+                if (PreserveEdgeFilterF(cur_eid))
+                    break;
                 Graph.RemoveEdge(cur_eid, true);
 
                 if (nextinfo.a == int.MaxValue)
