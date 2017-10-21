@@ -18,16 +18,18 @@ namespace gs
     ///                                 (ie outer edge of tool would be "on" Polygon)
     ///     .InsetInnerPolygons       : if true, inner polygons are inset a tool-width from innermost shell (ie are
     ///                                 path you would put next shell on). If false, inner polygons lie on innermost shell.
+    ///     .FilterSelfOverlaps       : if true, we try to remove areas of path that would self-overlap.
+    ///     .SelfOverlapTolerance     : distance that counts as self-overlap
     /// </summary>
 	public class ShellsFillPolygon : IPathsFillPolygon
     {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
 
-		// parameters
-		public double ToolWidth = 0.4;
+        // parameters
+        public int Layers = 2;
+        public double ToolWidth = 0.4;
 		public double PathSpacing = 0.4;    // [TODO] this parameter is currently ignored?
-		public int Layers = 2;
 
 		public double DiscardTinyPerimterLengthMM = 1.0;
 		public double DiscardTinyPolygonAreaMM2 = 1.0;
@@ -46,22 +48,30 @@ namespace gs
         // otherwise InnerPolygons lies on that Shell
         public bool InsetInnerPolygons = true;
 
-		// shell layers. Size of List == Layers
-		public List<FillPaths2d> Shells { get; set; }
+        // [RMS] hack that lets us know this is an 'internal' shell which may be processed differently
+        public enum ShellTypes
+        {
+            ExternalPerimeters,
+            InternalShell
+        }
+        public ShellTypes ShellType = ShellTypes.ExternalPerimeters;
+
+        // if true, we try to filter out self-overlaps (is expensive)
+        public bool FilterSelfOverlaps = false;
+        public double SelfOverlapTolerance = 0.4 * 0.75;
+
+
+        // Outputs
+
+        // shell layers. Size of List == Layers
+        public List<FillPaths2d> Shells { get; set; }
         public List<FillPaths2d> GetFillPaths() { return Shells; }
 
         // remaining interior polygons (to fill w/ other strategy, etc)
         public List<GeneralPolygon2d> InnerPolygons { get; set; }
 
 
-        // [RMS] hack that lets us know this is an 'internal' shell which may be processed differently
-        public bool IsInternalShell = false;
-
-        // if true, we try to filter out self-overlaps (is expensive)
-        public bool FilterSelfOverlaps = false;
-
-
-		public ShellsFillPolygon(GeneralPolygon2d poly)
+        public ShellsFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
 			Shells = new List<FillPaths2d>();
@@ -146,26 +156,39 @@ namespace gs
         {
             FillPaths2d paths = new FillPaths2d();
 
-            foreach (GeneralPolygon2d shell in shell_polys) {
-                if ( (nShell == 0 && IsInternalShell == false) || FilterSelfOverlaps == false ) {
+            if ( FilterSelfOverlaps == false ) {
+                foreach (GeneralPolygon2d shell in shell_polys)
                     paths.Append(shell);
-                    continue;
-                }
+                return paths;
+            }
 
+            int outer_shell_edgegroup = 100;
+            foreach (GeneralPolygon2d shell in shell_polys) {
                 PathOverlapRepair repair = new PathOverlapRepair();
-                repair.OverlapRadius = PathSpacing*0.75;
-                repair.Add(shell);
+                repair.OverlapRadius = SelfOverlapTolerance;
+                repair.Add(shell, outer_shell_edgegroup);
+
+                // Ideally want to presreve outermost shell of external perimeters.
+                // However in many cases internal holes are 'too close' to outer border.
+                // So we will still apply to those, but use edge filter to preserve outermost loop.
+                // [TODO] could we be smarter about this somehow?
+                if (nShell == 0 && ShellType == ShellTypes.ExternalPerimeters)
+                    repair.PreserveEdgeFilterF = (eid) => { return repair.Graph.GetEdgeGroup(eid) == outer_shell_edgegroup; };
+
                 repair.Compute();
 
                 DGraph2Util.Curves c = DGraph2Util.ExtractCurves(repair.GetResultGraph());
 
-                //if (IsInternalShell && c.Paths.Count == 1 && c.Paths[0].VertexCount > 10)
-                //    Util.gDevAssert(false);
-
-                foreach (var polygon in c.Loops)
+                foreach (var polygon in c.Loops) {
                     paths.Append(polygon);
-                foreach (var polyline in c.Paths)
+                }
+                foreach (var polyline in c.Paths) {
+                    if (polyline.Length < DiscardTinyPerimterLengthMM)
+                        continue;
+                    if (polyline.Bounds.MaxDim < DiscardTinyPerimterLengthMM)
+                        continue;
                     paths.Append(new FillPolyline2d(polyline));
+                }
             }
             return paths;
         }

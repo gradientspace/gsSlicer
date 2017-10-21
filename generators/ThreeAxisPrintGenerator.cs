@@ -58,6 +58,11 @@ namespace gs
         public Action<IFillPolygon, int> BeginShellF = (shell_fill, tag) => { };
 
 
+        // this is called on polyline paths, return *true* to filter out a path. Useful for things like very short segments, etc
+        // In default Initialize(), is set to a constant multiple of tool size
+        public Func<FillPolyline2d, bool> PathFilterF = null;
+
+
         protected ThreeAxisPrintGenerator()
         {
         }
@@ -72,7 +77,7 @@ namespace gs
 
 
 
-        public void Initialize(PrintMeshAssembly meshes, 
+        public virtual void Initialize(PrintMeshAssembly meshes, 
                                PlanarSliceStack slices,
                                SingleMaterialFFFSettings settings,
                                ThreeAxisPrinterCompiler compiler)
@@ -81,6 +86,9 @@ namespace gs
             Slices = slices;
             Settings = settings;
             Compiler = compiler;
+
+            if (PathFilterF == null)
+                PathFilterF = (pline) => { return pline.Length < 3 * Settings.NozzleDiamMM; };
         }
 
 
@@ -157,7 +165,9 @@ namespace gs
             // Now generate paths for each layer.
             // This could be parallelized to some extent, but we have to pass per-layer paths
             // to Scheduler in layer-order. Probably better to parallelize within-layer computes.
-            for ( int layer_i = 0; layer_i < nLayers; ++layer_i ) {
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a);
+            int end_layer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
+            for ( int layer_i = start_layer; layer_i <= end_layer; ++layer_i ) {
                 BeginLayerF(layer_i);
 
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
@@ -209,6 +219,9 @@ namespace gs
                     foreach (GeneralPolygon2d infill_poly in infill_regions) 
                         fill_infill_region(layer_i, infill_poly, scheduler);
                 }
+
+                // append open paths
+                add_open_paths(layer_i, scheduler);
 
                 // resulting paths for this layer (Currently we are just discarding this after compiling)
                 PathSet layerPaths = paths.Paths;
@@ -267,7 +280,9 @@ namespace gs
                 interior_shells.ToolWidth = Settings.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
-                interior_shells.IsInternalShell = true;
+                interior_shells.ShellType = ShellsFillPolygon.ShellTypes.InternalShell;
+                interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
+                interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
                 interior_shells.Compute();
                 scheduler.AppendShells(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;
@@ -397,7 +412,13 @@ namespace gs
             int nLayers = Slices.Count;
 
             LayerShells = new List<ShellsFillPolygon>[nLayers];
-            gParallel.ForEach(Interval1i.Range(nLayers), (layeri) => {
+
+            int max_roof_floor = Math.Max(Settings.RoofLayers, Settings.FloorLayers);
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a-max_roof_floor);
+            int end_layer = Math.Min(nLayers - 1, Settings.LayerRangeFilter.b+max_roof_floor);
+
+            Interval1i solve_shells = new Interval1i(start_layer, end_layer);
+            gParallel.ForEach(solve_shells, (layeri) => {
                 PlanarSlice slice = Slices[layeri];
                 LayerShells[layeri] = new List<ShellsFillPolygon>();
 
@@ -409,6 +430,7 @@ namespace gs
                     shells_gen.ToolWidth = Settings.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
                     shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
+                    shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
                     shells_gen.Compute();
                     LayerShells[layeri].Add(shells_gen);
 
@@ -420,6 +442,32 @@ namespace gs
             });
         }
 
+
+
+
+
+        protected virtual void add_open_paths(int layer_i, IPathScheduler scheduler)
+        {
+            PlanarSlice slice = Slices[layer_i];
+            if (slice.Paths.Count == 0)
+                return;
+
+            FillPaths2d paths = new FillPaths2d();
+            for ( int pi = 0; pi < slice.Paths.Count; ++pi ) {
+                FillPolyline2d pline = new FillPolyline2d(slice.Paths[pi]);
+
+                // leave space for end-blobs (input paths are extent we want to hit)
+                pline.Trim(Settings.NozzleDiamMM / 2);
+
+                // ignore tiny paths
+                if (PathFilterF != null && PathFilterF(pline) == true)
+                    continue;
+
+                paths.Append(pline);
+            }
+
+            scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+        }
 
 
 
