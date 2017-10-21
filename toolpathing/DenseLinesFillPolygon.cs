@@ -15,9 +15,6 @@ namespace gs
 		public double AngleDeg = 45.0;
 		public double PathShift = 0;
 
-		// [RMS] improve this...
-		public double WeirdFudgeFactor = 1.5f;
-
 		// if true, we inset half of tool-width from Polygon
 		public bool InsetFromInputPolygon = true;
 
@@ -66,7 +63,7 @@ namespace gs
 			List<List<Segment2d>> StepSpans = ComputeSegments(poly, polyCache);
 			int N = StepSpans.Count;
 
-			double hard_max_dist = 5 * PathSpacing;
+			double hard_max_dist = 5 * ToolWidth;
 
 			// [TODO] need a pathfinder here, that can chain segments efficiently
 
@@ -124,23 +121,30 @@ namespace gs
 					// distance to start of closest available segment
 					double next_dist = prev.Distance(P0);
 
-					// if too far, we have to check for intersections, etc
-					if (next_dist > PathSpacing * WeirdFudgeFactor) {
+                    // if too far, we have to check for intersections, etc
+                    if (next_dist > ToolWidth * 2) {
 						bool terminate = false;
 
-						Segment2d seg = new Segment2d(prev, P0);
-						int hit_i = 0;
-						if ( BoundaryPolygonCache.FindAnyIntersection(seg, out hit_i) != null )
+                        Segment2d join_seg = new Segment2d(prev, P0);
+
+                        int hit_i = 0;
+						if ( BoundaryPolygonCache.FindAnyIntersection(join_seg, out hit_i) != null )
 							terminate = true;
 
 						if (terminate == false && next_dist > hard_max_dist)
 							terminate = true;
 
-						// [TODO] an alternative to terminating is to reverse
-						//   existing path. however this may have its own
-						//   problems...
+                        // NO! P0 and P1 are endpoints!!
+                        //Segment2d first_path_seg = new Segment2d(P0, P1);
+                        //double angle = Vector2d.AngleD(join_seg.Direction, first_path_seg.Direction);
+                        //if (angle < 45)
+                        //    terminate = true;
 
-						if (terminate) {
+                        // [TODO] an alternative to terminating is to reverse
+                        //   existing path. however this may have its own
+                        //   problems...
+
+                        if (terminate) {
 							// too far! end this path and start a new one
 							paths.Curves.Add(cur);
 							cur = new FillPolyline2d();
@@ -151,7 +155,8 @@ namespace gs
 						cur.AppendVertex(P0, PathUtil.ConnectorVFlag);
 					else
 						cur.AppendVertex(P0);
-					cur.AppendVertex(P1);
+
+                    cur.AppendVertex(P1);
 					prev = cur.End;
 					spans.RemoveAt(j);
 				}
