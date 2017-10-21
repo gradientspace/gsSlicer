@@ -17,14 +17,14 @@ namespace gs
 		public enum SliceLocations {
 			Base, EpsilonBase, MidLine
 		}
-		SliceLocations SliceLocation = SliceLocations.MidLine;
+		public SliceLocations SliceLocation = SliceLocations.MidLine;
 
 
         public enum OpenPathsModes
         {
-            Embedded, Clipped
+            Embedded = 0, Clipped = 1, Ignored = 2
         }
-        OpenPathsModes DefaultOpenPathMode = OpenPathsModes.Embedded;
+        public OpenPathsModes DefaultOpenPathMode = OpenPathsModes.Embedded;
 
 
         // these can be used for progress tracking
@@ -134,7 +134,7 @@ namespace gs
 
                         slices[i].AddPolygons(solids.Polygons);
 
-                    } else {
+                    } else if (DefaultOpenPathMode != OpenPathsModes.Ignored) {
 
                         foreach (PolyLine2d pline in paths) {
                             if ( DefaultOpenPathMode == OpenPathsModes.Embedded )
