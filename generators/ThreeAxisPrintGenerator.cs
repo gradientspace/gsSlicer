@@ -182,6 +182,10 @@ namespace gs
                 // sends paths to scheduler.
                 PathScheduler scheduler = new PathScheduler(paths, Settings);
 
+				// be careful on first layer
+				scheduler.SpeedMode = (layer_i == start_layer) ?
+					PathScheduler.SpeedModes.Careful : PathScheduler.SpeedModes.Rapid;
+
                 // generate roof and floor regions. This could be done in parallel, or even pre-computed
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
                 List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
