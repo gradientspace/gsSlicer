@@ -67,10 +67,15 @@ namespace gs
 
 			// [TODO] need a pathfinder here, that can chain segments efficiently
 
+			bool is_dense = Math.Abs(PathSpacing - ToolWidth) < (ToolWidth * 0.2f);
+			PathTypeFlags pathType = is_dense ? PathTypeFlags.SolidInfill : PathTypeFlags.SparseInfill;
+			                             
+
+
 			// (for now just do dumb things?)
 
 			FillPaths2d paths = new FillPaths2d();
-			FillPolyline2d cur = new FillPolyline2d();
+			FillPolyline2d cur = new FillPolyline2d() { TypeFlags = pathType };
 			Vector2d prev = Vector2d.Zero;
 
 			int iStart = 0;
@@ -96,7 +101,7 @@ namespace gs
 					if (M == 0) {
 						if (cur != null && cur.VertexCount > 0) {
 							paths.Curves.Add(cur);
-							cur = new FillPolyline2d();
+							cur = new FillPolyline2d() { TypeFlags = pathType };
 						}
 						continue;
 					}
@@ -147,7 +152,7 @@ namespace gs
                         if (terminate) {
 							// too far! end this path and start a new one
 							paths.Curves.Add(cur);
-							cur = new FillPolyline2d();
+							cur = new FillPolyline2d() { TypeFlags = pathType };
 						}
 					}
 

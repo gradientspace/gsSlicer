@@ -77,7 +77,7 @@ namespace gs
 
 
 
-        public virtual void Initialize(PrintMeshAssembly meshes, 
+        public void Initialize(PrintMeshAssembly meshes, 
                                PlanarSliceStack slices,
                                SingleMaterialFFFSettings settings,
                                ThreeAxisPrinterCompiler compiler)
@@ -178,7 +178,7 @@ namespace gs
                 // layer-up (ie z-change)
                 paths.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
-                // rest of code does not directly access path builder, instead if
+                // rest of code does not directly access path builder, instead it
                 // sends paths to scheduler.
                 PathScheduler scheduler = new PathScheduler(paths, Settings);
 
@@ -458,7 +458,9 @@ namespace gs
 
             FillPaths2d paths = new FillPaths2d();
             for ( int pi = 0; pi < slice.Paths.Count; ++pi ) {
-                FillPolyline2d pline = new FillPolyline2d(slice.Paths[pi]);
+				FillPolyline2d pline = new FillPolyline2d(slice.Paths[pi]) {
+					TypeFlags = PathTypeFlags.OpenShellPath
+				};
 
                 // leave space for end-blobs (input paths are extent we want to hit)
                 pline.Trim(Settings.NozzleDiamMM / 2);

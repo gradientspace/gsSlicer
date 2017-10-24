@@ -5,84 +5,10 @@ using g3;
 
 namespace gs
 {
-	public class FillPolyline2d : PolyLine2d
-	{
-		List<Index3i> flags;
-		bool has_flags = false;
-
-		public FillPolyline2d() : base()
-		{
-		}
-
-		public FillPolyline2d(Vector2d[] v) : base(v)
-		{
-		}
-
-        public FillPolyline2d(PolyLine2d p) : base(p)
-        {
-        }
-
-        void alloc_flags() {
-			if (flags == null) {
-				flags = new List<Index3i>();
-				for (int i = 0; i < vertices.Count; ++i)
-					flags.Add(Index3i.Zero);
-			}
-		}
-
-		public override void AppendVertex(Vector2d v) {
-			base.AppendVertex(v);
-			if (flags != null)
-				flags.Add(Index3i.Zero);
-		}
-		public override void AppendVertices(IEnumerable<Vector2d> v) {
-			base.AppendVertices(v);
-			if (flags != null) {
-				foreach (var x in v)
-					flags.Add(Index3i.Zero);
-			}
-		}
-
-		public override void Reverse() {
-			base.Reverse();
-			if (flags != null)
-				flags.Reverse();
-		}
-		public override void Simplify(double clusterTol = 0.0001,
-							  		  double lineDeviationTol = 0.01,
-		                              bool bSimplifyStraightLines = true) {
-			throw new Exception("not supported yet...");
-		}
-
-
-		public void AppendVertex(Vector2d v, Index3i flag) {
-			alloc_flags();			
-			base.AppendVertex(v);
-			flags.Add(flag);
-			has_flags = true;
-		}
-		public void AppendVertices(IEnumerable<Vector2d> v, IEnumerable<Index3i> f) {
-			alloc_flags();			
-			base.AppendVertices(v);
-			flags.AddRange(f);
-			has_flags = true;
-		}
-
-		public Index3i GetFlag(int i) { return (flags == null) ? Index3i.Zero: flags[i]; }
-		public void SetFlag(int i, Index3i flag) { alloc_flags(); flags[i] = flag; }
-
-		public bool HasFlags { 
-			get { return flags != null && has_flags; } 
-		}
-		public ReadOnlyCollection<Index3i> Flags() { return flags.AsReadOnly(); }
-	}
-
-
-
 
 	public class FillPaths2d
 	{
-		public List<Polygon2d> Loops = new List<Polygon2d>();
+		public List<FillPolygon2d> Loops = new List<FillPolygon2d>();
 		public List<FillPolyline2d> Curves = new List<FillPolyline2d>();
 
 		public FillPaths2d()
@@ -90,24 +16,24 @@ namespace gs
 		}
 
 
-		public void Append(GeneralPolygon2d poly) {
-			Loops.Add(new Polygon2d(poly.Outer));
+		public void Append(GeneralPolygon2d poly, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+			Loops.Add(new FillPolygon2d(poly.Outer) { TypeFlags = typeFlags });
 			foreach (var h in poly.Holes)
-				Loops.Add(new Polygon2d(h));
+				Loops.Add(new FillPolygon2d(h) { TypeFlags = typeFlags });
 		}
 
-		public void Append(List<GeneralPolygon2d> polys) {
+		public void Append(List<GeneralPolygon2d> polys, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
 			foreach (var p in polys)
-				Append(p);
+				Append(p, typeFlags);
 		}
 
-        public void Append(Polygon2d poly) {
-            Loops.Add(new Polygon2d(poly));
+		public void Append(Polygon2d poly, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+			Loops.Add(new FillPolygon2d(poly) { TypeFlags = typeFlags } );
         }
 
-        public void Append(List<Polygon2d> polys) {
+        public void Append(List<Polygon2d> polys, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
             foreach (var p in polys)
-                Append(p);
+				Append(p, typeFlags);
         }
 
         public void Append(FillPolyline2d path) {
@@ -121,7 +47,7 @@ namespace gs
 
 
 
-
+		// this connects up the paths with small connectors? used in DenseLinesFillPolygon
 		public void OptimizeCurves(double max_dist, Func<Segment2d, bool> ValidateF) {
 			int[] which = new int[4];
 			double[] dists = new double[4];

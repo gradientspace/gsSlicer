@@ -68,6 +68,7 @@
     <Compile Include="toolpathing\DenseLinesFillPolygon.cs" />
     <Compile Include="sls\SLSPrintGenerator.cs" />
     <Compile Include="utility\PathOverlapRepair.cs" />
+    <Compile Include="toolpaths\FillElements2d.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\geometry3Sharp\geometry3Sharp.csproj">

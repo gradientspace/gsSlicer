@@ -35,7 +35,7 @@ namespace gs
 		// dumbest possible scheduler...
 		public virtual void AppendPaths(List<FillPaths2d> paths) {
 			foreach (FillPaths2d polySet in paths) {
-				foreach (Polygon2d loop in polySet.Loops) {
+				foreach (FillPolygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
 				}
 				foreach (FillPolyline2d curve in polySet.Curves) {
@@ -52,17 +52,17 @@ namespace gs
 		/// </summary>
 		public virtual void AppendShells(List<FillPaths2d> paths)
 		{
-			List<Polygon2d> OuterLoops = paths[0].Loops;
+			List<FillPolygon2d> OuterLoops = paths[0].Loops;
             List<FillPolyline2d> OuterPaths = paths[0].Curves;
 
 			for (int i = 1; i < paths.Count; ++i) {
-				foreach (Polygon2d loop in paths[i].Loops)
+				foreach (FillPolygon2d loop in paths[i].Loops)
 					AppendPolygon2d(loop);
                 AppendPolylines(paths[i].Curves);
 			}
 
 			// add outermost loops and paths
-			foreach (Polygon2d poly in OuterLoops)
+			foreach (FillPolygon2d poly in OuterLoops)
 				AppendPolygon2d(poly);
             AppendPolylines(OuterPaths);
         }
@@ -101,7 +101,7 @@ namespace gs
 
 
 		// [TODO] no reason we couldn't start on edge midpoint??
-		public void AppendPolygon2d(Polygon2d poly) {
+		public void AppendPolygon2d(FillPolygon2d poly) {
 			Vector3d currentPos = Builder.Position;
 			Vector2d currentPos2 = currentPos.xy;
 
@@ -121,7 +121,12 @@ namespace gs
 			}
 
 			// [TODO] speed here...
-			Builder.AppendExtrude(loopV, Settings.CarefulExtrudeSpeed);
+			double useSpeed = (SpeedMode == SpeedModes.Careful) ?
+				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
+			if (poly.HasTypeFlag(PathTypeFlags.OuterPerimeter))
+				useSpeed *= Settings.OuterPerimeterSpeedX;
+
+			Builder.AppendExtrude(loopV, useSpeed);
 		}
 
 
@@ -167,6 +172,9 @@ namespace gs
 			// [TODO] speed here...
 			double useSpeed = (SpeedMode == SpeedModes.Careful) ?
 				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
+			if (curve.HasTypeFlag(PathTypeFlags.OuterPerimeter))
+				useSpeed *= Settings.OuterPerimeterSpeedX;
+			
 			Builder.AppendExtrude(loopV, useSpeed, flags);
 		}
 

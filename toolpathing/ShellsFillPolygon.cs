@@ -156,9 +156,15 @@ namespace gs
         {
             FillPaths2d paths = new FillPaths2d();
 
+			PathTypeFlags flags = PathTypeFlags.PerimeterShell;
+			if (nShell == 0 && ShellType == ShellTypes.ExternalPerimeters)
+				flags = PathTypeFlags.OutermostShell;
+			else if (ShellType == ShellTypes.InternalShell)
+				flags = PathTypeFlags.InteriorShell;
+				
             if ( FilterSelfOverlaps == false ) {
                 foreach (GeneralPolygon2d shell in shell_polys)
-                    paths.Append(shell);
+                    paths.Append(shell, flags);
                 return paths;
             }
 
@@ -180,14 +186,14 @@ namespace gs
                 DGraph2Util.Curves c = DGraph2Util.ExtractCurves(repair.GetResultGraph());
 
                 foreach (var polygon in c.Loops) {
-                    paths.Append(polygon);
+					paths.Append(polygon, flags);
                 }
                 foreach (var polyline in c.Paths) {
                     if (polyline.Length < DiscardTinyPerimterLengthMM)
                         continue;
                     if (polyline.Bounds.MaxDim < DiscardTinyPerimterLengthMM)
                         continue;
-                    paths.Append(new FillPolyline2d(polyline));
+					paths.Append(new FillPolyline2d(polyline) { TypeFlags = flags } );
                 }
             }
             return paths;

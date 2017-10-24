@@ -77,7 +77,9 @@ namespace gs
 
 			foreach ( var seglist in StepSpans ) {
 				foreach (Segment2d seg in seglist ) {
-					FillPolyline2d fill_seg = new FillPolyline2d();
+					FillPolyline2d fill_seg = new FillPolyline2d() {
+						TypeFlags = PathTypeFlags.SolidInfill
+					};
 					fill_seg.AppendVertex(seg.P0);
 					fill_seg.AppendVertex(seg.P1);
 					paths.Append(fill_seg);
