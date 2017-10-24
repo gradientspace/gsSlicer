@@ -100,6 +100,11 @@ namespace gs
 
 			List<double> erase = new List<double>();
 			foreach ( var v in LayersCounts ) {
+                // [RMS] nothing should be at Z=0
+                if ( v.Key == 0 ) {
+                    erase.Add(v.Key);
+                    continue;
+                }
 				if (v.Value < MinLayerCount)
 					erase.Add(v.Key);
 			}

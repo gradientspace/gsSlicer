@@ -116,5 +116,15 @@ namespace gs
 		public void ChangeType(PathTypes type) {
 			Type = type;
 		}
+
+
+        // computes opening angle in XY plane at vtx i
+        public double PlanarAngleD(int i)
+        {
+            Vector2d c = Path[i].Position.xy;
+            Vector2d prev = Path[i - 1].Position.xy;
+            Vector2d next = Path[i + 1].Position.xy;
+            return Vector2d.AngleD((prev - c).Normalized, (next - c).Normalized);
+        }
 	}
 }
