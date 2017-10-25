@@ -4,36 +4,47 @@ using g3;
 
 namespace gs
 {
+    public enum SchedulerSpeedHint
+    {
+        Careful, Default, Rapid, MaxSpeed
+    }
+
 
     public interface IPathScheduler
     {
         void AppendPaths(List<FillPaths2d> paths);
         void AppendShells(List<FillPaths2d> paths);
+        void AppendPolylines(List<FillPolyline2d> Polylines);
+
+        SchedulerSpeedHint SpeedHint { get; set; }
     }
 
 
-	public class PathScheduler : IPathScheduler
+
+
+    // dumbest possible scheduler...
+    public class BasicPathScheduler : IPathScheduler
 	{
 		public PathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
 
-		public enum SpeedModes {
-			Careful, Rapid, MaxSpeed
-		}
-		public SpeedModes SpeedMode = SpeedModes.Careful; 
 
-
-
-		public PathScheduler(PathSetBuilder builder, SingleMaterialFFFSettings settings)
+		public BasicPathScheduler(PathSetBuilder builder, SingleMaterialFFFSettings settings)
 		{
 			Builder = builder;
 			Settings = settings;
 		}
 
 
+        SchedulerSpeedHint speed_hint = SchedulerSpeedHint.Default;
+        public virtual SchedulerSpeedHint SpeedHint {
+            get { return speed_hint; }
+            set { speed_hint = value; }
+        }
 
-		// dumbest possible scheduler...
-		public virtual void AppendPaths(List<FillPaths2d> paths) {
+
+
+        public virtual void AppendPaths(List<FillPaths2d> paths) {
 			foreach (FillPaths2d polySet in paths) {
 				foreach (FillPolygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
@@ -70,7 +81,7 @@ namespace gs
 
 
 
-        public void AppendPolylines(List<FillPolyline2d> Polylines)
+        public virtual void AppendPolylines(List<FillPolyline2d> Polylines)
         {
             // intelligently order 
             HashSet<int> remaining = new HashSet<int>(Interval1i.Range(Polylines.Count));
@@ -91,8 +102,6 @@ namespace gs
                 remaining.Remove(iNearest);
             }
 
-
-
         }
 
 
@@ -101,7 +110,7 @@ namespace gs
 
 
 		// [TODO] no reason we couldn't start on edge midpoint??
-		public void AppendPolygon2d(FillPolygon2d poly) {
+		public virtual void AppendPolygon2d(FillPolygon2d poly) {
 			Vector3d currentPos = Builder.Position;
 			Vector2d currentPos2 = currentPos.xy;
 
@@ -121,7 +130,7 @@ namespace gs
 			}
 
 			// [TODO] speed here...
-			double useSpeed = (SpeedMode == SpeedModes.Careful) ?
+			double useSpeed = (SpeedHint == SchedulerSpeedHint.Careful) ?
 				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
 			if (poly.HasTypeFlag(PathTypeFlags.OuterPerimeter))
 				useSpeed *= Settings.OuterPerimeterSpeedX;
@@ -133,7 +142,7 @@ namespace gs
 
 
 		// [TODO] would it ever make sense to break polyline to avoid huge travel??
-		public void AppendPolyline2d(FillPolyline2d curve)
+		public virtual void AppendPolyline2d(FillPolyline2d curve)
 		{
 			Vector3d currentPos = Builder.Position;
 			Vector2d currentPos2 = currentPos.xy;
@@ -170,7 +179,7 @@ namespace gs
 			}
 
 			// [TODO] speed here...
-			double useSpeed = (SpeedMode == SpeedModes.Careful) ?
+			double useSpeed = (SpeedHint == SchedulerSpeedHint.Careful) ?
 				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
 			if (curve.HasTypeFlag(PathTypeFlags.OuterPerimeter))
 				useSpeed *= Settings.OuterPerimeterSpeedX;

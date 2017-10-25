@@ -8,24 +8,6 @@ using g3;
 namespace gs
 {
 
-    // [TODO] flesh out this class...
-    public class PrintMeshAssembly
-    {
-        public List<DMesh3> Meshes = new List<DMesh3>();
-
-
-        public AxisAlignedBox3d TotalBounds
-        {
-            get {
-                AxisAlignedBox3d bounds = AxisAlignedBox3d.Empty;
-                foreach (var mesh in Meshes)
-                    bounds.Contain(mesh.CachedBounds);
-                return bounds;
-            }
-        }
-
-    }
-
 
     /// <summary>
     /// This is the top-level class that generates a GCodeFile for a stack of slices.
@@ -140,6 +122,9 @@ namespace gs
             return (layer_i % 2 == 0) ? -45 : 45;
         }
 
+        // start and end layers we will solve for (intersection of layercount and LayerRangeFilter)
+        protected int CurStartLayer;
+        protected int CurEndLayer;
 
 
         /// <summary>
@@ -165,9 +150,9 @@ namespace gs
             // Now generate paths for each layer.
             // This could be parallelized to some extent, but we have to pass per-layer paths
             // to Scheduler in layer-order. Probably better to parallelize within-layer computes.
-            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a);
-            int end_layer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
-            for ( int layer_i = start_layer; layer_i <= end_layer; ++layer_i ) {
+            CurStartLayer = Math.Max(0, Settings.LayerRangeFilter.a);
+            CurEndLayer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
+            for ( int layer_i = CurStartLayer; layer_i <= CurEndLayer; ++layer_i ) {
                 BeginLayerF(layer_i);
 
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
@@ -180,11 +165,7 @@ namespace gs
 
                 // rest of code does not directly access path builder, instead it
                 // sends paths to scheduler.
-                PathScheduler scheduler = new PathScheduler(paths, Settings);
-
-				// be careful on first layer
-				scheduler.SpeedMode = (layer_i == start_layer) ?
-					PathScheduler.SpeedModes.Careful : PathScheduler.SpeedModes.Rapid;
+                IPathScheduler scheduler = get_layer_scheduler(layer_i, paths);
 
                 // generate roof and floor regions. This could be done in parallel, or even pre-computed
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
@@ -202,7 +183,7 @@ namespace gs
                     ShellsFillPolygon shells_gen = layer_shells[si];
                     scheduler.AppendPaths(shells_gen.Shells);
 
-                    // all client to do configuration (eg change settings for example)
+                    // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
 
                     // solid fill areas are inner polygons of shell fills
@@ -473,6 +454,25 @@ namespace gs
             }
 
             scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+        }
+
+
+
+
+
+
+        /// <summary>
+        /// Factory function to return a new PathScheduler to use for this layer.
+        /// </summary>
+        protected virtual IPathScheduler get_layer_scheduler(int layer_i, PathSetBuilder paths)
+        {
+            BasicPathScheduler scheduler = new BasicPathScheduler(paths, this.Settings);
+
+            // be careful on first layer
+            scheduler.SpeedHint = (layer_i == CurStartLayer) ?
+                SchedulerSpeedHint.Careful : SchedulerSpeedHint.Rapid;
+
+            return scheduler;
         }
 
 

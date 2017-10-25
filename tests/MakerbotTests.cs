@@ -77,7 +77,7 @@ namespace gs
 			// layer-up
 			currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-			PathScheduler scheduler = new PathScheduler(paths, settings);
+			BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 			Polygon2d poly = new Polygon2d();
 			double r = 10;
@@ -142,7 +142,7 @@ namespace gs
 			// layer-up
 			currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-			PathScheduler scheduler = new PathScheduler(paths, settings);
+			BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
 			shells_gen.PathSpacing = settings.FillPathSpacingMM;
@@ -216,7 +216,7 @@ namespace gs
 				paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
 				// add paths
-				PathScheduler scheduler = new PathScheduler(paths, settings);
+				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 				scheduler.AppendPaths(shells_gen.Shells);
 				scheduler.AppendPaths(infill_paths);
 			}
@@ -259,7 +259,7 @@ namespace gs
 				// layer-up
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-				PathScheduler scheduler = new PathScheduler(paths, settings);
+				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 				GeneralPolygon2d shape = new GeneralPolygon2d(shapeIn);
 				shape.Scale(scale*Vector2d.One, Vector2d.Zero);
@@ -335,7 +335,7 @@ namespace gs
 				bool is_infill = (i >= RoofFloorLayers && i < nLayers - RoofFloorLayers-1);
 				double fillScale = (is_infill) ? InfillScale : 1.0f;
 
-				PathScheduler scheduler = new PathScheduler(paths, settings);
+				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 				foreach(GeneralPolygon2d shape in slice.Solids) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
@@ -495,7 +495,7 @@ namespace gs
 				bool is_infill = (i >= settings.FloorLayers && i < nLayers - settings.RoofLayers - 1);
 				double fillScale = (is_infill) ? settings.SparseLinearInfillStepX : 1.0f;
 
-				PathScheduler scheduler = new PathScheduler(paths, settings);
+				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 				// construct region that needs to be solid for "roofs".
 				// This is the intersection of infill polygons for the next N layers
@@ -720,9 +720,11 @@ namespace gs
 				// layer-up
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-				PathScheduler scheduler = new PathScheduler(paths, settings);
-				if (is_infill && enable_rapid)
-					scheduler.SpeedMode = PathScheduler.SpeedModes.Rapid;
+				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+                if (is_infill && enable_rapid)
+                    scheduler.SpeedHint = SchedulerSpeedHint.Rapid;
+                else
+                    scheduler.SpeedHint = SchedulerSpeedHint.Careful;
 
 				foreach (GeneralPolygon2d shape in polygons) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
@@ -756,6 +758,10 @@ namespace gs
 			System.Console.WriteLine("[MakerbotTests] total extrude length: {0}", cc.ExtruderA);
 			return fileAccum.File;
 		}
+
+
+
+
 
 
 
