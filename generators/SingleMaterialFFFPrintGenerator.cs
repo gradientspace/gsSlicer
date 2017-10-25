@@ -3,15 +3,15 @@
 namespace gs
 {
 
-    public class MakerbotPrintGenerator : ThreeAxisPrintGenerator
+    public class SingleMaterialFFFPrintGenerator : ThreeAxisPrintGenerator
     {
         GCodeFileAccumulator file_accumulator;
         GCodeBuilder builder;
         MakerbotCompiler compiler;
 
-        public MakerbotPrintGenerator(PrintMeshAssembly meshes, 
+        public SingleMaterialFFFPrintGenerator(PrintMeshAssembly meshes, 
                                       PlanarSliceStack slices,
-                                      MakerbotSettings settings)
+                                      SingleMaterialFFFSettings settings)
         {
             file_accumulator = new GCodeFileAccumulator();
             builder = new GCodeBuilder(file_accumulator);
