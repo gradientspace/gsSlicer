@@ -60,10 +60,13 @@ namespace gs
 		}
 
 		public virtual void End() {
-			// final retract
-			Assembler.AppendMoveToA(Assembler.NozzlePosition, Settings.RetractSpeed, 
-			                        Assembler.ExtruderA - Settings.RetractDistanceMM, "Final Retract");
-			Assembler.UpdateProgress(100);
+            // final retract
+            if (Assembler.InRetract == false) {
+                Assembler.BeginRetract(Assembler.NozzlePosition, Settings.RetractSpeed,
+                                        Assembler.ExtruderA - Settings.RetractDistanceMM, "Final Retract");
+            }
+
+            Assembler.UpdateProgress(100);
 			Assembler.AppendFooter();
 		}
 
@@ -112,7 +115,7 @@ namespace gs
 					} else if (p.Type == PathTypes.PlaneChange) {
 						Assembler.AppendMoveTo(p[i].Position, p[i].FeedRate, "Plane Change");
 					} else {
-						Assembler.AppendMoveToA(p[i].Position, p[i].FeedRate, p[i].Extrusion.x, "Extrude");
+						Assembler.AppendExtrudeTo(p[i].Position, p[i].FeedRate, p[i].Extrusion.x, "Extrude");
 					}
 				}
 
