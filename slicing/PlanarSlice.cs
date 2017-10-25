@@ -19,8 +19,6 @@ namespace gs
         public List<PolyLine2d> Paths = new List<PolyLine2d>();
 
 
-		// [TODO] sheets ?
-
 
         // allow integer tags on polygons, which we can use for arbitrary stuff
         public IntTagSet<GeneralPolygon2d> Tags {
@@ -36,6 +34,12 @@ namespace gs
 		public PlanarSlice()
 		{
 		}
+
+
+        public bool IsEmpty {
+            get { return Solids.Count == 0 && Paths.Count == 0; }
+        }
+
 
 		public void AddPolygon(GeneralPolygon2d poly) {
             if (poly.Outer.IsClockwise)

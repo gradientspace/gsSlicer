@@ -163,8 +163,17 @@ namespace gs
             for (int i = 0; i < NH; ++i)
                 slices[i].Resolve();
 
+            // discard spurious empty slices
+            int last = slices.Length-1;
+            while (slices[last].IsEmpty && last > 0)
+                last--;
+            int first = 0;
+            while (slices[first].IsEmpty && first < slices.Length)
+                first++;
+
             PlanarSliceStack stack = new PlanarSliceStack();
-			stack.Add(slices);
+            for (int k = first; k <= last; ++k)
+                stack.Add(slices[k]);
 
 			return stack;
 		}
