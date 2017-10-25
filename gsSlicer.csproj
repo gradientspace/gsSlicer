@@ -70,6 +70,7 @@
     <Compile Include="sls\SLSPrintGenerator.cs" />
     <Compile Include="utility\PathOverlapRepair.cs" />
     <Compile Include="toolpaths\FillElements2d.cs" />
+    <Compile Include="utility\TemporalPathHash.cs" />
     <Compile Include="utility\TopoOffset2d.cs" />
   </ItemGroup>
   <ItemGroup>

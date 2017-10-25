@@ -126,6 +126,21 @@ namespace gs
         protected int CurEndLayer;
 
 
+
+        protected class LayerData
+        {
+            public int layer_i;
+            public PlanarSlice slice;
+
+            public PathSetBuilder pathAccum;
+            public IPathScheduler scheduler;
+
+            public List<IShellsFillPolygon> shellFills;
+
+            public TemporalPathHash spatial;
+        }
+
+
         /// <summary>
         /// This is the main driver of the slicing process
         /// </summary>
@@ -157,14 +172,14 @@ namespace gs
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
 
                 // make path-accumulator for this layer
-                PathSetBuilder paths = new PathSetBuilder();
-                paths.Initialize(Compiler.NozzlePosition);
+                PathSetBuilder pathAccum = new PathSetBuilder();
+                pathAccum.Initialize(Compiler.NozzlePosition);
                 // layer-up (ie z-change)
-                paths.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
+                pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
                 // rest of code does not directly access path builder, instead it
                 // sends paths to scheduler.
-                IPathScheduler scheduler = get_layer_scheduler(layer_i, paths);
+                IPathScheduler scheduler = get_layer_scheduler(layer_i, pathAccum);
 
                 // generate roof and floor regions. This could be done in parallel, or even pre-computed
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
@@ -208,7 +223,7 @@ namespace gs
                 add_open_paths(layer_i, scheduler);
 
                 // resulting paths for this layer (Currently we are just discarding this after compiling)
-                PathSet layerPaths = paths.Paths;
+                PathSet layerPaths = pathAccum.Paths;
 
                 // compile this layer
                 Compiler.AppendPaths(layerPaths);
