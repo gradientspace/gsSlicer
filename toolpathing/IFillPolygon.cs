@@ -15,4 +15,10 @@ namespace gs
     {
         List<FillPaths2d> GetFillPaths();
     }
+
+    public interface IShellsFillPolygon : IPathsFillPolygon
+    {
+        List<GeneralPolygon2d> GetInnerPolygons();
+    }
+
 }

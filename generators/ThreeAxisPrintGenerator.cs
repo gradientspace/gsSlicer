@@ -105,8 +105,7 @@ namespace gs
          *  Internals
          */
 
-
-        List<ShellsFillPolygon>[] LayerShells;
+ 
 
         // tags on slice polygons get transferred to shells
         IntTagSet<IFillPolygon> ShellTags = new IntTagSet<IFillPolygon>();
@@ -171,23 +170,23 @@ namespace gs
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
                 List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
                 if (is_infill) {
-                    roof_cover = make_roof(layer_i);
-                    floor_cover = make_floor(layer_i);
+                    roof_cover = find_roof_areas_for_layer(layer_i);
+                    floor_cover = find_floor_areas_for_layer(layer_i);
                 }
 
                 // a layer can contain multiple disjoint regions. Process each separately.
-                List<ShellsFillPolygon> layer_shells = LayerShells[layer_i];
+                List<IShellsFillPolygon> layer_shells = get_layer_shells(layer_i);
                 for (int si = 0; si < layer_shells.Count; si++) {
 
                     // schedule shell paths that we pre-computed
-                    ShellsFillPolygon shells_gen = layer_shells[si];
-                    scheduler.AppendPaths(shells_gen.Shells);
+                    IShellsFillPolygon shells_gen = layer_shells[si];
+                    scheduler.AppendPaths(shells_gen.GetFillPaths());
 
                     // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
 
                     // solid fill areas are inner polygons of shell fills
-                    List<GeneralPolygon2d> solid_fill_regions = shells_gen.InnerPolygons;
+                    List<GeneralPolygon2d> solid_fill_regions = shells_gen.GetInnerPolygons();
 
                     // if this is an infill layer, compute infill regions, and remaining solid regions
                     // (ie roof/floor regions, and maybe others)
@@ -329,12 +328,12 @@ namespace gs
         /// construct region that needs to be solid for "roofs".
         /// This is the intersection of infill polygons for the next N layers.
         /// </summary>
-        protected virtual List<GeneralPolygon2d> make_roof(int layer_i)
+        protected virtual List<GeneralPolygon2d> find_roof_areas_for_layer(int layer_i)
         {
             List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
 
-            foreach (ShellsFillPolygon shells in LayerShells[layer_i + 1])
-                roof_cover.AddRange(shells.InnerPolygons);
+            foreach (IShellsFillPolygon shells in get_layer_shells(layer_i+1))
+                roof_cover.AddRange(shells.GetInnerPolygons());
 
             // If we want > 1 roof layer, we need to look further ahead.
             // The full area we need to print as "roof" is the infill minus
@@ -343,8 +342,8 @@ namespace gs
                 int ri = layer_i + k;
                 if (ri < LayerShells.Length) {
                     List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
-                    foreach (ShellsFillPolygon shells in LayerShells[ri])
-                        infillN.AddRange(shells.InnerPolygons);
+                    foreach (IShellsFillPolygon shells in get_layer_shells(ri))
+                        infillN.AddRange(shells.GetInnerPolygons());
 
                     roof_cover = ClipperUtil.Intersection(roof_cover, infillN);
                 }
@@ -363,20 +362,20 @@ namespace gs
         /// <summary>
         /// construct region that needs to be solid for "floors"
         /// </summary>
-        protected virtual List<GeneralPolygon2d> make_floor(int layer_i)
+        protected virtual List<GeneralPolygon2d> find_floor_areas_for_layer(int layer_i)
         {
             List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
 
-            foreach (ShellsFillPolygon shells in LayerShells[layer_i - 1])
-                floor_cover.AddRange(shells.InnerPolygons);
+            foreach (IShellsFillPolygon shells in get_layer_shells(layer_i - 1))
+                floor_cover.AddRange(shells.GetInnerPolygons());
 
             // If we want > 1 floor layer, we need to look further back.
             for (int k = 2; k <= Settings.FloorLayers; ++k) {
                 int ri = layer_i - k;
                 if (ri > 0) {
                     List<GeneralPolygon2d> infillN = new List<GeneralPolygon2d>();
-                    foreach (ShellsFillPolygon shells in LayerShells[ri])
-                        infillN.AddRange(shells.InnerPolygons);
+                    foreach (IShellsFillPolygon shells in get_layer_shells(ri))
+                        infillN.AddRange(shells.GetInnerPolygons());
 
                     floor_cover = ClipperUtil.Intersection(floor_cover, infillN);
                 }
@@ -390,47 +389,10 @@ namespace gs
 
 
 
-
-
-        protected virtual void precompute_shells()
-        {
-            int nLayers = Slices.Count;
-
-            LayerShells = new List<ShellsFillPolygon>[nLayers];
-
-            int max_roof_floor = Math.Max(Settings.RoofLayers, Settings.FloorLayers);
-            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a-max_roof_floor);
-            int end_layer = Math.Min(nLayers - 1, Settings.LayerRangeFilter.b+max_roof_floor);
-
-            Interval1i solve_shells = new Interval1i(start_layer, end_layer);
-            gParallel.ForEach(solve_shells, (layeri) => {
-                PlanarSlice slice = Slices[layeri];
-                LayerShells[layeri] = new List<ShellsFillPolygon>();
-
-                List<GeneralPolygon2d> solids = slice.Solids;
-
-                foreach (GeneralPolygon2d shape in solids) {
-                    ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-                    shells_gen.PathSpacing = Settings.FillPathSpacingMM;
-                    shells_gen.ToolWidth = Settings.NozzleDiamMM;
-                    shells_gen.Layers = Settings.Shells;
-                    shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
-                    shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
-                    shells_gen.Compute();
-                    LayerShells[layeri].Add(shells_gen);
-
-                    if (slice.Tags.Has(shape))
-                        ShellTags.Add(shells_gen, slice.Tags.Get(shape));
-                }
-
-                Interlocked.Increment(ref CurProgress);
-            });
-        }
-
-
-
-
-
+        /// <summary>
+        /// schedule any non-polygonal paths for the given layer (eg paths
+        /// that resulted from open meshes, for example)
+        /// </summary>
         protected virtual void add_open_paths(int layer_i, IPathScheduler scheduler)
         {
             PlanarSlice slice = Slices[layer_i];
@@ -457,6 +419,86 @@ namespace gs
         }
 
 
+
+
+
+
+
+
+        // The set of perimeter fills for each layer. 
+        // If we have sparse infill, we need to have multiple shells available to do roof/floors.
+        // To do support, we ideally would have them all.
+        // Currently we precompute all shell-fills up-front, in precompute_shells().
+        // However you could override this behavior, eg do on-demand compute, in GetLayerShells()
+        protected List<IShellsFillPolygon>[] LayerShells;
+
+        /// <summary>
+        /// return the set of shell-fills for a layer. This includes both the shell-fill paths
+        /// and the remaining regions that need to be filled.
+        /// </summary>
+        protected virtual List<IShellsFillPolygon> get_layer_shells(int layeri) {
+            // evaluate shell on-demand
+            //if ( LayerShells[layeri] == null ) {
+            //    PlanarSlice slice = Slices[layeri];
+            //    LayerShells[layeri] = compute_shells_for_slice(slice);
+            //}
+            return LayerShells[layeri];
+        }
+
+        /// <summary>
+        /// compute all the shells for the entire slice-stack
+        /// </summary>
+        protected virtual void precompute_shells()
+        {
+            int nLayers = Slices.Count;
+            LayerShells = new List<IShellsFillPolygon>[nLayers];
+
+            int max_roof_floor = Math.Max(Settings.RoofLayers, Settings.FloorLayers);
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a-max_roof_floor);
+            int end_layer = Math.Min(nLayers - 1, Settings.LayerRangeFilter.b+max_roof_floor);
+
+            Interval1i solve_shells = new Interval1i(start_layer, end_layer);
+            gParallel.ForEach(solve_shells, (layeri) => {
+                PlanarSlice slice = Slices[layeri];
+                LayerShells[layeri] = compute_shells_for_slice(slice);
+                Interlocked.Increment(ref CurProgress);
+            });
+        }
+
+        /// <summary>
+        /// compute all the shell-fills for a given slice
+        /// </summary>
+        protected virtual List<IShellsFillPolygon> compute_shells_for_slice(PlanarSlice slice)
+        {
+            List<IShellsFillPolygon> layer_shells = new List<IShellsFillPolygon>();
+            foreach (GeneralPolygon2d shape in slice.Solids) {
+                IShellsFillPolygon shells_gen = compute_shell_for_shape(shape);
+                layer_shells.Add(shells_gen);
+
+                if (slice.Tags.Has(shape)) {
+                    lock (ShellTags) {
+                        ShellTags.Add(shells_gen, slice.Tags.Get(shape));
+                    }
+                }
+            }
+            return layer_shells;
+        }
+
+        /// <summary>
+        /// compute a shell-fill for the given shape (assumption is that shape.Outer 
+        /// is anoutermost perimeter)
+        /// </summary>
+        protected virtual IShellsFillPolygon compute_shell_for_shape(GeneralPolygon2d shape)
+        {
+            ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
+            shells_gen.PathSpacing = Settings.FillPathSpacingMM;
+            shells_gen.ToolWidth = Settings.NozzleDiamMM;
+            shells_gen.Layers = Settings.Shells;
+            shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
+            shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
+            shells_gen.Compute();
+            return shells_gen;
+        }
 
 
 

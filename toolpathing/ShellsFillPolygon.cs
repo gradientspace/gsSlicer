@@ -21,7 +21,7 @@ namespace gs
     ///     .FilterSelfOverlaps       : if true, we try to remove areas of path that would self-overlap.
     ///     .SelfOverlapTolerance     : distance that counts as self-overlap
     /// </summary>
-	public class ShellsFillPolygon : IPathsFillPolygon
+	public class ShellsFillPolygon : IShellsFillPolygon
     {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
@@ -69,6 +69,7 @@ namespace gs
 
         // remaining interior polygons (to fill w/ other strategy, etc)
         public List<GeneralPolygon2d> InnerPolygons { get; set; }
+        public List<GeneralPolygon2d> GetInnerPolygons() { return InnerPolygons; }
 
 
         public ShellsFillPolygon(GeneralPolygon2d poly)
