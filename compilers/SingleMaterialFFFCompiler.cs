@@ -105,7 +105,7 @@ namespace gs
 					} else if (p.Type == PathTypes.PlaneChange) {
 						Assembler.AppendMoveTo(p[i].Position, p[i].FeedRate, "Plane Change");
 					} else {
-						Assembler.AppendExtrudeTo(p[i].Position, p[i].FeedRate, p[i].Extrusion.x, "Extrude");
+						Assembler.AppendExtrudeTo(p[i].Position, p[i].FeedRate, p[i].Extrusion.x);
 					}
 				}
 
