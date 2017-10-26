@@ -12,14 +12,16 @@ namespace gs
         public SingleMaterialFFFPrintGenerator(PrintMeshAssembly meshes, 
                                       PlanarSliceStack slices,
                                       SingleMaterialFFFSettings settings,
-                                      AssemblerFactoryF assemblerF )
+                                      AssemblerFactoryF overrideAssemblerF = null )
         {
             file_accumulator = new GCodeFileAccumulator();
             builder = new GCodeBuilder(file_accumulator);
-            compiler = new SingleMaterialFFFCompiler(builder, settings, assemblerF);
-
+            AssemblerFactoryF useAssembler = (overrideAssemblerF != null) ?
+                overrideAssemblerF : settings.AssemblerType();
+            compiler = new SingleMaterialFFFCompiler(builder, settings, useAssembler);
             base.Initialize(meshes, slices, settings, compiler);
         }
+
 
         protected override GCodeFile extract_result()
         {
@@ -27,17 +29,6 @@ namespace gs
         }
 
 
-
-        public static SingleMaterialFFFPrintGenerator Auto(
-                PrintMeshAssembly meshes, PlanarSliceStack slices, SingleMaterialFFFSettings settings)
-        {
-            if (settings is MakerbotSettings) {
-                return new SingleMaterialFFFPrintGenerator(meshes, slices, settings, MakerbotAssembler.Factory);
-            } else if (settings is RepRapSettings) {
-                return new SingleMaterialFFFPrintGenerator(meshes, slices, settings, RepRapAssembler.Factory);
-            } else
-                throw new NotImplementedException("SingleMaterialFFFPrintGenerator.Auto: unknown settings type");
-        }
     }
 
 
