@@ -30,7 +30,7 @@ namespace gs
         // override to customize assembler
         protected virtual IPathsAssembler InitializeAssembler()
         {
-            IPathsAssembler asm = new GenericPathsAssembler(Settings as MakerbotSettings);
+            IPathsAssembler asm = new GenericPathsAssembler();
             return asm;
         }
 

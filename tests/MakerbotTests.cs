@@ -17,7 +17,7 @@ namespace gs
 
 			MakerbotSettings settings = new MakerbotSettings();
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );
 
 			cc.Begin();
 
@@ -64,7 +64,7 @@ namespace gs
 
 			MakerbotSettings settings = new MakerbotSettings();
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 
@@ -129,7 +129,7 @@ namespace gs
 
 			MakerbotSettings settings = new MakerbotSettings();
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 
@@ -183,7 +183,7 @@ namespace gs
 
 			MakerbotSettings settings = new MakerbotSettings();
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 
@@ -242,7 +242,7 @@ namespace gs
 
 			MakerbotSettings settings = new MakerbotSettings();
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 
@@ -316,7 +316,7 @@ namespace gs
 			double InfillScale = 1.0;
 			double[] infill_angles = new double[] { -45, 45 };
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 
@@ -396,7 +396,7 @@ namespace gs
 			double[] infill_angles = new double[] { -45, 45 };
 			bool AddSupport = false;
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 			Vector3d CurrentPos = cc.NozzlePosition;
@@ -687,7 +687,7 @@ namespace gs
 			MakerbotSettings settings = new MakerbotSettings();
 
 
-			MakerbotCompiler cc = new MakerbotCompiler(builder, settings);
+			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
 

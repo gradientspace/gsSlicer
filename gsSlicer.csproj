@@ -53,7 +53,7 @@
     <Compile Include="slicing\PlanarSlice.cs" />
     <Compile Include="slicing\PlanarSliceStack.cs" />
     <Compile Include="slicing\MeshPlanarSlicer.cs" />
-    <Compile Include="compilers\MakerbotCompiler.cs" />
+    <Compile Include="compilers\SingleMaterialFFFCompiler.cs" />
     <Compile Include="generators\SingleMaterialFFFPrintGenerator.cs" />
     <Compile Include="generators\ThreeAxisPrintGenerator.cs" />
     <Compile Include="toolpaths\FillPaths2d.cs" />

@@ -20,7 +20,7 @@ namespace gs
         public PathSet AccumulatedPaths;
 
 
-        public GenericPathsAssembler(MakerbotSettings settings)
+        public GenericPathsAssembler()
         {
             AccumulatedPaths = new PathSet();
         }

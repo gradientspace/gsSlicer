@@ -13,7 +13,7 @@ namespace gs
 
         public GenericSLSPrintGenerator(PrintMeshAssembly meshes,
                                       PlanarSliceStack slices,
-                                      MakerbotSettings settings)
+                                      SingleMaterialFFFSettings settings)
         {
             file_accumulator = new GCodeFileAccumulator();
             //builder = new GCodeBuilder(file_accumulator);

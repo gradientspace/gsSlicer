@@ -20,16 +20,19 @@ namespace gs
 
 
 
-	public class MakerbotCompiler : ThreeAxisPrinterCompiler
+	public class SingleMaterialFFFCompiler : ThreeAxisPrinterCompiler
 	{
 		SingleMaterialFFFSettings Settings;
 		GCodeBuilder Builder;
-		MakerbotAssembler Assembler;
+        BaseDepositionAssembler Assembler;
 
-		public MakerbotCompiler(GCodeBuilder builder, SingleMaterialFFFSettings settings )
+        AssemblerFactoryF AssemblerF;
+
+        public SingleMaterialFFFCompiler(GCodeBuilder builder, SingleMaterialFFFSettings settings, AssemblerFactoryF AssemblerF )
 		{
 			Builder = builder;
 			Settings = settings;
+            this.AssemblerF = AssemblerF;
 		}
 
 
@@ -46,26 +49,13 @@ namespace gs
 			get { return Assembler.InTravel; }
 		}
 
-
-
 		public virtual void Begin() {
-			Assembler = InitializeAssembler();
+            Assembler = AssemblerF(Builder, Settings);
 			Assembler.AppendHeader();
 		}
 
-		// override to customize assembler
-		protected virtual MakerbotAssembler InitializeAssembler() {
-			MakerbotAssembler asm = new MakerbotAssembler(Builder, Settings as MakerbotSettings);
-			return asm;
-		}
 
 		public virtual void End() {
-            // final retract
-            if (Assembler.InRetract == false) {
-                Assembler.BeginRetract(Assembler.NozzlePosition, Settings.RetractSpeed,
-                                        Assembler.ExtruderA - Settings.RetractDistanceMM, "Final Retract");
-            }
-
             Assembler.UpdateProgress(100);
 			Assembler.AppendFooter();
 		}
