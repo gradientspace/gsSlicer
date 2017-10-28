@@ -276,7 +276,7 @@ namespace gs
                         c /= n;
                         Vector2d dv = (smooth_alpha) * (c - v);
                         if (dv.LengthSquared > max_move_sqr) {
-                            double d = dv.Normalize();
+                            /*double d = */dv.Normalize();
                             dv *= max_move;
                         }
                         v += dv;
@@ -355,7 +355,7 @@ namespace gs
                 Vector2d pos_a = graph.GetVertex(a);
                 Vector2d pos_bNearest = graph.GetVertex(bNearest);
 
-                int eid = graph.AppendEdge(a, bNearest);
+                /*int eid = */graph.AppendEdge(a, bNearest);
                 DGraph2.EdgeCollapseInfo collapseInfo;
                 graph.CollapseEdge(bNearest, a, out collapseInfo);
                 graph_cache.RemovePointUnsafe(a, pos_a);
@@ -409,7 +409,7 @@ namespace gs
                 Vector2d pos_a = graph.GetVertex(a);
                 Vector2d pos_bNearest = graph.GetVertex(bNearest);
 
-                int eid = graph.AppendEdge(a, bNearest);
+                /*int eid = */graph.AppendEdge(a, bNearest);
                 DGraph2.EdgeCollapseInfo collapseInfo;
                 graph.CollapseEdge(bNearest, a, out collapseInfo);
 

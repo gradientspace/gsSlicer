@@ -26,7 +26,7 @@ namespace gs
         public List<FillPaths2d> GetFillPaths() { return Paths; }
 
 
-        SegmentSet2d BoundaryPolygonCache;
+        //SegmentSet2d BoundaryPolygonCache;
 
 		public RasterFillPolygon(GeneralPolygon2d poly)
 		{
@@ -38,7 +38,7 @@ namespace gs
 		public bool Compute()
 		{
 			if ( InsetFromInputPolygon ) {
-				BoundaryPolygonCache = new SegmentSet2d(Polygon);
+				//BoundaryPolygonCache = new SegmentSet2d(Polygon);
 				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
 				foreach (GeneralPolygon2d poly in current) {
 					SegmentSet2d polyCache = new SegmentSet2d(poly);
@@ -46,8 +46,8 @@ namespace gs
 				}
 
 			} else {
-				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
-				BoundaryPolygonCache = new SegmentSet2d(boundary);
+				//List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
+				//BoundaryPolygonCache = new SegmentSet2d(boundary);
 
 				SegmentSet2d polyCache = new SegmentSet2d(Polygon);
 				Paths.Add(ComputeFillPaths(Polygon, polyCache));
@@ -66,14 +66,14 @@ namespace gs
 			List<List<Segment2d>> StepSpans = ComputeSegments(poly, polyCache);
 			int N = StepSpans.Count;
 
-			double hard_max_dist = 5 * PathSpacing;
+			//double hard_max_dist = 5 * PathSpacing;
 
 			// [TODO] need a pathfinder here, that can chain segments efficiently
 
 			// (for now just do dumb things?)
 
 			FillPaths2d paths = new FillPaths2d();
-			FillPolyline2d cur = new FillPolyline2d();
+			//FillPolyline2d cur = new FillPolyline2d();
 
 			foreach ( var seglist in StepSpans ) {
 				foreach (Segment2d seg in seglist ) {

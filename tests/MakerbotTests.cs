@@ -68,8 +68,6 @@ namespace gs
 
 			cc.Begin();
 
-			double StepY = settings.FillPathSpacingMM;
-
 			PathSetBuilder paths = new PathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
@@ -133,8 +131,6 @@ namespace gs
 
 			cc.Begin();
 
-			double StepY = settings.FillPathSpacingMM;
-
 			PathSetBuilder paths = new PathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
@@ -186,8 +182,6 @@ namespace gs
 			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
-
-			double StepY = settings.FillPathSpacingMM;
 
 			PathSetBuilder paths = new PathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
@@ -245,8 +239,6 @@ namespace gs
 			SingleMaterialFFFCompiler cc = new SingleMaterialFFFCompiler(builder, settings, (a,b)=> { return new MakerbotAssembler(a, b); } );;
 
 			cc.Begin();
-
-			double StepY = settings.FillPathSpacingMM;
 
 			for (int i = 0; i < nLayers; ++i ) {
 				double t = (double)i / (double)(nLayers-1);
