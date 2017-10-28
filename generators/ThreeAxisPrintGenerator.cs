@@ -70,7 +70,7 @@ namespace gs
             Compiler = compiler;
 
             if (PathFilterF == null)
-                PathFilterF = (pline) => { return pline.Length < 3 * Settings.NozzleDiamMM; };
+                PathFilterF = (pline) => { return pline.Length < 3 * Settings.Machine.NozzleDiamMM; };
         }
 
 
@@ -245,7 +245,7 @@ namespace gs
             DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.FillPathSpacingMM,
-                ToolWidth = Settings.NozzleDiamMM,
+                ToolWidth = Settings.Machine.NozzleDiamMM,
                 AngleDeg = LayerFillAngleF(layer_i)
             };
             infill_gen.Compute();
@@ -276,12 +276,12 @@ namespace gs
             if (bIsInfillAdjacent && Settings.InteriorSolidRegionShells > 0) {
                 ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
                 interior_shells.PathSpacing = Settings.FillPathSpacingMM;
-                interior_shells.ToolWidth = Settings.NozzleDiamMM;
+                interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
                 interior_shells.ShellType = ShellsFillPolygon.ShellTypes.InternalShell;
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
-                interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
+                interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
                 interior_shells.Compute();
                 scheduler.AppendShells(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;
@@ -292,7 +292,7 @@ namespace gs
                 DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
                     InsetFromInputPolygon = false,
                     PathSpacing = Settings.FillPathSpacingMM,
-                    ToolWidth = Settings.NozzleDiamMM,
+                    ToolWidth = Settings.Machine.NozzleDiamMM,
                     AngleDeg = LayerFillAngleF(layer_i)
                 };
                 solid_gen.Compute();
@@ -329,7 +329,7 @@ namespace gs
             // infill won't overlap solid region
             if (solid_regions.Count > 0) {
                 List<GeneralPolygon2d> solidWithBorder =
-                    ClipperUtil.MiterOffset(solid_regions, Settings.NozzleDiamMM);
+                    ClipperUtil.MiterOffset(solid_regions, Settings.Machine.NozzleDiamMM);
                 infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder);
             }
 
@@ -421,7 +421,7 @@ namespace gs
 				};
 
                 // leave space for end-blobs (input paths are extent we want to hit)
-                pline.Trim(Settings.NozzleDiamMM / 2);
+                pline.Trim(Settings.Machine.NozzleDiamMM / 2);
 
                 // ignore tiny paths
                 if (PathFilterF != null && PathFilterF(pline) == true)
@@ -507,10 +507,10 @@ namespace gs
         {
             ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
             shells_gen.PathSpacing = Settings.FillPathSpacingMM;
-            shells_gen.ToolWidth = Settings.NozzleDiamMM;
+            shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
-            shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.NozzleDiamMM;
+            shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
             shells_gen.Compute();
             return shells_gen;
         }

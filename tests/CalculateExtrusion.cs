@@ -29,8 +29,8 @@ namespace gs
 			Paths = paths;
 			Settings = settings;
 
-			FilamentDiam = settings.FilamentDiamMM;
-			NozzleDiam = settings.NozzleDiamMM;
+			FilamentDiam = settings.Machine.FilamentDiamMM;
+			NozzleDiam = settings.Machine.NozzleDiamMM;
 			LayerHeight = settings.LayerHeightMM;
 			FixedRetractDistance = settings.RetractDistanceMM;
 		}

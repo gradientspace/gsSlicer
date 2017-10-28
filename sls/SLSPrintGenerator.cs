@@ -197,7 +197,7 @@ namespace gs
             if (bIsInfillAdjacent && Settings.InteriorSolidRegionShells > 0) {
                 ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
                 interior_shells.PathSpacing = Settings.FillPathSpacingMM;
-                interior_shells.ToolWidth = Settings.NozzleDiamMM;
+                interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
                 interior_shells.Compute();
@@ -216,7 +216,7 @@ namespace gs
                     RasterFillPolygon solid_gen = new RasterFillPolygon(tilePoly) {
                         InsetFromInputPolygon = false,
                         PathSpacing = Settings.FillPathSpacingMM,
-                        ToolWidth = Settings.NozzleDiamMM,
+                        ToolWidth = Settings.Machine.NozzleDiamMM,
                         AngleDeg = LayerFillAngleF(layer_i + odd)
                     };
                     return solid_gen;
@@ -245,7 +245,7 @@ namespace gs
                 foreach (GeneralPolygon2d shape in solids) {
                     ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
                     shells_gen.PathSpacing = Settings.FillPathSpacingMM;
-                    shells_gen.ToolWidth = Settings.NozzleDiamMM;
+                    shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
                     shells_gen.InsetInnerPolygons = false;
                     shells_gen.Compute();
