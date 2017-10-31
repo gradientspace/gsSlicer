@@ -22,7 +22,7 @@ namespace gs
 
 			cc.Begin();
 
-			double StepY = settings.FillPathSpacingMM;
+			double StepY = settings.SolidFillPathSpacingMM();
 
 			PathSetBuilder paths = new PathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
@@ -91,7 +91,7 @@ namespace gs
 			shape.AddHole(hole);
 
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-			shells_gen.PathSpacing = settings.FillPathSpacingMM;
+			shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 			shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
@@ -101,7 +101,7 @@ namespace gs
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
-					PathSpacing = settings.FillPathSpacingMM,
+					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
@@ -142,7 +142,7 @@ namespace gs
 			BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
 
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-			shells_gen.PathSpacing = settings.FillPathSpacingMM;
+			shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 			shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
@@ -152,7 +152,7 @@ namespace gs
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
-					PathSpacing = settings.FillPathSpacingMM,
+					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
@@ -190,7 +190,7 @@ namespace gs
 
 
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-			shells_gen.PathSpacing = settings.FillPathSpacingMM;
+			shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 			shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
@@ -199,7 +199,7 @@ namespace gs
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
-					PathSpacing = settings.FillPathSpacingMM,
+					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
@@ -258,7 +258,7 @@ namespace gs
 				shape.Scale(scale*Vector2d.One, Vector2d.Zero);
 
 				ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-				shells_gen.PathSpacing = settings.FillPathSpacingMM;
+				shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 				shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 				shells_gen.Layers = 2;
 				shells_gen.Compute();
@@ -268,7 +268,7 @@ namespace gs
 				foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 					DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 						InsetFromInputPolygon = false,
-						PathSpacing = settings.FillPathSpacingMM,
+						PathSpacing = settings.SolidFillPathSpacingMM(),
 						ToolWidth = settings.Machine.NozzleDiamMM
 					};
 					infill_gen.Compute();
@@ -332,7 +332,7 @@ namespace gs
 
 				foreach(GeneralPolygon2d shape in slice.Solids) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 					shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
@@ -342,7 +342,7 @@ namespace gs
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
-							PathSpacing = fillScale * settings.FillPathSpacingMM,
+							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
@@ -403,7 +403,7 @@ namespace gs
 
 				foreach (GeneralPolygon2d shape in slice.Solids) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 					shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 					shells_gen.Layers = NumShells;
 					shells_gen.Compute();
@@ -586,7 +586,7 @@ namespace gs
 						//   came from where. Would need to do loop above per-polygon
 						if ( is_infill && infillPolys.Count > 0 && InteriorSolidRegionContours > 0) {
 							ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
-							interior_shells.PathSpacing = settings.FillPathSpacingMM;
+							interior_shells.PathSpacing = settings.SolidFillPathSpacingMM();
 							interior_shells.ToolWidth = settings.Machine.NozzleDiamMM;
 							interior_shells.Layers = InteriorSolidRegionContours;
 							interior_shells.InsetFromInputPolygon = false;
@@ -599,7 +599,7 @@ namespace gs
 						foreach (GeneralPolygon2d fillPoly in fillPolys) {
 							DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
 								InsetFromInputPolygon = false,
-								PathSpacing = settings.FillPathSpacingMM,
+								PathSpacing = settings.SolidFillPathSpacingMM(),
 								ToolWidth = settings.Machine.NozzleDiamMM,
 								AngleDeg = infill_angles[i % infill_angles.Length]
 							};
@@ -612,7 +612,7 @@ namespace gs
 					foreach (GeneralPolygon2d infill_poly in infillPolys) {
 						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
-							PathSpacing = fillScale * settings.FillPathSpacingMM,
+							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
@@ -636,7 +636,7 @@ namespace gs
 
 
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(area);
-					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 					shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 					shells_gen.InsetFromInputPolygon = false;
 					shells_gen.Layers = 1;
@@ -721,7 +721,7 @@ namespace gs
 
 				foreach (GeneralPolygon2d shape in polygons) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-					shells_gen.PathSpacing = settings.FillPathSpacingMM;
+					shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
 					shells_gen.ToolWidth = settings.Machine.NozzleDiamMM;
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
@@ -731,11 +731,11 @@ namespace gs
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
-							PathSpacing = fillScale * settings.FillPathSpacingMM,
+							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,
 							AngleDeg = infill_angles[infill_layer_k],
 							PathShift = (enable_layer_offset == false || i % 2 == 0) 
-								? 0 : (fillScale * settings.FillPathSpacingMM *(0.5))
+								? 0 : (fillScale * settings.SolidFillPathSpacingMM() * (0.5))
 						};
 						infill_gen.Compute();
 						scheduler.AppendPaths(infill_gen.Paths);

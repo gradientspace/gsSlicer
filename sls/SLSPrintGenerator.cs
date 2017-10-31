@@ -196,7 +196,7 @@ namespace gs
             //   came from where. Would need to do loop above per-polygon
             if (bIsInfillAdjacent && Settings.InteriorSolidRegionShells > 0) {
                 ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
-                interior_shells.PathSpacing = Settings.FillPathSpacingMM;
+                interior_shells.PathSpacing = Settings.SolidFillPathSpacingMM();
                 interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
@@ -208,14 +208,14 @@ namespace gs
             // now actually fill solid regions
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
                 TiledFillPolygon tiled_fill = new TiledFillPolygon(fillPoly) {
-                    TileSize = 13.1*Settings.FillPathSpacingMM,
-                    TileOverlap = 0.3* Settings.FillPathSpacingMM
+                    TileSize = 13.1*Settings.SolidFillPathSpacingMM(),
+                    TileOverlap = 0.3* Settings.SolidFillPathSpacingMM()
                 };
                 tiled_fill.TileFillGeneratorF = (tilePoly, index) => {
                     int odd = ((index.x+index.y) % 2 == 0) ? 1 : 0;
                     RasterFillPolygon solid_gen = new RasterFillPolygon(tilePoly) {
                         InsetFromInputPolygon = false,
-                        PathSpacing = Settings.FillPathSpacingMM,
+                        PathSpacing = Settings.SolidFillPathSpacingMM(),
                         ToolWidth = Settings.Machine.NozzleDiamMM,
                         AngleDeg = LayerFillAngleF(layer_i + odd)
                     };
@@ -244,7 +244,7 @@ namespace gs
 
                 foreach (GeneralPolygon2d shape in solids) {
                     ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-                    shells_gen.PathSpacing = Settings.FillPathSpacingMM;
+                    shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
                     shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
                     shells_gen.Layers = Settings.Shells;
                     shells_gen.InsetInnerPolygons = false;

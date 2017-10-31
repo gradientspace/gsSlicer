@@ -244,7 +244,7 @@ namespace gs
         {
             DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
-                PathSpacing = Settings.SparseLinearInfillStepX * Settings.FillPathSpacingMM,
+                PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
                 AngleDeg = LayerFillAngleF(layer_i)
             };
@@ -275,7 +275,7 @@ namespace gs
             //   came from where. Would need to do loop above per-polygon
             if (bIsInfillAdjacent && Settings.InteriorSolidRegionShells > 0) {
                 ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
-                interior_shells.PathSpacing = Settings.FillPathSpacingMM;
+                interior_shells.PathSpacing = Settings.SolidFillPathSpacingMM();
                 interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
@@ -291,7 +291,7 @@ namespace gs
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
                 DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
                     InsetFromInputPolygon = false,
-                    PathSpacing = Settings.FillPathSpacingMM,
+                    PathSpacing = Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
                     AngleDeg = LayerFillAngleF(layer_i)
                 };
@@ -506,7 +506,7 @@ namespace gs
         protected virtual IShellsFillPolygon compute_shell_for_shape(GeneralPolygon2d shape)
         {
             ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-            shells_gen.PathSpacing = Settings.FillPathSpacingMM;
+            shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
             shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
