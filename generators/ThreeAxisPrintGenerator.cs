@@ -8,6 +8,34 @@ using g3;
 namespace gs
 {
 
+	/// <summary>
+	/// PrintLayerData is set of information for a single print layer
+	/// </summary>
+	public class PrintLayerData
+	{
+		public int layer_i;
+		public PlanarSlice Slice;
+		public SingleMaterialFFFSettings Settings;
+
+		public PrintLayerData PreviousLayer;
+
+		public PathSetBuilder PathAccum;
+		public IPathScheduler Scheduler;
+
+		public List<IShellsFillPolygon> ShellFills;
+
+		public TemporalPathHash Spatial;
+
+		public PrintLayerData(int layer_i, PlanarSlice slice, SingleMaterialFFFSettings settings) {
+			this.layer_i = layer_i;
+			Slice = slice;
+			Settings = settings;
+			Spatial = new TemporalPathHash();
+		}
+	}
+
+
+
 
     /// <summary>
     /// This is the top-level class that generates a GCodeFile for a stack of slices.
@@ -26,23 +54,45 @@ namespace gs
         // available after calling Generate()
         public GCodeFile Result;
 
+
+		/*
+		 * Customizable functions you can use to configure/modify slicer behavior
+		 */
+
         // replace this with your own error message handler
         public Action<string, string> ErrorF = (message, stack_trace) => {
             System.Console.WriteLine("[EXCEPTION] ThreeAxisPrintGenerator: " + message + "\nSTACK TRACE: " + stack_trace);
         };
 
-        // This is called at the beginning of each layer, you can replace to
-        // implement progress bar, etc
-        public Action<int> BeginLayerF = (layeri) => { };
 
-        // This is called before we process each shell. The Tag is transferred
-        // from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
-        public Action<IFillPolygon, int> BeginShellF = (shell_fill, tag) => { };
+		// Replace this if you want to cusotmize PrintLayerData type
+		public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
+
+		// Replace this to use a different path builder
+		public Func<PrintLayerData, PathSetBuilder> PathBuilderFactoryF;
+
+		// Replace this to use a different scheduler
+		public Func<PrintLayerData, IPathScheduler> SchedulerFactoryF;
+
+		// This is called at the beginning of each layer, you can replace to
+		// implement progress bar, etc
+		public Action<PrintLayerData> BeginLayerF;
+
+		// This is called before we process each shell. The Tag is transferred
+		// from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
+		public Action<IFillPolygon, int> BeginShellF;
+
+		// called at the end of each layer, before we compile the paths
+		public Action<PrintLayerData, PathSet> PostProcessLayerPathsF;
 
 
         // this is called on polyline paths, return *true* to filter out a path. Useful for things like very short segments, etc
         // In default Initialize(), is set to a constant multiple of tool size
         public Func<FillPolyline2d, bool> PathFilterF = null;
+
+
+
+
 
 
         protected ThreeAxisPrintGenerator()
@@ -59,18 +109,40 @@ namespace gs
 
 
 
+
         public void Initialize(PrintMeshAssembly meshes, 
                                PlanarSliceStack slices,
                                SingleMaterialFFFSettings settings,
                                ThreeAxisPrinterCompiler compiler)
         {
+			
             PrintMeshes = meshes;
             Slices = slices;
             Settings = settings;
             Compiler = compiler;
 
-            if (PathFilterF == null)
-                PathFilterF = (pline) => { return pline.Length < 3 * Settings.Machine.NozzleDiamMM; };
+
+			// set defaults for configurable functions
+
+			PrintLayerDataFactoryF = (layer_i, slice, settingsArg) => {
+				return new PrintLayerData(layer_i, slice, settingsArg);
+			};
+
+			PathBuilderFactoryF = (layer_data) => {
+				return new PathSetBuilder();
+			};
+
+			SchedulerFactoryF = get_layer_scheduler;
+
+			BeginLayerF = (layer_data) => { };
+
+			BeginShellF = (shell_fill, tag) => { };
+
+			PostProcessLayerPathsF = (layer_data, paths) => { };
+
+			if (PathFilterF == null)
+				PathFilterF = (pline) => { return pline.Length < 3 * Settings.Machine.NozzleDiamMM; };
+
         }
 
 
@@ -127,18 +199,7 @@ namespace gs
 
 
 
-        protected class LayerData
-        {
-            public int layer_i;
-            public PlanarSlice slice;
 
-            public PathSetBuilder pathAccum;
-            public IPathScheduler scheduler;
-
-            public List<IShellsFillPolygon> shellFills;
-
-            public TemporalPathHash spatial;
-        }
 
 
         /// <summary>
@@ -161,25 +222,39 @@ namespace gs
             precompute_shells();
             int nLayers = Slices.Count;
 
+			PrintLayerData prevLayerData = null;
+
             // Now generate paths for each layer.
             // This could be parallelized to some extent, but we have to pass per-layer paths
             // to Scheduler in layer-order. Probably better to parallelize within-layer computes.
             CurStartLayer = Math.Max(0, Settings.LayerRangeFilter.a);
             CurEndLayer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
             for ( int layer_i = CurStartLayer; layer_i <= CurEndLayer; ++layer_i ) {
-                BeginLayerF(layer_i);
+
+				// allocate new layer data structure
+				PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], this.Settings);
+				layerdata.PreviousLayer = prevLayerData;
+
+				// create path accumulator
+				PathSetBuilder pathAccum = PathBuilderFactoryF(layerdata);
+				layerdata.PathAccum = pathAccum;
+
+				// rest of code does not directly access path builder, instead it
+				// sends paths to scheduler.
+				IPathScheduler scheduler = SchedulerFactoryF(layerdata);
+				layerdata.Scheduler = scheduler;
+
+                BeginLayerF(layerdata);
+
+				layerdata.ShellFills = get_layer_shells(layer_i);
 
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
 
                 // make path-accumulator for this layer
-                PathSetBuilder pathAccum = new PathSetBuilder();
                 pathAccum.Initialize(Compiler.NozzlePosition);
                 // layer-up (ie z-change)
                 pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
-                // rest of code does not directly access path builder, instead it
-                // sends paths to scheduler.
-                IPathScheduler scheduler = get_layer_scheduler(layer_i, pathAccum);
 
                 // generate roof and floor regions. This could be done in parallel, or even pre-computed
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
@@ -189,8 +264,8 @@ namespace gs
                     floor_cover = find_floor_areas_for_layer(layer_i);
                 }
 
-                // a layer can contain multiple disjoint regions. Process each separately.
-                List<IShellsFillPolygon> layer_shells = get_layer_shells(layer_i);
+				// a layer can contain multiple disjoint regions. Process each separately.
+				List<IShellsFillPolygon> layer_shells = layerdata.ShellFills;
                 for (int si = 0; si < layer_shells.Count; si++) {
 
                     // schedule shell paths that we pre-computed
@@ -207,26 +282,29 @@ namespace gs
                     // (ie roof/floor regions, and maybe others)
                     List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
                     if (is_infill)
-                        infill_regions = make_infill(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
+						infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
                     bool has_infill = (infill_regions.Count > 0);
 
                     // fill solid regions
                     foreach (GeneralPolygon2d solid_poly in solid_fill_regions) 
-                        fill_solid_region(layer_i, solid_poly, scheduler, has_infill);
+                        fill_solid_region(layerdata, solid_poly, scheduler, has_infill);
 
                     // fill infill regions
                     foreach (GeneralPolygon2d infill_poly in infill_regions) 
-                        fill_infill_region(layer_i, infill_poly, scheduler);
+                        fill_infill_region(layerdata, infill_poly, scheduler);
                 }
 
                 // append open paths
-                add_open_paths(layer_i, scheduler);
+                add_open_paths(layerdata);
 
-                // resulting paths for this layer (Currently we are just discarding this after compiling)
-                PathSet layerPaths = pathAccum.Paths;
+				// last change to post-process paths for this layer before they are baked in
+				PostProcessLayerPathsF(layerdata, pathAccum.Paths);
 
                 // compile this layer
-                Compiler.AppendPaths(layerPaths);
+				Compiler.AppendPaths(pathAccum.Paths);
+
+				// we might want to consider this layer while we process next one
+				prevLayerData = layerdata;
 
                 Interlocked.Increment(ref CurProgress);
             }
@@ -240,16 +318,17 @@ namespace gs
         /// <summary>
         /// fill polygon with sparse infill strategy
         /// </summary>
-        protected virtual void fill_infill_region(int layer_i, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
+		protected virtual void fill_infill_region(PrintLayerData layer_data, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
         {
-            DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+			IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
-                AngleDeg = LayerFillAngleF(layer_i)
+				AngleDeg = LayerFillAngleF(layer_data.layer_i)
             };
             infill_gen.Compute();
-            scheduler.AppendPaths(infill_gen.Paths);
+
+			scheduler.AppendPaths(infill_gen.GetFillPaths());
         }
 
 
@@ -261,7 +340,8 @@ namespace gs
         /// to sparse infill area - when the extruder zigs, most of the time there is nothing
         /// for the filament to attach to, so it pulls back. ugly!)
         /// </summary>
-        protected virtual void fill_solid_region(int layer_i, GeneralPolygon2d solid_poly, 
+		protected virtual void fill_solid_region(PrintLayerData layer_data, 
+		                                         GeneralPolygon2d solid_poly, 
                                                  IPathScheduler scheduler,
                                                  bool bIsInfillAdjacent = false )
         {
@@ -289,14 +369,16 @@ namespace gs
 
             // now actually fill solid regions
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
-                DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
+				IPathsFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
                     InsetFromInputPolygon = false,
                     PathSpacing = Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
-                    AngleDeg = LayerFillAngleF(layer_i)
+                    AngleDeg = LayerFillAngleF(layer_data.layer_i)
                 };
+
                 solid_gen.Compute();
-                scheduler.AppendPaths(solid_gen.Paths);
+
+				scheduler.AppendPaths(solid_gen.GetFillPaths());
             }
         }
 
@@ -306,7 +388,8 @@ namespace gs
         /// Determine the sparse infill and solid fill regions for a layer, given the input regions that
         /// need to be filled, and the roof/floor areas above/below this layer. 
         /// </summary>
-        protected virtual List<GeneralPolygon2d> make_infill(int layer_i, List<GeneralPolygon2d> fillRegions, 
+        protected virtual List<GeneralPolygon2d> make_infill_regions(int layer_i, 
+		                                                     List<GeneralPolygon2d> fillRegions, 
                                                              List<GeneralPolygon2d> roof_cover, 
                                                              List<GeneralPolygon2d> floor_cover, 
                                                              out List<GeneralPolygon2d> solid_regions)
@@ -408,9 +491,9 @@ namespace gs
         /// schedule any non-polygonal paths for the given layer (eg paths
         /// that resulted from open meshes, for example)
         /// </summary>
-        protected virtual void add_open_paths(int layer_i, IPathScheduler scheduler)
+		protected virtual void add_open_paths(PrintLayerData layerdata)
         {
-            PlanarSlice slice = Slices[layer_i];
+			PlanarSlice slice = layerdata.Slice;
             if (slice.Paths.Count == 0)
                 return;
 
@@ -430,7 +513,7 @@ namespace gs
                 paths.Append(pline);
             }
 
-            scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+			layerdata.Scheduler.AppendPaths(new List<FillPaths2d>() { paths });
         }
 
 
@@ -451,13 +534,13 @@ namespace gs
         /// return the set of shell-fills for a layer. This includes both the shell-fill paths
         /// and the remaining regions that need to be filled.
         /// </summary>
-        protected virtual List<IShellsFillPolygon> get_layer_shells(int layeri) {
+		protected virtual List<IShellsFillPolygon> get_layer_shells(int layer_i) {
             // evaluate shell on-demand
             //if ( LayerShells[layeri] == null ) {
             //    PlanarSlice slice = Slices[layeri];
             //    LayerShells[layeri] = compute_shells_for_slice(slice);
             //}
-            return LayerShells[layeri];
+			return LayerShells[layer_i];
         }
 
         /// <summary>
@@ -521,12 +604,12 @@ namespace gs
         /// <summary>
         /// Factory function to return a new PathScheduler to use for this layer.
         /// </summary>
-        protected virtual IPathScheduler get_layer_scheduler(int layer_i, PathSetBuilder paths)
+		protected virtual IPathScheduler get_layer_scheduler(PrintLayerData layer_data)
         {
-            BasicPathScheduler scheduler = new BasicPathScheduler(paths, this.Settings);
+			BasicPathScheduler scheduler = new BasicPathScheduler(layer_data.PathAccum, layer_data.Settings);
 
             // be careful on first layer
-            scheduler.SpeedHint = (layer_i == CurStartLayer) ?
+			scheduler.SpeedHint = (layer_data.layer_i == CurStartLayer) ?
                 SchedulerSpeedHint.Careful : SchedulerSpeedHint.Rapid;
 
             return scheduler;
