@@ -7,7 +7,40 @@ namespace gs
     // [TODO] flesh out this class...
     public class PrintMeshAssembly
     {
-        public List<DMesh3> Meshes = new List<DMesh3>();
+        class MeshInfo
+        {
+            public DMesh3 Mesh;
+
+            public DMesh3 SourceMesh;
+        }
+        List<MeshInfo> meshes = new List<MeshInfo>();
+
+
+
+        public IReadOnlyList<DMesh3> Meshes {
+            get {
+                List<DMesh3> m = new List<DMesh3>();
+                foreach (var mi in meshes)
+                    m.Add(mi.Mesh);
+                return m;
+            }
+        }
+
+
+
+        public void AddMesh(DMesh3 mesh) {
+            MeshInfo mi = new MeshInfo() {
+                Mesh = mesh,
+                SourceMesh = mesh
+            };
+            meshes.Add(mi);
+        }
+        public void AddMeshes(IEnumerable<DMesh3> meshes) {
+            foreach (var v in meshes)
+                AddMesh(v);
+        }
+
+
 
 
         public AxisAlignedBox3d TotalBounds {
