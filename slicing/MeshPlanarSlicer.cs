@@ -19,7 +19,6 @@ namespace gs
 		}
 		public SliceLocations SliceLocation = SliceLocations.MidLine;
 
-
         public enum OpenPathsModes
         {
             Embedded = 0, Clipped = 1, Ignored = 2
@@ -124,15 +123,24 @@ namespace gs
                     }
 
                     if (closed) {
-                        // extract slice polygons
-                        PlanarComplex complex = new PlanarComplex();
-                        foreach (Polygon2d poly in polys)
-                            complex.Add(poly);
 
-                        PlanarComplex.SolidRegionInfo solids =
-                            complex.FindSolidRegions(0.001, false);
+						// construct planar complex and "solids"
+						// (ie outer polys and nested holes)
+						PlanarComplex complex = new PlanarComplex();
+						foreach (Polygon2d poly in polys)
+							complex.Add(poly);
 
-                        slices[i].AddPolygons(solids.Polygons);
+						PlanarComplex.FindSolidsOptions options
+									 = PlanarComplex.FindSolidsOptions.Default;
+						options.WantCurveSolids = false;
+						options.SimplifyDeviationTolerance = 0.001;
+						options.TrustOrientations = true;
+						options.AllowOverlappingHoles = true;
+
+						PlanarComplex.SolidRegionInfo solids =
+							complex.FindSolidRegions(options);
+
+						slices[i].AddPolygons(solids.Polygons);
 
                     } else if (DefaultOpenPathMode != OpenPathsModes.Ignored) {
 
