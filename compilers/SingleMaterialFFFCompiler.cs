@@ -65,14 +65,16 @@ namespace gs
 		public virtual void AppendPaths(PathSet paths) {
 			
 			CalculateExtrusion calc = new CalculateExtrusion(paths, Settings);
-			calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA);
+			calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA, Assembler.InRetract);
 
 
+            int path_index = 0;
 			foreach (var gpath in paths) {
 				LinearPath p = gpath as LinearPath;
+                path_index++;
 
 				if (p[0].Position.Distance(Assembler.NozzlePosition) > 0.00001)
-					throw new Exception("Start of path is not same as end of previous path!");
+					throw new Exception("SingleMaterialFFFCompiler.AppendPaths: path " + path_index + ": Start of path is not same as end of previous path!");
 
 				int i = 0;
 				if ((p.Type == PathTypes.Travel || p.Type == PathTypes.PlaneChange) && Assembler.InTravel == false) {
@@ -80,6 +82,8 @@ namespace gs
 
 					// do retract cycle
 					if (p[0].Extrusion.x < Assembler.ExtruderA) {
+                        if (Assembler.InRetract)
+                            throw new Exception("SingleMaterialFFFCompiler.AppendPaths: path " + path_index + ": already in retract!");
 						Assembler.BeginRetract(p[0].Position, Settings.RetractSpeed, p[0].Extrusion.x);
 					}
 					Assembler.BeginTravel();

@@ -56,13 +56,13 @@ namespace gs
 
 
 
-		public void Calculate(Vector3d vStartPos, double fStartA)
+		public void Calculate(Vector3d vStartPos, double fStartA, bool alreadyInRetract = false)
 		{
 			double curA = fStartA;
 			Vector3d curPos = vStartPos;
 			double curRate = 0;
 
-			bool inRetract = false;
+			bool inRetract = alreadyInRetract;
 
 			// filter paths
 			List<IPath> allPaths = new List<IPath>();
