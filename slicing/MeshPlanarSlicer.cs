@@ -102,6 +102,15 @@ namespace gs
 					MeshPlaneCut cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z), Vector3d.AxisZ);
 					cut.Cut();
 
+
+                    // in pathological cases (eg two stacked cubes) the cutting plane can cut right
+                    // between the two cubes, hitting neither. So, if we get no loops, try jittering the plane a bit
+                    if ( (closed && cut.CutLoops.Count == 0) || (closed == false && cut.CutSpans.Count == 0) ) {
+                        sliceMesh = new DMesh3(mesh);
+                        cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z + LayerHeightMM*0.25), Vector3d.AxisZ);
+                        cut.Cut();
+                    }
+
                     Polygon2d[] polys = new Polygon2d[cut.CutLoops.Count];
                     for ( int li = 0; li < polys.Length; ++li) {
                         EdgeLoop loop = cut.CutLoops[li];
