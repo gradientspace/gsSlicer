@@ -177,8 +177,9 @@ namespace gs
 			} // end mesh iter
 
             // resolve planar intersections, etc
-            for (int i = 0; i < NH; ++i)
+            gParallel.ForEach(Interval1i.Range(NH), (i) => {
                 slices[i].Resolve();
+            });
 
             // discard spurious empty slices
             int last = slices.Length-1;
