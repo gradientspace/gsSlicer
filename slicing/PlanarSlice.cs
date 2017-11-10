@@ -65,7 +65,7 @@ namespace gs
         /// </summary>
         public void Resolve()
         {
-            // sort solids by 
+            // process largest-to-smallest
             if (InputSolids.Count > 0) {
                 GeneralPolygon2d[] solids = InputSolids.ToArray();
                 double[] weights = new double[solids.Length];
@@ -75,9 +75,28 @@ namespace gs
                 }
                 Array.Sort(weights, solids); Array.Reverse(solids);
 
-                Solids = new List<GeneralPolygon2d>() { solids[0] };
-                for (int k = 1; k < solids.Length; ++k)
-                    Solids = ClipperUtil.PolygonBoolean(Solids, solids[k], ClipperUtil.BooleanOp.Union);
+
+                Solids = new List<GeneralPolygon2d>();
+                for ( int k = 0; k < solids.Length; ++k ) {
+                    GeneralPolygon2d solid = solids[k];
+
+                    // solid may contain overlapping holes. We need to resolve these before continuing,
+                    // otherwise those overlapping regions will be filled by Clipper even/odd rules
+                    // [TODO] can we configure clipper to not do this?
+                    List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
+                    resolvedSolid.Add(new GeneralPolygon2d(solid.Outer));
+                    foreach (Polygon2d hole in solid.Holes) {
+                        GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
+                        resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference);
+                    }
+
+                    // now union in with accumulated solids
+                    if (Solids.Count == 0) {
+                        Solids.AddRange(resolvedSolid);
+                    } else {
+                        Solids = ClipperUtil.PolygonBoolean(Solids, resolvedSolid, ClipperUtil.BooleanOp.Union);
+                    }
+                }
             }
 
             if (EmbeddedPaths.Count > 0 && EmbeddedPathWidth == 0)
