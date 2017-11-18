@@ -19,7 +19,7 @@ namespace gs
         // Clipper docs say for 32-bit ints the max is 46340, so for 64=bit we should be fine with 2500,000
         public static double GetIntScale(Polygon2d poly)
         {
-			Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly);
+			Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly.Vertices);
             double max = Math.Max(maxDist.x, maxDist.y);
             if (max < 1) {
                 return 100000;

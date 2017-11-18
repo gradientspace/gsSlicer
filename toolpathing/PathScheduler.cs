@@ -118,7 +118,7 @@ namespace gs
 			if (N < 2)
 				throw new Exception("PathScheduler.AppendPolygon2d: degenerate curve!");
 
-			int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly);
+			int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly.Vertices);
 
 			Vector2d startPt = poly[iNearest];
 			Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);

@@ -125,7 +125,7 @@ namespace gs
 			Vector2d axis = dir.Perp;
 			Interval1d axisInterval = Interval1d.Empty;
 			Interval1d dirInterval = Interval1d.Empty;
-			foreach ( Vector2d v in poly.Outer ) {
+			foreach ( Vector2d v in poly.Outer.Vertices ) {
 				dirInterval.Contain(v.Dot(dir));
 				axisInterval.Contain(v.Dot(axis));
 			}
