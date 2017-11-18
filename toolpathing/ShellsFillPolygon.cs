@@ -190,7 +190,7 @@ namespace gs
 					paths.Append(polygon, flags);
                 }
                 foreach (var polyline in c.Paths) {
-                    if (polyline.Length < DiscardTinyPerimterLengthMM)
+                    if (polyline.ArcLength < DiscardTinyPerimterLengthMM)
                         continue;
                     if (polyline.Bounds.MaxDim < DiscardTinyPerimterLengthMM)
                         continue;

@@ -7,8 +7,14 @@ namespace gs
 {
 	public class MeshPlanarSlicer
 	{
-		List<DMesh3> Meshes = new List<DMesh3>();
-		List<AxisAlignedBox3d> Bounds = new List<AxisAlignedBox3d>();
+        class SliceMesh
+        {
+            public DMesh3 mesh;
+            public AxisAlignedBox3d bounds;
+
+            public PrintMeshOptions options;
+        }
+        List<SliceMesh> Meshes = new List<SliceMesh>();
 
 		public double LayerHeightMM = 0.2;
         public double OpenPathDefaultWidthMM = 0.4;
@@ -19,44 +25,47 @@ namespace gs
 		}
 		public SliceLocations SliceLocation = SliceLocations.MidLine;
 
-        public enum OpenPathsModes
-        {
-            Embedded = 0, Clipped = 1, Ignored = 2
-        }
-        public OpenPathsModes DefaultOpenPathMode = OpenPathsModes.Embedded;
-
+        public PrintMeshOptions.OpenPathsModes DefaultOpenPathMode = PrintMeshOptions.OpenPathsModes.Clipped;
 
         // these can be used for progress tracking
         public int TotalCompute = 0;
         public int Progress = 0;
 
-
 		public MeshPlanarSlicer()
 		{
 		}
 
-		public bool AddMesh(DMesh3 mesh) {
-			Meshes.Add(mesh);
-			Bounds.Add(mesh.CachedBounds);
+        public int AddMesh(DMesh3 mesh, PrintMeshOptions options) {
+            SliceMesh m = new SliceMesh() {
+                mesh = mesh,
+                bounds = mesh.CachedBounds,
+                options = options
+            };
+            int idx = Meshes.Count;
+            Meshes.Add(m);
+            return idx;
+		}
+        public int AddMesh(DMesh3 mesh) {
+            return AddMesh(mesh, PrintMeshOptions.Default);
+        }
 
+
+        public bool Add(PrintMeshAssembly assy)
+        {
+            foreach ( var pair in assy.MeshesAndOptions()) 
+                AddMesh(pair.Item1, pair.Item2);
             return true;
-		}
-		public bool AddMeshes(IEnumerable<DMesh3> meshes) {
-            bool ok = true;
-            foreach (var m in meshes) {
-                if (!AddMesh(m))
-                    ok = false;
-            }
-            return ok;
-		}
+        }
+
+
 
 
 		public PlanarSliceStack Compute()
 		{
 			Interval1d zrange = Interval1d.Empty;
-			foreach ( var b in Bounds ) {
-				zrange.Contain(b.Min.z);
-				zrange.Contain(b.Max.z);
+			foreach ( var meshinfo in Meshes ) {
+				zrange.Contain(meshinfo.bounds.Min.z);
+				zrange.Contain(meshinfo.bounds.Max.z);
 			}
 
 			int nLayers = (int)(zrange.Length / LayerHeightMM);
@@ -87,12 +96,16 @@ namespace gs
 
             // this sucks. oh well!
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
-				DMesh3 mesh = Meshes[mi];
-				AxisAlignedBox3d bounds = Bounds[mi];
-                bool closed = mesh.IsClosed();
+				DMesh3 mesh = Meshes[mi].mesh;
+				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
-				// each layer is independent because we are slicing new mesh
-				gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                bool closed = (Meshes[mi].options.IsOpen) ? false : mesh.IsClosed();
+
+                var useOpenMode = (Meshes[mi].options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
+                    DefaultOpenPathMode : Meshes[mi].options.OpenPathMode;
+
+                // each layer is independent because we are slicing new mesh
+                gParallel.ForEach(Interval1i.Range(NH), (i) => {
 					double z = heights[i];
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
@@ -151,10 +164,10 @@ namespace gs
 
 						slices[i].AddPolygons(solids.Polygons);
 
-                    } else if (DefaultOpenPathMode != OpenPathsModes.Ignored) {
+                    } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
 
                         foreach (PolyLine2d pline in paths) {
-                            if ( DefaultOpenPathMode == OpenPathsModes.Embedded )
+                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded )
                                 slices[i].AddEmbeddedPath(pline);   
                             else
                                 slices[i].AddClippedPath(pline);
@@ -164,7 +177,7 @@ namespace gs
                         //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
                         foreach (Polygon2d poly in polys) {
                             PolyLine2d pline = new PolyLine2d(poly, true);
-                            if (DefaultOpenPathMode == OpenPathsModes.Embedded)
+                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded)
                                 slices[i].AddEmbeddedPath(pline);
                             else
                                 slices[i].AddClippedPath(pline);

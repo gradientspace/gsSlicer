@@ -141,7 +141,7 @@ namespace gs
 			PostProcessLayerPathsF = (layer_data, paths) => { };
 
 			if (PathFilterF == null)
-				PathFilterF = (pline) => { return pline.Length < 3 * Settings.Machine.NozzleDiamMM; };
+				PathFilterF = (pline) => { return pline.ArcLength < 3 * Settings.Machine.NozzleDiamMM; };
 
         }
 
