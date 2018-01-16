@@ -41,13 +41,17 @@ namespace gs
 				BoundaryPolygonCache = new SegmentSet2d(Polygon);
 				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
 				foreach (GeneralPolygon2d poly in current) {
-					Paths.Add(ComputeFillPaths(poly));
+                    FillPaths2d fillPaths = ComputeFillPaths(poly);
+                    if (fillPaths != null )
+					    Paths.Add(fillPaths);
 				}
 
 			} else {
 				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
 				BoundaryPolygonCache = new SegmentSet2d(boundary);
-				Paths.Add(ComputeFillPaths(Polygon));
+                FillPaths2d fillPaths = ComputeFillPaths(Polygon);
+                if (fillPaths != null)
+                    Paths.Add(fillPaths);
 			}
 
 
@@ -68,7 +72,7 @@ namespace gs
             // compute 2D non-manifold graph consisting of original polygon and
             // inserted line segments
             DGraph2 spanGraph = ComputeSpanGraph(poly);
-            if (spanGraph.VertexCount == poly.VertexCount)
+            if (spanGraph == null || spanGraph.VertexCount == poly.VertexCount)
                 return paths;
 
             bool is_dense = Math.Abs(PathSpacing - ToolWidth) < (ToolWidth * 0.2f);
