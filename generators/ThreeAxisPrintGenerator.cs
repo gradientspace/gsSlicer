@@ -260,8 +260,16 @@ namespace gs
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
                 List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
                 if (is_infill) {
-                    roof_cover = find_roof_areas_for_layer(layer_i);
-                    floor_cover = find_floor_areas_for_layer(layer_i);
+                    if (Settings.RoofLayers > 0) {
+                        roof_cover = find_roof_areas_for_layer(layer_i);
+                    } else {
+                        roof_cover = find_roof_areas_for_layer(layer_i-1);     // will return "our" layer
+                    }
+                    if (Settings.FloorLayers > 0) {
+                        floor_cover = find_floor_areas_for_layer(layer_i);
+                    } else {
+                        floor_cover = find_floor_areas_for_layer(layer_i+1);   // will return "our" layer
+                    }
                 }
 
 				// a layer can contain multiple disjoint regions. Process each separately.
