@@ -222,6 +222,9 @@ namespace gs
             precompute_shells();
             int nLayers = Slices.Count;
 
+            if (Settings.EnableSupport)
+                precompute_support_areas();
+
 			PrintLayerData prevLayerData = null;
 
             // Now generate paths for each layer.
@@ -302,19 +305,26 @@ namespace gs
                         fill_infill_region(layerdata, infill_poly, scheduler);
                 }
 
+                if ( Settings.EnableSupport ) {
+                    List<GeneralPolygon2d> support_areas = get_layer_support_area(layer_i);
+                    foreach (GeneralPolygon2d support_poly in support_areas)
+                        fill_support_region(layerdata, support_poly, scheduler);
+                }
+
                 // append open paths
                 add_open_paths(layerdata);
 
 				// last change to post-process paths for this layer before they are baked in
 				PostProcessLayerPathsF(layerdata, pathAccum.Paths);
 
-                // compile this layer
+                // compile this layer 
+                // [TODO] we could do this in a separate thread, in a queue of jobs?
 				Compiler.AppendPaths(pathAccum.Paths);
 
 				// we might want to consider this layer while we process next one
 				prevLayerData = layerdata;
 
-                Interlocked.Increment(ref CurProgress);
+                count_progress_step();
             }
 
             Compiler.End();
@@ -328,7 +338,7 @@ namespace gs
         /// </summary>
 		protected virtual void fill_infill_region(PrintLayerData layer_data, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
         {
-			IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+            IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
@@ -338,6 +348,30 @@ namespace gs
 
 			scheduler.AppendPaths(infill_gen.GetFillPaths());
         }
+
+
+
+        /// <summary>
+        /// fill polygon with support infill strategy
+        /// </summary>
+		protected virtual void fill_support_region(PrintLayerData layer_data, GeneralPolygon2d support_poly, IPathScheduler scheduler)
+        {
+            // useful to visualize support polygons...
+            // [TODO] might make more sense to use a shell if poly is very thin/elongated, or tiny
+            //IShellsFillPolygon fill = compute_shells_for_shape(support_poly);
+            //scheduler.AppendPaths(fill.GetFillPaths());
+
+            IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(support_poly) {
+                InsetFromInputPolygon = true,
+                PathSpacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM(),
+                ToolWidth = Settings.Machine.NozzleDiamMM,
+                AngleDeg = 0
+            };
+            infill_gen.Compute();
+
+            scheduler.AppendPaths(infill_gen.GetFillPaths());
+        }
+
 
 
 
@@ -567,7 +601,7 @@ namespace gs
             gParallel.ForEach(solve_shells, (layeri) => {
                 PlanarSlice slice = Slices[layeri];
                 LayerShells[layeri] = compute_shells_for_slice(slice);
-                Interlocked.Increment(ref CurProgress);
+                count_progress_step();
             });
         }
 
@@ -578,7 +612,7 @@ namespace gs
         {
             List<IShellsFillPolygon> layer_shells = new List<IShellsFillPolygon>();
             foreach (GeneralPolygon2d shape in slice.Solids) {
-                IShellsFillPolygon shells_gen = compute_shell_for_shape(shape);
+                IShellsFillPolygon shells_gen = compute_shells_for_shape(shape);
                 layer_shells.Add(shells_gen);
 
                 if (slice.Tags.Has(shape)) {
@@ -594,7 +628,7 @@ namespace gs
         /// compute a shell-fill for the given shape (assumption is that shape.Outer 
         /// is anoutermost perimeter)
         /// </summary>
-        protected virtual IShellsFillPolygon compute_shell_for_shape(GeneralPolygon2d shape)
+        protected virtual IShellsFillPolygon compute_shells_for_shape(GeneralPolygon2d shape)
         {
             ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
             shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
@@ -605,6 +639,101 @@ namespace gs
             shells_gen.Compute();
             return shells_gen;
         }
+
+
+
+
+
+
+
+        // The set of perimeter fills for each layer. 
+        // If we have sparse infill, we need to have multiple shells available to do roof/floors.
+        // To do support, we ideally would have them all.
+        // Currently we precompute all shell-fills up-front, in precompute_shells().
+        // However you could override this behavior, eg do on-demand compute, in GetLayerShells()
+        protected List<GeneralPolygon2d>[] LayerSupportAreas;
+
+
+        /// <summary>
+        /// return the set of support-region polygons for a layer. 
+        /// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_support_area(int layer_i)
+        {
+            return LayerSupportAreas[layer_i];
+        }
+
+
+
+        /// <summary>
+        /// compute support volumes for entire slice-stack
+        /// </summary>
+        protected virtual void precompute_support_areas()
+        {
+            int nLayers = Slices.Count;
+
+            LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
+
+            // should be parameterizable? this is 45 degrees...
+            //   (is it? 45 if nozzlediam == layerheight...)
+            //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
+            double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
+            double fMergeDownDilate = Settings.Machine.NozzleDiamMM * 0.5;  // ??
+
+            // Compute required support area for each layer
+            // Note that this does *not* include thickness allowance, this is
+            // the "outer" support-requiring polygon
+            gParallel.ForEach(Interval1i.Range(nLayers-1), (layeri) => {
+                PlanarSlice slice = Slices[layeri];
+                PlanarSlice next_slice = Slices[layeri + 1];
+
+                List<GeneralPolygon2d> insetPolys = ClipperUtil.MiterOffset(next_slice.Solids, -fOverhangAllowance);
+                List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(insetPolys, slice.Solids);
+                LayerSupportAreas[layeri] = supportPolys;
+                count_progress_step();
+            });
+            LayerSupportAreas[nLayers-1] = new List<GeneralPolygon2d>();
+
+
+			// now merge support layers. Process is to track "current" support area,
+			// at layer below we union with that layers support, and then subtract
+			// that layers solids. 
+			List<GeneralPolygon2d> prevSupport = LayerSupportAreas[nLayers - 1];
+            for (int i = nLayers - 2; i >= 0; --i) {
+                PlanarSlice slice = Slices[i];
+
+                // union down
+                List<GeneralPolygon2d> combineSupport = null;
+                bool dilate = true;
+                if (dilate) {
+                    List<GeneralPolygon2d> a = ClipperUtil.MiterOffset(prevSupport, fMergeDownDilate);
+                    List<GeneralPolygon2d> b = ClipperUtil.MiterOffset(LayerSupportAreas[i], fMergeDownDilate);
+                    combineSupport = ClipperUtil.Union(a, b);
+                    combineSupport = ClipperUtil.MiterOffset(combineSupport, -fMergeDownDilate);
+                } else {
+                    combineSupport = ClipperUtil.Union(prevSupport, LayerSupportAreas[i]);
+                }
+
+                // support area we propagate down is combined area minus solid
+                prevSupport = ClipperUtil.Difference(combineSupport, slice.Solids);
+
+                // on this layer, we need to leave space for filament, by dilating solid by
+                // half nozzle-width and subtracting it
+                List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, Settings.Machine.NozzleDiamMM*0.5);
+                combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
+
+                // the actual area we will support is nudged inwards
+                //combineSupport = ClipperUtil.MiterOffset(combineSupport, -fOverhangAllowance);
+
+                LayerSupportAreas[i] = new List<GeneralPolygon2d>();
+                foreach (GeneralPolygon2d poly in combineSupport) {
+                    poly.Simplify(Settings.Machine.NozzleDiamMM, Settings.Machine.NozzleDiamMM * 0.05, true);
+                    LayerSupportAreas[i].Add(poly);
+                }
+            }
+
+        }
+
+
 
 
 
@@ -621,6 +750,13 @@ namespace gs
                 SchedulerSpeedHint.Careful : SchedulerSpeedHint.Rapid;
 
             return scheduler;
+        }
+
+
+
+        protected virtual void count_progress_step()
+        {
+            Interlocked.Increment(ref CurProgress);
         }
 
 
