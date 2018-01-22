@@ -1,5 +1,6 @@
 ﻿﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using g3;
 
 namespace gs
@@ -139,5 +140,63 @@ namespace gs
                 return box;
 			}
 		}
-	}
+
+
+
+
+
+        public void Store(BinaryWriter writer)
+        {
+            writer.Write(Z);
+
+            writer.Write(InputSolids.Count);
+            for (int k = 0; k < InputSolids.Count; ++k)
+                gSerialization.Store(InputSolids[k], writer);
+            writer.Write(EmbeddedPaths.Count);
+            for (int k = 0; k < EmbeddedPaths.Count; ++k)
+                gSerialization.Store(EmbeddedPaths[k], writer);
+            writer.Write(ClippedPaths.Count);
+            for (int k = 0; k < ClippedPaths.Count; ++k)
+                gSerialization.Store(ClippedPaths[k], writer);
+
+            writer.Write(Solids.Count);
+            for (int k = 0; k < Solids.Count; ++k)
+                gSerialization.Store(Solids[k], writer);
+            writer.Write(Paths.Count);
+            for (int k = 0; k < Paths.Count; ++k)
+                gSerialization.Store(Paths[k], writer);
+        }
+
+
+        public void Restore(BinaryReader reader)
+        {
+            Z = reader.ReadDouble();
+
+            int nInputSolids = reader.ReadInt32();
+            InputSolids = new List<GeneralPolygon2d>();
+            for (int k = 0; k < nInputSolids; ++k)
+                gSerialization.Restore(InputSolids[k], reader);
+            int nEmbeddedPaths = reader.ReadInt32();
+            EmbeddedPaths = new List<PolyLine2d>();
+            for (int k = 0; k < nEmbeddedPaths; ++k)
+                gSerialization.Restore(EmbeddedPaths[k], reader);
+            int nClippedPaths = reader.ReadInt32();
+            ClippedPaths = new List<PolyLine2d>();
+            for (int k = 0; k < nClippedPaths; ++k)
+                gSerialization.Restore(ClippedPaths[k], reader);
+
+
+            int nSolids = reader.ReadInt32();
+            Solids = new List<GeneralPolygon2d>();
+            for (int k = 0; k < nSolids; ++k)
+                gSerialization.Restore(Solids[k], reader);
+            int nPaths = reader.ReadInt32();
+            Paths = new List<PolyLine2d>();
+            for (int k = 0; k < nPaths; ++k)
+                gSerialization.Restore(Paths[k], reader);
+        }
+
+
+
+    }
 }
