@@ -409,9 +409,22 @@ namespace gs
             if (axisInterval.b < axisInterval.a)
                 return null;     // [RMS] is this right? I guess so. interval is too small to fill?
 
+            // If we are doing a dense fill, we want to pack as tightly as possible. 
+            // But if we are doing a sparse fill, then we want layers to stack.
+            // So in that case, snap the interval to increments of the spacing
+            //  (does this work?)
+            bool bIsSparse = (PathSpacing > ToolWidth * 2);
+            if ( bIsSparse ) {
+                // snap axisInterval.a to grid so that layers are aligned
+                double snapped_a = Snapping.SnapToIncrement(axisInterval.a, PathSpacing);
+                if (snapped_a > axisInterval.a)
+                    snapped_a -= PathSpacing;
+                axisInterval.a = snapped_a;
+            }
+
             Vector2d startCorner = axisInterval.a * axis + dirInterval.a * dir;
             double range = axisInterval.Length;
-            int N = (int)(range / PathSpacing);
+            int N = (int)(range / PathSpacing) + 1;
 
             DGraph2 graph = new DGraph2();
             graph.AppendPolygon(poly);
@@ -420,10 +433,8 @@ namespace gs
 
             // insert sequential rays
             for (int ti = 0; ti <= N; ++ti) {
-                double t = (double)ti / (double)N;
-                Vector2d o = startCorner + (t * range) * axis;
+                Vector2d o = startCorner + (double)ti * PathSpacing * axis;
                 Line2d ray = new Line2d(o, dir);
-
                 splitter.InsertLine(ray, ti);
             }
 
