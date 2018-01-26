@@ -19,17 +19,18 @@ namespace gs
         // Clipper docs say for 32-bit ints the max is 46340, so for 64=bit we should be fine with 2500,000
         public static double GetIntScale(Polygon2d poly)
         {
-			Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly.Vertices);
-            double max = Math.Max(maxDist.x, maxDist.y);
-            if (max < 1) {
-                return 100000;
-            } else if (max < 10) {
-                return 10000;
-            } else if ( max < 5000 ) {
-                return 1000;
-            } else {
-                return 100;
-            }
+            // details: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Types/CInt.htm
+            // const max_int = 9.2e18 / 2        // 9.2e18 is max int, give ourselves room to breathe
+            // const int max_int = Int64.MaxValue / 10;    // too big!
+            const long max_int = int.MaxValue/2;  // is fine??
+            const double max_scale = (double)max_int;
+
+            Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly.Vertices);
+            double max_origin_dist = Math.Max(maxDist.x, maxDist.y);
+            if (max_origin_dist < 1)
+                return max_scale;
+            else
+                return (double)(int)(max_scale / max_origin_dist);
         }
         public static double GetIntScale(GeneralPolygon2d poly)
         {
