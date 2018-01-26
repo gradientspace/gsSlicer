@@ -22,7 +22,9 @@ namespace gs
 	public enum PathVertexFlags {
 		NoFlags = 0,
 
-		IsConnector,				// move to this vertex is a 'connector' move
+		IsConnector = 1,				// move to this vertex is a 'connector' move
+
+        IsSupport = 2,                  // move to this vertex is a 'support' deposition   (currently unused)
 
 		ClientDefinedFlag = 100		// use a value > this for custom flags 
 	}

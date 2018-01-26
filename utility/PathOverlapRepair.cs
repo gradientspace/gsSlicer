@@ -46,6 +46,10 @@ namespace gs
         }
 
 
+        public void Add(PolyLine2d path, int gid = -1)
+        {
+            Graph.AppendPolyline(path, gid);
+        }
 
 
         public void Compute()
