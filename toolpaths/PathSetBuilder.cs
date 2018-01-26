@@ -84,10 +84,14 @@ namespace gs
 		}
 
 
-		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, List<Index3i> flags = null) {
+		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, 
+            List<Index3i> perVertexFlags = null, 
+            PathTypeFlags pathTypeFlags = PathTypeFlags.Unknown
+        ) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
-			extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
-			if (flags == null) {
+            extrusion.TypeModifiers = pathTypeFlags;
+            extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			if (perVertexFlags == null) {
 				for (int i = 0; i < toPoints.Count; ++i) {
 					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
 					extrusion.AppendVertex(new PathVertex(pos, fSpeed));
@@ -95,22 +99,27 @@ namespace gs
 			} else {
 				for (int i = 0; i < toPoints.Count; ++i) {
 					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
-					extrusion.AppendVertex(new PathVertex(pos, fSpeed){ Flags = flags[i] });
+					extrusion.AppendVertex(new PathVertex(pos, fSpeed){ Flags = perVertexFlags[i] });
 				}
 			}
 			AppendPath(extrusion);
 			return currentPos;
 		}
 
-		public virtual Vector3d AppendExtrude(List<Vector3d> toPoints, double fSpeed, List<Index3i> flags = null) {
+
+		public virtual Vector3d AppendExtrude(List<Vector3d> toPoints, double fSpeed, 
+            List<Index3i> perVertexFlags = null,
+            PathTypeFlags pathTypeFlags = PathTypeFlags.Unknown
+            ) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
+            extrusion.TypeModifiers = pathTypeFlags;
 			extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
-			if (flags == null) {
+			if (perVertexFlags == null) {
 				for (int i = 0; i < toPoints.Count; ++i)
 					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed));
 			} else {
 				for (int i = 0; i < toPoints.Count; ++i)
-					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed) { Flags = flags[i] });
+					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed) { Flags = perVertexFlags[i] });
 			}
 			AppendPath(extrusion);
 			return currentPos;

@@ -18,7 +18,9 @@ namespace gs
 		OpenShellPath = 1<<3,    // ie for single-line-wide features
 
 		SolidInfill = 1<<8,
-		SparseInfill = 1<<9
+		SparseInfill = 1<<9,
+
+        SupportMaterial = 1<<10
 	}
 
 
@@ -112,8 +114,53 @@ namespace gs
 										double lineDeviationTol = 0.01,
 									  bool bSimplifyStraightLines = true)
 		{
-			throw new Exception("not supported yet...");
-		}
+            int n = vertices.Count;
+
+            int i, k, pv;            // misc counters
+            Vector2d[] vt = new Vector2d[n];  // vertex buffer
+            bool has_flags = HasFlags;
+            Index3i[] vf = (has_flags) ? new Index3i[n] : null;
+            bool[] mk = new bool[n];
+            for (i = 0; i < n; ++i)     // marker buffer
+                mk[i] = false;
+
+            // STAGE 1.  Vertex Reduction within tolerance of prior vertex cluster
+            double clusterTol2 = clusterTol * clusterTol;
+            vt[0] = vertices[0];              // start at the beginning
+            for (i = k = 1, pv = 0; i < n; i++) {
+                if ((vertices[i] - vertices[pv]).LengthSquared < clusterTol2)
+                    continue;
+                if (has_flags)
+                    vf[k] = flags[i];
+                vt[k++] = vertices[i];
+                pv = i;
+            }
+            if (pv < n - 1)
+                vt[k++] = vertices[n - 1];      // finish at the end
+
+            // STAGE 2.  Douglas-Peucker polyline simplification
+            if (lineDeviationTol > 0) {
+                mk[0] = mk[k - 1] = true;       // mark the first and last vertices
+                simplifyDP(lineDeviationTol, vt, 0, k - 1, mk);
+            } else {
+                for (i = 0; i < k; ++i)
+                    mk[i] = true;
+            }
+
+            // copy marked vertices back to this polygon
+            vertices = new List<Vector2d>();
+            flags = (has_flags) ? new List<Index3i>() : null;
+            for (i = 0; i < k; ++i) {
+                if (mk[i]) {
+                    vertices.Add(vt[i]);
+                    if (has_flags)
+                        flags.Add(vf[i]);
+                }
+            }
+            Timestamp++;
+
+            return;
+        }
 
 
 		public void AppendVertex(Vector2d v, Index3i flag)

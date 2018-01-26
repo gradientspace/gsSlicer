@@ -46,6 +46,15 @@ namespace gs
 		}
 
 
+        public void SetFlags(PathTypeFlags flags)
+        {
+            foreach (var loop in Loops)
+                loop.TypeFlags = flags;
+            foreach (var curve in Curves)
+                curve.TypeFlags = flags;
+        }
+
+
 
 		// this connects up the paths with small connectors? used in DenseLinesFillPolygon
 		public void OptimizeCurves(double max_dist, Func<Segment2d, bool> ValidateF) {

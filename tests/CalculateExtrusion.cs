@@ -13,6 +13,8 @@ namespace gs
 		double NozzleDiam = 0.4;
 		double LayerHeight = 0.2;
 		double FixedRetractDistance = 1.3;
+        double SupportExtrudeScale = 0.9;
+
 
 		// [RMS] this is a fudge factor thatwe maybe should not use?
 		//public double HackCorrection = 1.052;    // fitting to error from makerbot slicer
@@ -33,7 +35,8 @@ namespace gs
 			NozzleDiam = settings.Machine.NozzleDiamMM;
 			LayerHeight = settings.LayerHeightMM;
 			FixedRetractDistance = settings.RetractDistanceMM;
-		}
+            SupportExtrudeScale = settings.SupportVolumeScale;
+        }
 
 		/// <summary>
 		/// This function computes the amount of filament to extrude (ie how
@@ -114,8 +117,10 @@ namespace gs
 						curRate = newRate;
 
 						double vol_scale = 1;
+                        if ((path.TypeModifiers & PathTypeFlags.SupportMaterial) != 0)
+                            vol_scale *= SupportExtrudeScale;
 
-						double feed = calculate_extrude(dist, curRate, vol_scale);
+                        double feed = calculate_extrude(dist, curRate, vol_scale);
 						curA += feed;
 					}
 
