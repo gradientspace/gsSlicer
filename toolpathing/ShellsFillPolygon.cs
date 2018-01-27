@@ -18,8 +18,9 @@ namespace gs
     ///                                 (ie outer edge of tool would be "on" Polygon)
     ///     .InsetInnerPolygons       : if true, inner polygons are inset a tool-width from innermost shell (ie are
     ///                                 path you would put next shell on). If false, inner polygons lie on innermost shell.
-    ///     .FilterSelfOverlaps       : if true, we try to remove areas of path that would self-overlap.
-    ///     .SelfOverlapTolerance     : distance that counts as self-overlap
+    ///     .FilterSelfOverlaps       : if true, we try to remove areas of path that would self-overlap (default false)
+    ///     .PreserveOuterShells      : if true, we don't apply this removal to outermost shells (default true)
+    ///     .SelfOverlapTolerance     : distance that counts as self-overlap (default 0.3)
     /// </summary>
 	public class ShellsFillPolygon : IShellsFillPolygon
     {
@@ -58,14 +59,28 @@ namespace gs
 
         // if true, we try to filter out self-overlaps (is expensive)
         public bool FilterSelfOverlaps = false;
-        public double SelfOverlapTolerance = 0.4 * 0.75;
+        public bool PreserveOuterShells = true;         // if true, we do not try to filter self-overlaps for shell 0
+        public double SelfOverlapTolerance = 0.3;
 
 
         // Outputs
 
-        // shell layers. Size of List == Layers
+        /// <summary>
+        /// Shell layers are sorted outer to inner. Size of list == layers
+        /// </summary>
         public List<FillPaths2d> Shells { get; set; }
-        public List<FillPaths2d> GetFillPaths() { return Shells; }
+
+        /// <summary>
+        /// Return shell paths groups. Same as .Shells property, but
+        /// here returned nesting order is [1...N,0]
+        /// </summary>
+        public List<FillPaths2d> GetFillPaths() {
+            List<FillPaths2d> result = new List<FillPaths2d>();
+            for (int k = 1; k < Shells.Count; ++k)
+                result.Add(Shells[k]);
+            result.Add(Shells[0]);
+            return result;
+        }
 
         // remaining interior polygons (to fill w/ other strategy, etc)
         public List<GeneralPolygon2d> InnerPolygons { get; set; }
@@ -179,7 +194,7 @@ namespace gs
                 // However in many cases internal holes are 'too close' to outer border.
                 // So we will still apply to those, but use edge filter to preserve outermost loop.
                 // [TODO] could we be smarter about this somehow?
-                if (nShell == 0 && ShellType == ShellTypes.ExternalPerimeters)
+                if (PreserveOuterShells && nShell == 0 && ShellType == ShellTypes.ExternalPerimeters)
                     repair.PreserveEdgeFilterF = (eid) => { return repair.Graph.GetEdgeGroup(eid) == outer_shell_edgegroup; };
 
                 repair.Compute();
