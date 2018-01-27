@@ -15,6 +15,8 @@ namespace gs
 		double FixedRetractDistance = 1.3;
         double SupportExtrudeScale = 0.9;
 
+        // [RMS] if we travel less than this distance, we don't retract
+        double MinRetractTravelLength = 2.5;
 
 		// [RMS] this is a fudge factor thatwe maybe should not use?
 		//public double HackCorrection = 1.052;    // fitting to error from makerbot slicer
@@ -35,6 +37,7 @@ namespace gs
 			NozzleDiam = settings.Machine.NozzleDiamMM;
 			LayerHeight = settings.LayerHeightMM;
 			FixedRetractDistance = settings.RetractDistanceMM;
+            MinRetractTravelLength = settings.MinRetractTravelLength;
             SupportExtrudeScale = settings.SupportVolumeScale;
         }
 
@@ -79,19 +82,24 @@ namespace gs
 			int N = allPaths.Count;
 
 
-			for ( int pi = 0; pi < N; ++pi ) {
+            LinearPath3<PathVertex> prev_path = null;
+            for ( int pi = 0; pi < N; ++pi ) {
 				if ( allPaths[pi] is ResetExtruderPathHack ) {
 					curA = 0;
 					continue;
 				}
-
 				LinearPath3<PathVertex> path = allPaths[pi] as LinearPath3<PathVertex>;
+
 				if ( path == null )
 					throw new Exception("Invalid path type!");
 				if ( ! (path.Type == PathTypes.Deposition || path.Type == PathTypes.PlaneChange || path.Type == PathTypes.Travel) )
 					throw new Exception("Unknown path type!");
 
-				for ( int i = 0; i < path.VertexCount; ++i ) {
+                bool skip_retract = (path.Type == PathTypes.Travel) &&
+                                    (prev_path.Type == PathTypes.Deposition) &&
+                                    (prev_path.EndPosition.Distance(path.StartPosition) < MinRetractTravelLength);
+
+                for ( int i = 0; i < path.VertexCount; ++i ) {
 					bool last_vtx = (i == path.VertexCount-1);
 
 					Vector3d newPos = path[i].Position;
@@ -99,15 +107,20 @@ namespace gs
 					//Index3i flags = path[i].Flags;
 
 					if ( path.Type != PathTypes.Deposition ) {
-						if ( ! inRetract ) {
-							curA -= FixedRetractDistance;
-							inRetract = true;
-						} else {
-							if ( last_vtx ) {
-								curA += FixedRetractDistance;
-								inRetract = false;
-							}
-						}
+
+                        // [RMS] if we switched to a travel move we retract, unless we don't
+                        if (skip_retract == false) {
+                            if (!inRetract) {
+                                curA -= FixedRetractDistance;
+                                inRetract = true;
+                            } else {
+                                if (last_vtx) {
+                                    curA += FixedRetractDistance;
+                                    inRetract = false;
+                                }
+                            }
+                        }
+
 						curPos = newPos;
 						curRate = newRate;
 
@@ -129,7 +142,9 @@ namespace gs
 					path.UpdateVertex(i, v);
 
 				}
-			}
+
+                prev_path = path;
+            }
 
 			NumPaths = N;
 			ExtrusionLength = curA;
