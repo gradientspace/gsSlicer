@@ -129,13 +129,9 @@ namespace gs
 				loopV.Add(poly[k]);
 			}
 
-			// [TODO] speed here...
-			double useSpeed = (SpeedHint == SchedulerSpeedHint.Careful) ?
-				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
-			if (poly.HasTypeFlag(PathTypeFlags.OuterPerimeter))
-				useSpeed *= Settings.OuterPerimeterSpeedX;
+            double useSpeed = select_speed(poly);
 
-			Builder.AppendExtrude(loopV, useSpeed);
+			Builder.AppendExtrude(loopV, useSpeed, null, poly.TypeFlags);
 		}
 
 
@@ -178,14 +174,28 @@ namespace gs
 					flags = new List<Index3i>(curve.Flags());
 			}
 
-			// [TODO] speed here...
-			double useSpeed = (SpeedHint == SchedulerSpeedHint.Careful) ?
-				Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
-			if (curve.HasTypeFlag(PathTypeFlags.OuterPerimeter))
-				useSpeed *= Settings.OuterPerimeterSpeedX;
-			
-			Builder.AppendExtrude(loopV, useSpeed, flags);
+            double useSpeed = select_speed(curve);
+
+            Builder.AppendExtrude(loopV, useSpeed, flags, curve.TypeFlags);
 		}
+
+
+
+        // 1) If we have "careful" speed hint set, use CarefulExtrudeSpeed
+        //       (currently this is only set on first layer)
+        // 2) if this is an outer perimeter, scale by outer perimeter speed multiplier
+        // 3) if we are being "careful" and this is support, also use that multiplier
+        //       (bit of a hack, currently means on first layer we do support extra slow)
+        double select_speed(FillPathCurve2d pathCurve)
+        {
+            bool bIsSupport = pathCurve.HasTypeFlag(PathTypeFlags.SupportMaterial);
+            bool bIsOuterPerimeter = pathCurve.HasTypeFlag(PathTypeFlags.OuterPerimeter);
+            bool bCareful = (SpeedHint == SchedulerSpeedHint.Careful);
+            double useSpeed = bCareful ? Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
+            if (bIsOuterPerimeter || (bCareful && bIsSupport))
+                useSpeed *= Settings.OuterPerimeterSpeedX;
+            return useSpeed;
+        }
 
 
 	}

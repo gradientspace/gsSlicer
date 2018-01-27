@@ -25,11 +25,21 @@ namespace gs
 
 
 
+    /// <summary>
+    /// things that are common to FillPolyline2d and FillPolygon2d
+    /// </summary>
+    public interface FillPathCurve2d
+    {
+        bool HasTypeFlag(PathTypeFlags f);
+    }
+
+
+
 	/// <summary>
 	/// Additive polygon path
 	/// </summary>
-	public class FillPolygon2d : Polygon2d
-	{
+	public class FillPolygon2d : Polygon2d, FillPathCurve2d
+    {
 		public PathTypeFlags TypeFlags = PathTypeFlags.Unknown;
 
 		public bool HasTypeFlag(PathTypeFlags f) {
@@ -56,8 +66,8 @@ namespace gs
 	/// <summary>
 	/// Additive polyline path
 	/// </summary>
-	public class FillPolyline2d : PolyLine2d
-	{
+	public class FillPolyline2d : PolyLine2d, FillPathCurve2d
+    {
 		public PathTypeFlags TypeFlags = PathTypeFlags.Unknown;
 
 		public bool HasTypeFlag(PathTypeFlags f) {
