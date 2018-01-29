@@ -56,15 +56,19 @@ namespace gs
 
 
 		public virtual void End() {
+            Assembler.FlushQueues();
+
             Assembler.UpdateProgress(100);
 			Assembler.AppendFooter();
 		}
 
 
 
-		public virtual void AppendPaths(PathSet paths) {
-			
-			CalculateExtrusion calc = new CalculateExtrusion(paths, Settings);
+		public virtual void AppendPaths(PathSet paths)
+        {
+            Assembler.FlushQueues();
+
+            CalculateExtrusion calc = new CalculateExtrusion(paths, Settings);
 			calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA, Assembler.InRetract);
 
 
@@ -115,7 +119,9 @@ namespace gs
 
 			}
 
-		}
+
+            Assembler.FlushQueues();
+        }
 
 
 
