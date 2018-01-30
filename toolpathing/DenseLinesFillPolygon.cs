@@ -17,8 +17,23 @@ namespace gs
 		public double AngleDeg = 45.0;
 		public double PathShift = 0;
 
+        // paths shorter than this are discarded
+        public double MinPathLengthMM = 2.0;
+
 		// if true, we inset half of tool-width from Polygon
 		public bool InsetFromInputPolygon = true;
+
+        public enum SimplificationLevel {
+            None = 0,
+            Minor = 1,              // eigth-tool-width
+            Moderate = 2,           // quarter-tool-width
+            Aggressive = 3          // half-tool-width
+        }
+        public SimplificationLevel SimplifyAmount = SimplificationLevel.Minor;
+
+        // this flag is set on all Paths
+        public PathTypeFlags TypeFlags = PathTypeFlags.SolidInfill;
+
 
 		// fill paths
 		public List<FillPaths2d> Paths { get; set; }
@@ -75,9 +90,6 @@ namespace gs
             if (spanGraph == null || spanGraph.VertexCount == poly.VertexCount)
                 return paths;
 
-            bool is_dense = Math.Abs(PathSpacing - ToolWidth) < (ToolWidth * 0.2f);
-            PathTypeFlags pathType = is_dense ? PathTypeFlags.SolidInfill : PathTypeFlags.SparseInfill;
-
 
             DGraph2 pathGraph = BuildPathGraph(spanGraph);
 
@@ -97,7 +109,7 @@ namespace gs
                 int vid = start_vid;
                 int eid = pathGraph.GetVtxEdges(vid)[0];
 
-                FillPolyline2d path = new FillPolyline2d() { TypeFlags = pathType };
+                FillPolyline2d path = new FillPolyline2d() { TypeFlags = this.TypeFlags };
 
                 path.AppendVertex(pathGraph.GetVertex(vid));
                 while (true) {
@@ -115,6 +127,30 @@ namespace gs
                         boundaries.Remove(vid);
                         break;
                     }
+                }
+
+                // discard paths that are too short
+                if (path.ArcLength < MinPathLengthMM)
+                    continue;
+
+
+                // run polyline simplification to get rid of unneccesary detail in connectors
+                // [TODO] we could do this at graph level...)
+                // [TODO] maybe should be checkign for collisions? we could end up creating
+                //  non-trivial overlaps here...
+                if ( SimplifyAmount != SimplificationLevel.None ) {
+                    PolySimplification2 simp = new PolySimplification2(path);
+                    switch (SimplifyAmount) {
+                        default:
+                        case SimplificationLevel.Minor:
+                            simp.SimplifyDeviationThreshold = ToolWidth / 4; break;
+                        case SimplificationLevel.Aggressive:
+                            simp.SimplifyDeviationThreshold = ToolWidth; break;
+                        case SimplificationLevel.Moderate:
+                            simp.SimplifyDeviationThreshold = ToolWidth / 2; break;
+                    }
+                    simp.Simplify();
+                    path = new FillPolyline2d(simp.Result.ToArray()) { TypeFlags = this.TypeFlags };
                 }
 
                 paths.Append(path);

@@ -281,7 +281,8 @@ namespace gs
 
                     // schedule shell paths that we pre-computed
                     IShellsFillPolygon shells_gen = layer_shells[si];
-                    scheduler.AppendPaths(shells_gen.GetFillPaths());
+                    List<FillPaths2d> shells_gen_paths = shells_gen.GetFillPaths();
+                    scheduler.AppendPaths(shells_gen_paths);
 
                     // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
@@ -338,7 +339,7 @@ namespace gs
         /// </summary>
 		protected virtual void fill_infill_region(PrintLayerData layer_data, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
         {
-            IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+            IPathsFillPolygon infill_gen = new SparseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
@@ -405,7 +406,7 @@ namespace gs
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                 interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
                 interior_shells.Compute();
-                scheduler.AppendShells(interior_shells.Shells);
+                scheduler.AppendShells(interior_shells.GetFillPaths());
                 fillPolys = interior_shells.InnerPolygons;
             }
 
@@ -636,6 +637,7 @@ namespace gs
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
             shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
+
             shells_gen.Compute();
             return shells_gen;
         }
