@@ -302,8 +302,7 @@ namespace gs
                         fill_solid_region(layerdata, solid_poly, scheduler, has_infill);
 
                     // fill infill regions
-                    foreach (GeneralPolygon2d infill_poly in infill_regions) 
-                        fill_infill_region(layerdata, infill_poly, scheduler);
+                    fill_infill_regions(layerdata, infill_regions, scheduler);
                 }
 
                 if ( Settings.EnableSupport ) {
@@ -332,6 +331,27 @@ namespace gs
         }
 
 
+
+
+        /// <summary>
+        /// fill all infill regions
+        /// </summary>
+        protected virtual void fill_infill_regions(PrintLayerData layer_data, 
+            List<GeneralPolygon2d> infill_regions, 
+            IPathScheduler scheduler)
+        {
+            foreach (GeneralPolygon2d infill_poly in infill_regions) {
+                List<GeneralPolygon2d> polys = new List<GeneralPolygon2d>() { infill_poly };
+
+                if (Settings.SparseFillBorderOverlapX > 0) {
+                    double offset = Settings.Machine.NozzleDiamMM * Settings.SparseFillBorderOverlapX;
+                    polys = ClipperUtil.MiterOffset(polys, offset);
+                }
+
+                foreach (var poly in polys)
+                    fill_infill_region(layer_data, poly, scheduler);
+            }
+        }
 
 
         /// <summary>
@@ -408,6 +428,11 @@ namespace gs
                 interior_shells.Compute();
                 scheduler.AppendShells(interior_shells.GetFillPaths());
                 fillPolys = interior_shells.InnerPolygons;
+            }
+
+            if (Settings.SolidFillBorderOverlapX > 0) {
+                double offset = Settings.Machine.NozzleDiamMM * Settings.SolidFillBorderOverlapX;
+                fillPolys = ClipperUtil.MiterOffset(fillPolys, offset);
             }
 
             // now actually fill solid regions

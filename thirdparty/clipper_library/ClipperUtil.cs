@@ -267,8 +267,14 @@ namespace gs
 		public static List<GeneralPolygon2d> MiterOffset(List<GeneralPolygon2d> polys, double fOffset) {
 			return ComputeOffsetPolygon(polys, fOffset, true);
 		}
+		public static List<GeneralPolygon2d> MiterOffset(GeneralPolygon2d poly, double fOffset) {
+			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, true);
+		}
 		public static List<GeneralPolygon2d> RoundOffset(List<GeneralPolygon2d> polys, double fOffset) {
 			return ComputeOffsetPolygon(polys, fOffset, false);
+		}
+		public static List<GeneralPolygon2d> RoundOffset(GeneralPolygon2d poly, double fOffset) {
+			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, false);
 		}
 
 

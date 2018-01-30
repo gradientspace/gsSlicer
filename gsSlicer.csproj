@@ -70,7 +70,7 @@
     <Compile Include="toolpathing\IFillPolygon.cs" />
     <Compile Include="toolpathing\PathScheduler.cs" />
     <Compile Include="toolpathing\ShellsFillPolygon.cs" />
-    <Compile Include="toolpathing\DenseLinesFillPolygon.cs" />
+    <Compile Include="toolpathing\ParallelLinesFillPolygon.cs" />
     <Compile Include="sls\SLSPrintGenerator.cs" />
     <Compile Include="utility\PathOverlapRepair.cs" />
     <Compile Include="toolpaths\FillElements2d.cs" />
