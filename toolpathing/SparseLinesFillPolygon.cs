@@ -9,7 +9,7 @@ namespace gs
     /// <summary>
     /// configure dense-fill for sparse infill
     /// </summary>
-    public class SparseLinesFillPolygon : DenseLinesFillPolygon
+    public class SparseLinesFillPolygon : ParallelLinesFillPolygon
     {
         public SparseLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
         {
@@ -23,7 +23,7 @@ namespace gs
     /// <summary>
     /// configure dense-fill for support fill
     /// </summary>
-    public class SupportLinesFillPolygon : DenseLinesFillPolygon
+    public class SupportLinesFillPolygon : ParallelLinesFillPolygon
     {
         public SupportLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
         {

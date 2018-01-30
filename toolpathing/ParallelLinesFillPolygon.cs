@@ -6,7 +6,7 @@ using g3;
 
 namespace gs
 {
-	public class DenseLinesFillPolygon : IPathsFillPolygon
+	public class ParallelLinesFillPolygon : IPathsFillPolygon
     {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
@@ -43,7 +43,7 @@ namespace gs
         // [TODO] replace with GeneralPolygon2dBoxTree (currently does not have intersection test!)
         SegmentSet2d BoundaryPolygonCache;
 
-		public DenseLinesFillPolygon(GeneralPolygon2d poly)
+		public ParallelLinesFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
 			Paths = new List<FillPaths2d>();
@@ -83,6 +83,12 @@ namespace gs
         protected FillPaths2d ComputeFillPaths(GeneralPolygon2d poly)
         {
             FillPaths2d paths = new FillPaths2d();
+
+            // smooth the input poly a little bit, this simplifies the filling
+            // (simplify after?)
+            //GeneralPolygon2d smoothed = poly.Duplicate();
+            //CurveUtils2.LaplacianSmoothConstrained(smoothed, 0.5, 5, ToolWidth / 2, true, false);
+            //poly = smoothed;
 
             // compute 2D non-manifold graph consisting of original polygon and
             // inserted line segments

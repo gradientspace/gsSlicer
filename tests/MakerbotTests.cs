@@ -99,7 +99,7 @@ namespace gs
 			scheduler.AppendPaths(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
 					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
@@ -150,7 +150,7 @@ namespace gs
 			scheduler.AppendPaths(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
 					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
@@ -197,7 +197,7 @@ namespace gs
 
 			List<FillPaths2d> infill_paths = new List<FillPaths2d>();
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-				DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,
 					PathSpacing = settings.SolidFillPathSpacingMM(),
 					ToolWidth = settings.Machine.NozzleDiamMM
@@ -266,7 +266,7 @@ namespace gs
 				scheduler.AppendPaths(shells_gen.Shells);
 
 				foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-					DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+					ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 						InsetFromInputPolygon = false,
 						PathSpacing = settings.SolidFillPathSpacingMM(),
 						ToolWidth = settings.Machine.NozzleDiamMM
@@ -340,7 +340,7 @@ namespace gs
 					scheduler.AppendPaths(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
 							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,
@@ -597,7 +597,7 @@ namespace gs
 
 						// now actually fill solid regions
 						foreach (GeneralPolygon2d fillPoly in fillPolys) {
-							DenseLinesFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
+							ParallelLinesFillPolygon solid_gen = new ParallelLinesFillPolygon(fillPoly) {
 								InsetFromInputPolygon = false,
 								PathSpacing = settings.SolidFillPathSpacingMM(),
 								ToolWidth = settings.Machine.NozzleDiamMM,
@@ -610,7 +610,7 @@ namespace gs
 
 					// fill infill regions
 					foreach (GeneralPolygon2d infill_poly in infillPolys) {
-						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
 							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,
@@ -729,7 +729,7 @@ namespace gs
 					scheduler.AppendShells(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
-						DenseLinesFillPolygon infill_gen = new DenseLinesFillPolygon(infill_poly) {
+						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 							InsetFromInputPolygon = false,
 							PathSpacing = fillScale * settings.SolidFillPathSpacingMM(),
 							ToolWidth = settings.Machine.NozzleDiamMM,

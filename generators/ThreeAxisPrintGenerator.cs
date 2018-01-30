@@ -412,7 +412,7 @@ namespace gs
 
             // now actually fill solid regions
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
-				IPathsFillPolygon solid_gen = new DenseLinesFillPolygon(fillPoly) {
+				IPathsFillPolygon solid_gen = new ParallelLinesFillPolygon(fillPoly) {
                     InsetFromInputPolygon = false,
                     PathSpacing = Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
