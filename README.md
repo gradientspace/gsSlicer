@@ -1,3 +1,5 @@
+**This documentation/commentary is very out-of-date. sorry!***
+
 # gsSlicer
 
 **In-Progress** Slicer for 3D printing, and other toolpath-type things, perhaps.
@@ -17,11 +19,11 @@ The goal with this project is to create a well-structured slicing engine that is
 
 **Under Active Development**. Generated GCode has been used for non-trivial prints, however the output has not been extensively tested. 
 
-Shells, solid and sparse infill, roof and floors, have been implemented. Support volumes calculated but not yet filled. **MakerbotPrintGenerator** is top-level driver for FDM printing.
+Shells, solid and sparse infill, roof and floors, have been implemented. Support volumes calculated but not yet filled. **ThreeAxisPrintGenerator** is top-level driver for FDM printing.
 
 Experimental support for SLS contours & hatching is available in **GenericSLSPrintGenerator**. 
 
-**Supported Printers**: At this time, only Makerbot Replicator 2.
+**Supported Printers**: At this time, only Makerbot Replicator 2 has been significantly tested. Also has been tested with Monoprice Select Mini (and hence should work with any generic RepRap) and Printrbot Metal Plus.
 
 
 # Usage
