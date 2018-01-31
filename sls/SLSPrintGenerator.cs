@@ -201,7 +201,7 @@ namespace gs
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
                 interior_shells.Compute();
-                scheduler.AppendShells(interior_shells.Shells);
+                scheduler.AppendPaths(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;
             }
 

@@ -13,8 +13,6 @@ namespace gs
     public interface IPathScheduler
     {
         void AppendPaths(List<FillPaths2d> paths);
-        void AppendShells(List<FillPaths2d> paths);
-        void AppendPolylines(List<FillPolyline2d> Polylines);
 
         SchedulerSpeedHint SpeedHint { get; set; }
     }
@@ -54,59 +52,6 @@ namespace gs
 				}
 			}
 		}
-
-
-		/// <summary>
-		/// Assumes paths are "shells" contours, and that we want to print
-		/// outermost shells last. 
-		/// [TODO] smarter handling of nested shell-sets
-		/// </summary>
-		public virtual void AppendShells(List<FillPaths2d> paths)
-		{
-			List<FillPolygon2d> OuterLoops = paths[0].Loops;
-            List<FillPolyline2d> OuterPaths = paths[0].Curves;
-
-			for (int i = 1; i < paths.Count; ++i) {
-				foreach (FillPolygon2d loop in paths[i].Loops)
-					AppendPolygon2d(loop);
-                AppendPolylines(paths[i].Curves);
-			}
-
-			// add outermost loops and paths
-			foreach (FillPolygon2d poly in OuterLoops)
-				AppendPolygon2d(poly);
-            AppendPolylines(OuterPaths);
-        }
-
-
-
-
-        public virtual void AppendPolylines(List<FillPolyline2d> Polylines)
-        {
-            // intelligently order 
-            HashSet<int> remaining = new HashSet<int>(Interval1i.Range(Polylines.Count));
-
-            while ( remaining.Count > 0 ) {
-                Vector2d curPos = Builder.Position.xy;
-
-                double nearest = double.MaxValue;
-                int iNearest = -1;
-                foreach (int i in remaining) {
-                    double d = Math.Min(Polylines[i].Start.DistanceSquared(curPos), Polylines[i].End.DistanceSquared(curPos));
-                    if (d < nearest) {
-                        nearest = d; iNearest = i;
-                    }
-                }
-
-                AppendPolyline2d(Polylines[iNearest]);
-                remaining.Remove(iNearest);
-            }
-
-        }
-
-
-
-
 
 
 		// [TODO] no reason we couldn't start on edge midpoint??

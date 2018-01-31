@@ -591,7 +591,7 @@ namespace gs
 							interior_shells.Layers = InteriorSolidRegionContours;
 							interior_shells.InsetFromInputPolygon = false;
 							interior_shells.Compute();
-							scheduler.AppendShells(interior_shells.Shells);
+							scheduler.AppendPaths(interior_shells.Shells);
 							fillPolys = interior_shells.InnerPolygons;
 						}
 
@@ -641,7 +641,7 @@ namespace gs
 					shells_gen.InsetFromInputPolygon = false;
 					shells_gen.Layers = 1;
 					shells_gen.Compute();
-					scheduler.AppendShells(shells_gen.Shells);		
+					scheduler.AppendPaths(shells_gen.Shells);		
 				}
 
 
@@ -726,7 +726,7 @@ namespace gs
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
 
-					scheduler.AppendShells(shells_gen.Shells);
+					scheduler.AppendPaths(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {

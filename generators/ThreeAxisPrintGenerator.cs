@@ -74,9 +74,12 @@ namespace gs
 		// Replace this to use a different scheduler
 		public Func<PrintLayerData, IPathScheduler> SchedulerFactoryF;
 
-		// This is called at the beginning of each layer, you can replace to
-		// implement progress bar, etc
-		public Action<PrintLayerData> BeginLayerF;
+        // Replace this to use a different shell selector
+        public Func<PrintLayerData, ILayerShellsSelector> ShellSelectorFactoryF;
+
+        // This is called at the beginning of each layer, you can replace to
+        // implement progress bar, etc
+        public Action<PrintLayerData> BeginLayerF;
 
 		// This is called before we process each shell. The Tag is transferred
 		// from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
@@ -133,6 +136,10 @@ namespace gs
 			};
 
 			SchedulerFactoryF = get_layer_scheduler;
+
+            ShellSelectorFactoryF = (layer_data) => {
+                return new NextNearestLayerShellsSelector(layer_data.ShellFills);
+            };
 
 			BeginLayerF = (layer_data) => { };
 
@@ -244,8 +251,10 @@ namespace gs
 
 				// rest of code does not directly access path builder, instead it
 				// sends paths to scheduler.
-				IPathScheduler scheduler = SchedulerFactoryF(layerdata);
-				layerdata.Scheduler = scheduler;
+				IPathScheduler layerScheduler = SchedulerFactoryF(layerdata);
+                GroupScheduler groupScheduler = new GroupScheduler(layerScheduler, Compiler.NozzlePosition.xy);
+                //GroupScheduler groupScheduler = new PassThroughGroupScheduler(layerScheduler, Compiler.NozzlePosition.xy);
+                layerdata.Scheduler = groupScheduler;
 
                 BeginLayerF(layerdata);
 
@@ -257,7 +266,6 @@ namespace gs
                 pathAccum.Initialize(Compiler.NozzlePosition);
                 // layer-up (ie z-change)
                 pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
-
 
                 // generate roof and floor regions. This could be done in parallel, or even pre-computed
                 List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
@@ -278,11 +286,25 @@ namespace gs
 				// a layer can contain multiple disjoint regions. Process each separately.
 				List<IShellsFillPolygon> layer_shells = layerdata.ShellFills;
                 for (int si = 0; si < layer_shells.Count; si++) {
+                // selector determines what order we process shells in
+                ILayerShellsSelector shellSelector = ShellSelectorFactoryF(layerdata);
 
+                // a layer can contain multiple disjoint regions. Process each separately.
+                IShellsFillPolygon shells_gen = shellSelector.Next(groupScheduler.CurrentPosition);
+                while ( shells_gen != null ) { 
+
+                    // [TODO] maybe we should schedule outermost shell after infill?
                     // schedule shell paths that we pre-computed
-                    IShellsFillPolygon shells_gen = layer_shells[si];
                     List<FillPaths2d> shells_gen_paths = shells_gen.GetFillPaths();
-                    scheduler.AppendPaths(shells_gen_paths);
+                    FillPaths2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
+                    bool do_outer_last = (shells_gen_paths.Count > 1);
+                    groupScheduler.BeginGroup();
+                    if (do_outer_last == false) {
+                        groupScheduler.AppendPaths(shells_gen_paths);
+                    } else {
+                        groupScheduler.AppendPaths(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
+                    }
+                    groupScheduler.EndGroup();
 
                     // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
@@ -298,21 +320,31 @@ namespace gs
                     bool has_infill = (infill_regions.Count > 0);
 
                     // fill solid regions
-                    foreach (GeneralPolygon2d solid_poly in solid_fill_regions) 
-                        fill_solid_region(layerdata, solid_poly, scheduler, has_infill);
+                    groupScheduler.BeginGroup();
+                    fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
+                    groupScheduler.EndGroup();
 
                     // fill infill regions
-                    fill_infill_regions(layerdata, infill_regions, scheduler);
-                }
+                    groupScheduler.BeginGroup();
+                    fill_infill_regions(infill_regions, groupScheduler, layerdata);
+                    groupScheduler.EndGroup();
 
-                if ( Settings.EnableSupport ) {
-                    List<GeneralPolygon2d> support_areas = get_layer_support_area(layer_i);
-                    foreach (GeneralPolygon2d support_poly in support_areas)
-                        fill_support_region(layerdata, support_poly, scheduler);
+                    groupScheduler.BeginGroup();
+                    if (do_outer_last) {
+                        groupScheduler.AppendPaths( new List<FillPaths2d>() { outer_shell } );
+                    }
+                    groupScheduler.EndGroup();
+
+                    shells_gen = shellSelector.Next(groupScheduler.CurrentPosition);
                 }
 
                 // append open paths
-                add_open_paths(layerdata);
+                groupScheduler.BeginGroup();
+                add_open_paths(layerdata, groupScheduler);
+                groupScheduler.EndGroup();
+
+                // discard the group scheduler
+                layerdata.Scheduler = groupScheduler.TargetScheduler;
 
 				// last change to post-process paths for this layer before they are baked in
 				PostProcessLayerPathsF(layerdata, pathAccum.Paths);
@@ -332,13 +364,11 @@ namespace gs
 
 
 
-
         /// <summary>
         /// fill all infill regions
         /// </summary>
-        protected virtual void fill_infill_regions(PrintLayerData layer_data, 
-            List<GeneralPolygon2d> infill_regions, 
-            IPathScheduler scheduler)
+        protected virtual void fill_infill_regions(List<GeneralPolygon2d> infill_regions,
+            IPathScheduler scheduler, PrintLayerData layer_data )
         {
             foreach (GeneralPolygon2d infill_poly in infill_regions) {
                 List<GeneralPolygon2d> polys = new List<GeneralPolygon2d>() { infill_poly };
@@ -349,7 +379,7 @@ namespace gs
                 }
 
                 foreach (var poly in polys)
-                    fill_infill_region(layer_data, poly, scheduler);
+                    fill_infill_region(poly, scheduler, layer_data);
             }
         }
 
@@ -357,7 +387,7 @@ namespace gs
         /// <summary>
         /// fill polygon with sparse infill strategy
         /// </summary>
-		protected virtual void fill_infill_region(PrintLayerData layer_data, GeneralPolygon2d infill_poly, IPathScheduler scheduler)
+		protected virtual void fill_infill_region(GeneralPolygon2d infill_poly, IPathScheduler scheduler, PrintLayerData layer_data)
         {
             IPathsFillPolygon infill_gen = new SparseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
@@ -403,7 +433,7 @@ namespace gs
         /// to sparse infill area - when the extruder zigs, most of the time there is nothing
         /// for the filament to attach to, so it pulls back. ugly!)
         /// </summary>
-		protected virtual void fill_solid_region(PrintLayerData layer_data, 
+        protected virtual void fill_solid_region(PrintLayerData layer_data, 
 		                                         GeneralPolygon2d solid_poly, 
                                                  IPathScheduler scheduler,
                                                  bool bIsInfillAdjacent = false )
@@ -426,7 +456,7 @@ namespace gs
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                 interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
                 interior_shells.Compute();
-                scheduler.AppendShells(interior_shells.GetFillPaths());
+                scheduler.AppendPaths(interior_shells.GetFillPaths());
                 fillPolys = interior_shells.InnerPolygons;
             }
 
@@ -559,7 +589,7 @@ namespace gs
         /// schedule any non-polygonal paths for the given layer (eg paths
         /// that resulted from open meshes, for example)
         /// </summary>
-		protected virtual void add_open_paths(PrintLayerData layerdata)
+		protected virtual void add_open_paths(PrintLayerData layerdata, IPathScheduler scheduler)
         {
 			PlanarSlice slice = layerdata.Slice;
             if (slice.Paths.Count == 0)
@@ -581,7 +611,7 @@ namespace gs
                 paths.Append(pline);
             }
 
-			layerdata.Scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+            scheduler.AppendPaths(new List<FillPaths2d>() { paths });
         }
 
 

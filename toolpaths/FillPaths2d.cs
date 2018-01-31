@@ -5,7 +5,11 @@ using g3;
 
 namespace gs
 {
-
+    /// <summary>
+    /// Collection of loop and curve centerlines of fill paths
+    /// 
+    /// [TODO] support thickness variation along paths?
+    /// </summary>
 	public class FillPaths2d
 	{
 		public List<FillPolygon2d> Loops = new List<FillPolygon2d>();
@@ -56,6 +60,7 @@ namespace gs
 
 
 
+        // DEPRECATED - remove?
 		// this connects up the paths with small connectors? used in DenseLinesFillPolygon
 		public void OptimizeCurves(double max_dist, Func<Segment2d, bool> ValidateF) {
 			int[] which = new int[4];
