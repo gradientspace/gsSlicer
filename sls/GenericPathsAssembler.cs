@@ -8,31 +8,31 @@ namespace gs
 {
     public interface IPathsAssembler
     {
-        void AppendPaths(IPathSet paths);
+        void AppendPaths(IToolpathSet paths);
 
         // [TODO] we should replace this w/ a separte assembler/builder, even if the assembler is trivial!!
-        PathSet TempGetAssembledPaths();
+        ToolpathSet TempGetAssembledPaths();
     }
 
 
     public class GenericPathsAssembler : IPathsAssembler
     {
-        public PathSet AccumulatedPaths;
+        public ToolpathSet AccumulatedPaths;
 
 
         public GenericPathsAssembler()
         {
-            AccumulatedPaths = new PathSet();
+            AccumulatedPaths = new ToolpathSet();
         }
 
 
-        public void AppendPaths(IPathSet paths)
+        public void AppendPaths(IToolpathSet paths)
         {
             AccumulatedPaths.Append(paths);
         }
 
 
-        public PathSet TempGetAssembledPaths()
+        public ToolpathSet TempGetAssembledPaths()
         {
             return AccumulatedPaths;
         }

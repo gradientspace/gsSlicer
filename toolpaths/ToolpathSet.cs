@@ -6,23 +6,23 @@ using g3;
 
 namespace gs 
 {
-	public class PathSet : IPathSet
+	public class ToolpathSet : IToolpathSet
 	{
-		List<IPath> Paths;
+		List<IToolpath> Paths;
 
-		PathTypes eType;
+		ToolpathTypes eType;
 		bool isPlanar;
 		bool isLinear;
 
-		public PathSet() 
+		public ToolpathSet() 
 		{
-			Paths = new List<IPath>();
+			Paths = new List<IToolpath>();
 
-			eType = PathTypes.Custom;
+			eType = ToolpathTypes.Custom;
 			isPlanar = isLinear = false;
 		}
 
-		public PathTypes Type { 
+		public ToolpathTypes Type { 
 			get { return eType; }
 		}
 		public bool IsPlanar { 
@@ -33,13 +33,13 @@ namespace gs
 		}
 
 
-		public void Append(IPath path) {
+		public void Append(IToolpath path) {
 			if ( Paths.Count == 0 ) {
 				eType = path.Type;
 				isPlanar = path.IsPlanar;
 				isLinear = path.IsLinear;
 			} else if ( eType != path.Type ) {
-				eType = PathTypes.Composite;
+				eType = ToolpathTypes.Composite;
 				isPlanar = isPlanar && path.IsPlanar;
 				isLinear = isLinear && path.IsLinear;
 			}
@@ -47,13 +47,13 @@ namespace gs
 		}
 
 
-		public void AppendChildren( IPathSet paths ) {
+		public void AppendChildren( IToolpathSet paths ) {
 			foreach ( var p in paths )
 				Append(p);
 		}
 
 
-		public IEnumerator<IPath> GetEnumerator() {
+		public IEnumerator<IToolpath> GetEnumerator() {
 			return Paths.GetEnumerator();
 		}
 		IEnumerator IEnumerable.GetEnumerator() {
@@ -88,9 +88,9 @@ namespace gs
 			get {
 				AxisAlignedBox3d box = AxisAlignedBox3d.Empty;
 				foreach ( var p in Paths ) {
-                    if (p is PathSet)
-                        box.Contain((p as PathSet).ExtrudeBounds);
-					else if ( p.Type == PathTypes.Deposition )
+                    if (p is ToolpathSet)
+                        box.Contain((p as ToolpathSet).ExtrudeBounds);
+					else if ( p.Type == ToolpathTypes.Deposition )
 						box.Contain(p.Bounds);
 				}
 				return box;				
@@ -110,9 +110,9 @@ namespace gs
 
 		public List<double> GetZValues() {
 			HashSet<double> Zs = new HashSet<double>();
-			PathUtil.ApplyToLeafPaths(this, (ipath) => {
-				if ( ipath is LinearPath3<IPathVertex> ) {
-					foreach ( var v in (ipath as LinearPath3<IPathVertex>) ) {
+			ToolpathUtil.ApplyToLeafPaths(this, (ipath) => {
+				if ( ipath is LinearToolpath3<IToolpathVertex> ) {
+					foreach ( var v in (ipath as LinearToolpath3<IToolpathVertex>) ) {
 						Zs.Add( v.Position.z );
 					}
 				}

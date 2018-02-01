@@ -23,7 +23,7 @@ namespace gs
             base.Initialize(meshes, slices, settings, compiler);
         }
 
-        protected override PathSet extract_result()
+        protected override ToolpathSet extract_result()
         {
             return compiler.TempGetAssembledPaths();
         }

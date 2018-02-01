@@ -23,11 +23,11 @@ namespace gs
     // dumbest possible scheduler...
     public class BasicPathScheduler : IPathScheduler
 	{
-		public PathSetBuilder Builder;
+		public ToolpathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
 
 
-		public BasicPathScheduler(PathSetBuilder builder, SingleMaterialFFFSettings settings)
+		public BasicPathScheduler(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
 		{
 			Builder = builder;
 			Settings = settings;

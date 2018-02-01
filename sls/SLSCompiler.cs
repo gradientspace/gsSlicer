@@ -6,7 +6,7 @@ namespace gs
     public interface ThreeAxisLaserCompiler
     {
         void Begin();
-        void AppendPaths(PathSet paths);
+        void AppendPaths(ToolpathSet paths);
         void End();
     }
 
@@ -40,13 +40,13 @@ namespace gs
 
 
 
-        public virtual void AppendPaths(PathSet paths)
+        public virtual void AppendPaths(ToolpathSet paths)
         {
             Assembler.AppendPaths(paths);
         }
 
 
-        public PathSet TempGetAssembledPaths()
+        public ToolpathSet TempGetAssembledPaths()
         {
             return Assembler.TempGetAssembledPaths();
         }

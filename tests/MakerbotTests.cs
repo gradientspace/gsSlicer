@@ -6,8 +6,6 @@ using gs.info;
 
 namespace gs
 {
-	using LinearPath = LinearPath3<PathVertex>;
-
 	public class MakerbotTests
 	{
 
@@ -24,7 +22,7 @@ namespace gs
 
 			double StepY = settings.SolidFillPathSpacingMM();
 
-			PathSetBuilder paths = new PathSetBuilder();
+			ToolpathSetBuilder paths = new ToolpathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
 
@@ -69,7 +67,7 @@ namespace gs
 
 			cc.Begin();
 
-			PathSetBuilder paths = new PathSetBuilder();
+			ToolpathSetBuilder paths = new ToolpathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
 
@@ -132,7 +130,7 @@ namespace gs
 
 			cc.Begin();
 
-			PathSetBuilder paths = new PathSetBuilder();
+			ToolpathSetBuilder paths = new ToolpathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
 
@@ -184,7 +182,7 @@ namespace gs
 
 			cc.Begin();
 
-			PathSetBuilder paths = new PathSetBuilder();
+			ToolpathSetBuilder paths = new ToolpathSetBuilder();
 			paths.Initialize(cc.NozzlePosition);
 			Vector3d currentPos = paths.Position;
 
@@ -245,7 +243,7 @@ namespace gs
 				double t = (double)i / (double)(nLayers-1);
 				double scale = MathUtil.Lerp(1, fTopScale, t);
 
-				PathSetBuilder paths = new PathSetBuilder();
+				ToolpathSetBuilder paths = new ToolpathSetBuilder();
 				paths.Initialize(cc.NozzlePosition);
 				Vector3d currentPos = paths.Position;
 
@@ -318,7 +316,7 @@ namespace gs
 
 				PlanarSlice slice = stack.Slices[i];
 
-				PathSetBuilder paths = new PathSetBuilder();
+				ToolpathSetBuilder paths = new ToolpathSetBuilder();
 				paths.Initialize(cc.NozzlePosition);
 				Vector3d currentPos = paths.Position;
 
@@ -478,7 +476,7 @@ namespace gs
 
 				PlanarSlice slice = stack.Slices[i];
 
-				PathSetBuilder paths = new PathSetBuilder();
+				ToolpathSetBuilder paths = new ToolpathSetBuilder();
 				paths.Initialize(CurrentPos);
 				Vector3d currentPos = paths.Position;
 
@@ -706,7 +704,7 @@ namespace gs
 				bool is_infill = (i >= RoofFloorLayers);
 				double fillScale = (is_infill) ? InfillScale : 1.0f;
 
-				PathSetBuilder paths = new PathSetBuilder();
+				ToolpathSetBuilder paths = new ToolpathSetBuilder();
 				paths.Initialize(cc.NozzlePosition);
 				Vector3d currentPos = paths.Position;
 

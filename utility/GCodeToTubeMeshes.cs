@@ -15,7 +15,7 @@ namespace gs
         public Dictionary<double, List<DMesh3>> LayerMeshes;
 
         PolyLine3d ActivePath;
-        PathTypes ActivePathType;
+        ToolpathTypes ActivePathType;
 
         public GCodeToTubeMeshes() 
 		{
@@ -60,7 +60,7 @@ namespace gs
 
         void push_active_path() {
             if (ActivePath != null && ActivePath.VertexCount > 1 ) {
-                if (ActivePathType == PathTypes.Deposition)
+                if (ActivePathType == ToolpathTypes.Deposition)
                     append_path_mesh(ActivePath);
             }
             ActivePath = null;
@@ -88,7 +88,7 @@ namespace gs
 
 			push_active_path();
 			ActivePath = newPath;
-            ActivePathType = PathTypes.Travel;
+            ActivePathType = ToolpathTypes.Travel;
 		}
 		public void BeginDeposition() {
 
@@ -99,7 +99,7 @@ namespace gs
 
 			push_active_path();
 			ActivePath = newPath;
-            ActivePathType = PathTypes.Deposition;
+            ActivePathType = ToolpathTypes.Deposition;
 
         }
 
@@ -112,7 +112,7 @@ namespace gs
 			// if we are doing a Z-move, convert to 3D path
 			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.z != move.position.z);
             if (bZMove)
-                ActivePathType = PathTypes.PlaneChange;
+                ActivePathType = ToolpathTypes.PlaneChange;
 
             ActivePath.AppendVertex(move.position);
 		}

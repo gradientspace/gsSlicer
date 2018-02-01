@@ -8,7 +8,7 @@ namespace gs
 {
 	public class LayersDetector
 	{
-		public PathSet Paths;
+		public ToolpathSet Paths;
 
 		// layers with fewer points than this are filtered out
 		public int MinLayerCount = 4;
@@ -19,7 +19,7 @@ namespace gs
 
 		public double EstimatedLayerHeight;
 
-		public LayersDetector(PathSet paths)
+		public LayersDetector(ToolpathSet paths)
 		{
 			Paths = paths;
 			Compute();
@@ -80,17 +80,17 @@ namespace gs
 		{
 			LayersCounts = new Dictionary<double, int>();
 
-			Action<IPath> processPathF = (path) => {
+			Action<IToolpath> processPathF = (path) => {
 				if ( path.HasFinitePositions ) {
 					foreach (Vector3d v in path.AllPositionsItr())
 						accumulate(v);
 				}
 			};
-			Action<IPathSet> processPathsF = null;
+			Action<IToolpathSet> processPathsF = null;
 			processPathsF = (paths) => {
-				foreach (IPath path in paths) {
-					if (path is IPathSet)
-						processPathsF(path as IPathSet);
+				foreach (IToolpath path in paths) {
+					if (path is IToolpathSet)
+						processPathsF(path as IToolpathSet);
 					else
 						processPathF(path);
 				}

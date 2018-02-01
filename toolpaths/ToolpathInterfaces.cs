@@ -6,7 +6,7 @@ using g3;
 
 namespace gs 
 {
-	public enum PathTypes {
+	public enum ToolpathTypes {
 		Deposition,
 		Travel,
 		PlaneChange,
@@ -19,7 +19,7 @@ namespace gs
 	/// PathVertex.Flags field is 3 ints that can be used for whatever purpose.
 	/// First int we assume is one of these values, or a client-defined value.
 	/// </summary>
-	public enum PathVertexFlags {
+	public enum ToolpathVertexFlags {
 		NoFlags = 0,
 
 		IsConnector = 1,				// move to this vertex is a 'connector' move
@@ -31,11 +31,11 @@ namespace gs
 
 
 
-	public interface IPathVertex {
+	public interface IToolpathVertex {
 		Vector3d Position { get; set; }
 	}
 
-	public struct PathVertex : IPathVertex 
+	public struct PrintVertex : IToolpathVertex 
 	{
 		public Vector3d Position { get; set; }
 		public double FeedRate { get; set; }
@@ -44,7 +44,7 @@ namespace gs
 
 		public object Source { get; set; }
 
-		public PathVertex(Vector3d pos, double rate) {
+		public PrintVertex(Vector3d pos, double rate) {
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = Vector3d.Zero;
@@ -52,7 +52,7 @@ namespace gs
 			Source = null;
 		}
 
-		public PathVertex(Vector3d pos, double rate, double ExtruderA) {
+		public PrintVertex(Vector3d pos, double rate, double ExtruderA) {
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = new Vector3d(ExtruderA, 0, 0);
@@ -60,16 +60,16 @@ namespace gs
 			Source = null;
 		}
 
-		public static implicit operator Vector3d(PathVertex v)
+		public static implicit operator Vector3d(PrintVertex v)
 		{
 			return v.Position;
 		}
 	};
 
 
-	public interface IPath
+	public interface IToolpath
 	{
-		PathTypes Type { get; }
+		ToolpathTypes Type { get; }
 		bool IsPlanar { get; }
 		bool IsLinear { get; }
 
@@ -81,14 +81,14 @@ namespace gs
 		IEnumerable<Vector3d> AllPositionsItr();
 	}
 
-	public interface ILinearPath<T> : IPath, IEnumerable<T>
+	public interface ILinearToolpath<T> : IToolpath, IEnumerable<T>
 	{
 		T this[int key] { get; }
 	}
 
-	public interface IBuildLinearPath<T> : ILinearPath<T>
+	public interface IBuildLinearToolpath<T> : ILinearToolpath<T>
 	{
-		void ChangeType(PathTypes type);
+		void ChangeType(ToolpathTypes type);
 		void AppendVertex(T v);	
 		void UpdateVertex(int i, T v);
 		
@@ -98,7 +98,7 @@ namespace gs
 	}
 
 
-	public interface IPathSet : IPath, IEnumerable<IPath>
+	public interface IToolpathSet : IToolpath, IEnumerable<IToolpath>
 	{
 	}
 
@@ -106,11 +106,11 @@ namespace gs
 
 	// Just a utility class we can subclass to create custom "marker" paths
 	// in the path stream.
-	public class SentinelPath : IPath
+	public class SentinelToolpath : IToolpath
 	{
-		public PathTypes Type { 
+		public ToolpathTypes Type { 
 			get {
-				return PathTypes.Custom;
+				return ToolpathTypes.Custom;
 			}
 		}
 		public virtual bool IsPlanar { 

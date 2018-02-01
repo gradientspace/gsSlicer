@@ -5,21 +5,21 @@ using g3;
 
 namespace gs 
 {
-	public class LinearPath3<T>  : IBuildLinearPath<T> where T : IPathVertex
+	public class LinearToolpath3<T>  : IBuildLinearToolpath<T> where T : IToolpathVertex
 	{
 		List<T> Path;
-		PathTypes _pathtype;	// access via Type property
+		ToolpathTypes _pathtype;	// access via Type property
         FillTypeFlags _pathtype_flags = FillTypeFlags.Unknown;
 
         // todo: add speed
         //  ?? extend PolyLine3d ??
 
-        public LinearPath3(PathTypes type = PathTypes.Travel)
+        public LinearToolpath3(ToolpathTypes type = ToolpathTypes.Travel)
 		{
 			Path = new List<T>();
 			_pathtype = type;
 		}
-		public LinearPath3(ILinearPath<T> copy) {
+		public LinearToolpath3(ILinearToolpath<T> copy) {
 			Path = new List<T>();
 			_pathtype = copy.Type;		
 			foreach ( T v in copy )
@@ -56,7 +56,7 @@ namespace gs
 			}
 		}
 
-		public PathTypes Type {
+		public ToolpathTypes Type {
 			get { return _pathtype; }
 			set { _pathtype = value; }
 		}
@@ -119,7 +119,7 @@ namespace gs
 		public T End { 
 			get { return Path[Path.Count-1]; }
 		}
-		public void ChangeType(PathTypes type) {
+		public void ChangeType(ToolpathTypes type) {
 			Type = type;
 		}
 

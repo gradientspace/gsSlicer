@@ -6,31 +6,31 @@ using g3;
 namespace gs
 {
 	// [TODO] find a way to not hardcode this??
-	using LinearPath = LinearPath3<PathVertex>;
+	using LinearToolpath = LinearToolpath3<PrintVertex>;
 
 
 	/// <summary>
-	/// Utility class to simplify PathSet construction.
+	/// Utility class to simplify ToolpathSet construction.
 	/// </summary>
-	public class PathSetBuilder
+	public class ToolpathSetBuilder
 	{
-		public PathSet Paths;
+		public ToolpathSet Paths;
 
 		Vector3d currentPos;
 		public Vector3d Position {
 			get { return currentPos; }
 		}
 
-		public PathSetBuilder(PathSet paths = null)
+		public ToolpathSetBuilder(ToolpathSet paths = null)
 		{
-			Paths = (paths == null) ? new PathSet() : paths;
+			Paths = (paths == null) ? new ToolpathSet() : paths;
 		}
 
 		public void Initialize(Vector3d startPos) {
 			currentPos = startPos;
 		}
 
-		public virtual void AppendPath(IPath p) {
+		public virtual void AppendPath(IToolpath p) {
 			if ( ! currentPos.EpsilonEqual(p.StartPosition, MathUtil.Epsilon) )
 				throw new Exception("PathSetBuilder.AppendPath: disconnected path");
 			Paths.Append(p);
@@ -38,11 +38,11 @@ namespace gs
 		}
 
 		public virtual Vector3d AppendZChange(double ZChange, double fSpeed) {
-			LinearPath zup = new LinearPath(PathTypes.PlaneChange);
-			zup.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			LinearToolpath zup = new LinearToolpath(ToolpathTypes.PlaneChange);
+			zup.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			Vector3d toPos = new Vector3d(currentPos); 
 			toPos.z += ZChange;
-			zup.AppendVertex(new PathVertex(toPos, fSpeed));
+			zup.AppendVertex(new PrintVertex(toPos, fSpeed));
 			AppendPath(zup);
 			return currentPos;
 		}
@@ -54,29 +54,29 @@ namespace gs
 		}
 		public virtual Vector3d AppendTravel(Vector3d toPos, double fSpeed)
 		{
-			LinearPath travel = new LinearPath(PathTypes.Travel);
-			travel.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
-			travel.AppendVertex(new PathVertex(toPos, fSpeed));
+			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			travel.AppendVertex(new PrintVertex(toPos, fSpeed));
 			if ( travel.Length > MathUtil.Epsilonf )		// discard tiny travels
 				AppendPath(travel);
 			return currentPos;
 		}
 		public virtual Vector3d AppendTravel(List<Vector2d> toPoints, double fSpeed) {
-			LinearPath travel = new LinearPath(PathTypes.Travel);
-			travel.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			foreach (Vector2d pos2 in toPoints) {
 				Vector3d pos = new Vector3d(pos2.x, pos2.y, currentPos.z);
-				travel.AppendVertex(new PathVertex(pos, fSpeed));
+				travel.AppendVertex(new PrintVertex(pos, fSpeed));
 			}
 			if (travel.Length > MathUtil.Epsilonf)
 				AppendPath(travel);
 			return currentPos;
 		}
 		public virtual Vector3d AppendTravel(List<Vector3d> toPoints, double fSpeed) {
-			LinearPath travel = new LinearPath(PathTypes.Travel);
-			travel.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			foreach (Vector3d pos in toPoints) {
-				travel.AppendVertex(new PathVertex(pos, fSpeed));
+				travel.AppendVertex(new PrintVertex(pos, fSpeed));
 			}
 			if (travel.Length > MathUtil.Epsilonf)
 				AppendPath(travel);
@@ -88,18 +88,18 @@ namespace gs
             List<Index3i> perVertexFlags = null, 
             FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown
         ) {
-			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
+			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;
-            extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+            extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			if (perVertexFlags == null) {
 				for (int i = 0; i < toPoints.Count; ++i) {
 					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
-					extrusion.AppendVertex(new PathVertex(pos, fSpeed));
+					extrusion.AppendVertex(new PrintVertex(pos, fSpeed));
 				}
 			} else {
 				for (int i = 0; i < toPoints.Count; ++i) {
 					Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
-					extrusion.AppendVertex(new PathVertex(pos, fSpeed){ Flags = perVertexFlags[i] });
+					extrusion.AppendVertex(new PrintVertex(pos, fSpeed){ Flags = perVertexFlags[i] });
 				}
 			}
 			AppendPath(extrusion);
@@ -111,15 +111,15 @@ namespace gs
             List<Index3i> perVertexFlags = null,
             FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown
             ) {
-			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
+			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;
-			extrusion.AppendVertex(new PathVertex(currentPos, GCodeUtil.UnspecifiedValue));
+			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
 			if (perVertexFlags == null) {
 				for (int i = 0; i < toPoints.Count; ++i)
-					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed));
+					extrusion.AppendVertex(new PrintVertex(toPoints[i], fSpeed));
 			} else {
 				for (int i = 0; i < toPoints.Count; ++i)
-					extrusion.AppendVertex(new PathVertex(toPoints[i], fSpeed) { Flags = perVertexFlags[i] });
+					extrusion.AppendVertex(new PrintVertex(toPoints[i], fSpeed) { Flags = perVertexFlags[i] });
 			}
 			AppendPath(extrusion);
 			return currentPos;

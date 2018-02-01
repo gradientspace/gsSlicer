@@ -6,7 +6,7 @@ namespace gs
 {
 	public class CalculateExtrusion 
 	{
-		public PathSet Paths;
+		public ToolpathSet Paths;
 		public SingleMaterialFFFSettings Settings;
 
 		double FilamentDiam = 1.75;
@@ -28,7 +28,7 @@ namespace gs
 		public double ExtrusionLength = 0;
 
 
-		public CalculateExtrusion(PathSet paths, SingleMaterialFFFSettings settings) 
+		public CalculateExtrusion(ToolpathSet paths, SingleMaterialFFFSettings settings) 
 		{
 			Paths = paths;
 			Settings = settings;
@@ -71,10 +71,10 @@ namespace gs
 			bool inRetract = alreadyInRetract;
 
 			// filter paths
-			List<IPath> allPaths = new List<IPath>();
-			foreach ( IPath ipath in Paths ) {
-				PathUtil.ApplyToLeafPaths(ipath, (p) => { 
-					if (p is LinearPath3<PathVertex> || p is ResetExtruderPathHack) { 
+			List<IToolpath> allPaths = new List<IToolpath>();
+			foreach ( IToolpath ipath in Paths ) {
+				ToolpathUtil.ApplyToLeafPaths(ipath, (p) => { 
+					if (p is LinearToolpath3<PrintVertex> || p is ResetExtruderPathHack) { 
 						allPaths.Add(p); 
 					} 
 				});
@@ -82,21 +82,21 @@ namespace gs
 			int N = allPaths.Count;
 
 
-            LinearPath3<PathVertex> prev_path = null;
+            LinearToolpath3<PrintVertex> prev_path = null;
             for ( int pi = 0; pi < N; ++pi ) {
 				if ( allPaths[pi] is ResetExtruderPathHack ) {
 					curA = 0;
 					continue;
 				}
-				LinearPath3<PathVertex> path = allPaths[pi] as LinearPath3<PathVertex>;
+				LinearToolpath3<PrintVertex> path = allPaths[pi] as LinearToolpath3<PrintVertex>;
 
 				if ( path == null )
 					throw new Exception("Invalid path type!");
-				if ( ! (path.Type == PathTypes.Deposition || path.Type == PathTypes.PlaneChange || path.Type == PathTypes.Travel) )
+				if ( ! (path.Type == ToolpathTypes.Deposition || path.Type == ToolpathTypes.PlaneChange || path.Type == ToolpathTypes.Travel) )
 					throw new Exception("Unknown path type!");
 
-                bool skip_retract = (path.Type == PathTypes.Travel) &&
-                                    (prev_path.Type == PathTypes.Deposition) &&
+                bool skip_retract = (path.Type == ToolpathTypes.Travel) &&
+                                    (prev_path.Type == ToolpathTypes.Deposition) &&
                                     (prev_path.EndPosition.Distance(path.StartPosition) < MinRetractTravelLength);
 
                 for ( int i = 0; i < path.VertexCount; ++i ) {
@@ -106,7 +106,7 @@ namespace gs
 					double newRate = path[i].FeedRate;
 					//Index3i flags = path[i].Flags;
 
-					if ( path.Type != PathTypes.Deposition ) {
+					if ( path.Type != ToolpathTypes.Deposition ) {
 
                         // [RMS] if we switched to a travel move we retract, unless we don't
                         if (skip_retract == false) {
@@ -137,7 +137,7 @@ namespace gs
 						curA += feed;
 					}
 
-					PathVertex v = path[i];
+					PrintVertex v = path[i];
 					v.Extrusion = GCodeUtil.Extrude(curA);
 					path.UpdateVertex(i, v);
 
@@ -153,7 +153,7 @@ namespace gs
 
 
 		bool is_connection(Index3i flags) {
-			return flags.a == (int)PathVertexFlags.IsConnector;
+			return flags.a == (int)ToolpathVertexFlags.IsConnector;
 		}
 
 
@@ -168,10 +168,10 @@ namespace gs
 			bool inRetract = false;
 
 			// filter paths
-			List<IPath> allPaths = new List<IPath>();
-			foreach ( IPath ipath in Paths ) {
-				PathUtil.ApplyToLeafPaths(ipath, (p) => { 
-					if (p is LinearPath3<PathVertex> || p is ResetExtruderPathHack) { 
+			List<IToolpath> allPaths = new List<IToolpath>();
+			foreach ( IToolpath ipath in Paths ) {
+				ToolpathUtil.ApplyToLeafPaths(ipath, (p) => { 
+					if (p is LinearToolpath3<PrintVertex> || p is ResetExtruderPathHack) { 
 						allPaths.Add(p); 
 					} 
 				});
@@ -186,7 +186,7 @@ namespace gs
 					continue;
 				}
 
-				LinearPath3<PathVertex> path = allPaths[pi] as LinearPath3<PathVertex>;
+				LinearToolpath3<PrintVertex> path = allPaths[pi] as LinearToolpath3<PrintVertex>;
 				if ( path == null )
 					throw new Exception("Invalid path type!");
 
@@ -199,7 +199,7 @@ namespace gs
 					bool send_a = false;
 					string comment = "";
 
-					if ( path.Type != PathTypes.Deposition ) {
+					if ( path.Type != ToolpathTypes.Deposition ) {
 						if ( ! inRetract ) {
 							curA -= FixedRetractDistance;
 							send_a = true;

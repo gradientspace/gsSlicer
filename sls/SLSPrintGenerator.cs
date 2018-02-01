@@ -22,7 +22,7 @@ namespace gs
                                                         // to implement per-layer settings
 
         // available after calling Generate()
-        public PathSet Result;
+        public ToolpathSet Result;
 
         // replace this with your own error message handler
         public Action<string, string> ErrorF = (message, stack_trace) => {
@@ -80,7 +80,7 @@ namespace gs
 
 
         // subclasses must implement this to return GCodeFile result
-        protected abstract PathSet extract_result();
+        protected abstract ToolpathSet extract_result();
 
 
 
@@ -130,7 +130,7 @@ namespace gs
                 BeginLayerF(layer_i);
 
                 // make path-accumulator for this layer
-                PathSetBuilder paths = new PathSetBuilder();
+                ToolpathSetBuilder paths = new ToolpathSetBuilder();
 
                 // TODO FIX
                 //paths.Initialize(Compiler.NozzlePosition);
@@ -163,7 +163,7 @@ namespace gs
                 }
 
                 // resulting paths for this layer (Currently we are just discarding this after compiling)
-                PathSet layerPaths = paths.Paths;
+                ToolpathSet layerPaths = paths.Paths;
 
                 // compile this layer
                 Compiler.AppendPaths(layerPaths);

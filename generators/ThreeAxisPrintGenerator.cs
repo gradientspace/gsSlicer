@@ -19,7 +19,7 @@ namespace gs
 
 		public PrintLayerData PreviousLayer;
 
-		public PathSetBuilder PathAccum;
+		public ToolpathSetBuilder PathAccum;
 		public IPathScheduler Scheduler;
 
 		public List<IShellsFillPolygon> ShellFills;
@@ -69,7 +69,7 @@ namespace gs
 		public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
 
 		// Replace this to use a different path builder
-		public Func<PrintLayerData, PathSetBuilder> PathBuilderFactoryF;
+		public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
 
 		// Replace this to use a different scheduler
 		public Func<PrintLayerData, IPathScheduler> SchedulerFactoryF;
@@ -86,7 +86,7 @@ namespace gs
 		public Action<IFillPolygon, int> BeginShellF;
 
 		// called at the end of each layer, before we compile the paths
-		public Action<PrintLayerData, PathSet> PostProcessLayerPathsF;
+		public Action<PrintLayerData, ToolpathSet> PostProcessLayerPathsF;
 
 
         // this is called on polyline paths, return *true* to filter out a path. Useful for things like very short segments, etc
@@ -132,7 +132,7 @@ namespace gs
 			};
 
 			PathBuilderFactoryF = (layer_data) => {
-				return new PathSetBuilder();
+				return new ToolpathSetBuilder();
 			};
 
 			SchedulerFactoryF = get_layer_scheduler;
@@ -246,7 +246,7 @@ namespace gs
 				layerdata.PreviousLayer = prevLayerData;
 
 				// create path accumulator
-				PathSetBuilder pathAccum = PathBuilderFactoryF(layerdata);
+				ToolpathSetBuilder pathAccum = PathBuilderFactoryF(layerdata);
 				layerdata.PathAccum = pathAccum;
 
 				// rest of code does not directly access path builder, instead it

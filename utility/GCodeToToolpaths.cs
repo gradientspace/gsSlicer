@@ -3,37 +3,37 @@ using g3;
 
 namespace gs 
 {
-	using LinearPath = LinearPath3<PathVertex>;
+	using LinearToolpath = LinearToolpath3<PrintVertex>;
 
 
 	// we will insert these in PathSet when we are
 	// instructed to reset extruder stepper
-	public class ResetExtruderPathHack : SentinelPath
+	public class ResetExtruderPathHack : SentinelToolpath
 	{
 	}
 
 	/// <summary>
-	/// Convert a GCodeFile to a single huge PathSet
+	/// Convert a GCodeFile to a single huge ToolpathSet
 	/// </summary>
-	public class GCodeToLayerPaths : IGCodeListener
+	public class GCodeToToolpaths : IGCodeListener
 	{
-		public PathSet Paths;
-		public IBuildLinearPath<PathVertex> ActivePath;
+		public ToolpathSet PathSet;
+		public IBuildLinearToolpath<PrintVertex> ActivePath;
 
-		public GCodeToLayerPaths() 
+		public GCodeToToolpaths() 
 		{
 		}
 
 
 		void push_active_path() {
 			if ( ActivePath != null && ActivePath.VertexCount > 0 )
-				Paths.Append(ActivePath);
+				PathSet.Append(ActivePath);
 			ActivePath = null;
 		}
 
 		public void Begin() {
-			Paths = new PathSet();
-			ActivePath = new LinearPath();
+			PathSet = new ToolpathSet();
+			ActivePath = new LinearToolpath();
 		}
 		public void End() {
 			push_active_path();
@@ -42,10 +42,10 @@ namespace gs
 
 		public void BeginTravel() {
 
-			var newPath = new LinearPath();
-			newPath.Type = PathTypes.Travel;
+			var newPath = new LinearToolpath();
+			newPath.Type = ToolpathTypes.Travel;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
-				PathVertex curp = new PathVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
 				newPath.AppendVertex(curp);
 			}
 
@@ -54,10 +54,10 @@ namespace gs
 		}
 		public void BeginDeposition() {
 				
-			var newPath = new LinearPath();
-			newPath.Type = PathTypes.Deposition;
+			var newPath = new LinearToolpath();
+			newPath.Type = ToolpathTypes.Deposition;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
-				PathVertex curp = new PathVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
 				newPath.AppendVertex(curp);
 			}
 
@@ -74,9 +74,9 @@ namespace gs
 			// if we are doing a Z-move, convert to 3D path
 			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.Position.z != move.position.z);
 			if ( bZMove )
-				ActivePath.ChangeType( PathTypes.PlaneChange );
+				ActivePath.ChangeType( ToolpathTypes.PlaneChange );
 
-			PathVertex vtx = new PathVertex(
+			PrintVertex vtx = new PrintVertex(
 				move.position, move.rate, move.extrude.x );
 			
 			if ( move.source != null )
@@ -89,7 +89,7 @@ namespace gs
 		public void CustomCommand(int code, object o) {
 			if ( code == (int)CustomListenerCommands.ResetExtruder ) {
 				push_active_path();
-				Paths.Append( new ResetExtruderPathHack() );
+				PathSet.Append( new ResetExtruderPathHack() );
 			}
 		}
 

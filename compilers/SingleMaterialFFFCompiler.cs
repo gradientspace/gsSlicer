@@ -4,7 +4,7 @@ using g3;
 namespace gs
 {
 	// [TODO] be able to not hardcode this type?
-	using LinearPath = LinearPath3<PathVertex>;
+	using LinearToolpath = LinearToolpath3<PrintVertex>;
 
 
 
@@ -14,7 +14,7 @@ namespace gs
         Vector3d NozzlePosition { get; }
 
         void Begin();
-        void AppendPaths(PathSet paths);
+        void AppendPaths(ToolpathSet paths);
         void End();
     }
 
@@ -64,7 +64,7 @@ namespace gs
 
 
 
-		public virtual void AppendPaths(PathSet paths)
+		public virtual void AppendPaths(ToolpathSet paths)
         {
             Assembler.FlushQueues();
 
@@ -74,14 +74,14 @@ namespace gs
 
             int path_index = 0;
 			foreach (var gpath in paths) {
-				LinearPath p = gpath as LinearPath;
+				LinearToolpath p = gpath as LinearToolpath;
                 path_index++;
 
 				if (p[0].Position.Distance(Assembler.NozzlePosition) > 0.00001)
 					throw new Exception("SingleMaterialFFFCompiler.AppendPaths: path " + path_index + ": Start of path is not same as end of previous path!");
 
 				int i = 0;
-				if ((p.Type == PathTypes.Travel || p.Type == PathTypes.PlaneChange) && Assembler.InTravel == false) {
+				if ((p.Type == ToolpathTypes.Travel || p.Type == ToolpathTypes.PlaneChange) && Assembler.InTravel == false) {
 					Assembler.DisableFan();
 
 					// do retract cycle
@@ -92,7 +92,7 @@ namespace gs
 					}
 					Assembler.BeginTravel();
 
-				} else if (p.Type == PathTypes.Deposition) {
+				} else if (p.Type == ToolpathTypes.Deposition) {
 
 					// end travel / retract if we are in that state
 					if (Assembler.InTravel) {
@@ -108,9 +108,9 @@ namespace gs
 							// we are already at this pos
 
 				for (; i < p.VertexCount; ++i) {
-					if (p.Type == PathTypes.Travel) {
+					if (p.Type == ToolpathTypes.Travel) {
 						Assembler.AppendMoveTo(p[i].Position, p[i].FeedRate, "Travel");
-					} else if (p.Type == PathTypes.PlaneChange) {
+					} else if (p.Type == ToolpathTypes.PlaneChange) {
 						Assembler.AppendMoveTo(p[i].Position, p[i].FeedRate, "Plane Change");
 					} else {
 						Assembler.AppendExtrudeTo(p[i].Position, p[i].FeedRate, p[i].Extrusion.x);

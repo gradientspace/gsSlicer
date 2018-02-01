@@ -53,7 +53,7 @@
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
     <Compile Include="toolpathing\TiledFillPolygon.cs" />
     <Compile Include="utility\GCodeToTubeMeshes.cs" />
-    <Compile Include="utility\GCodeToLayerPaths.cs" />
+    <Compile Include="utility\GCodeToToolpaths.cs" />
     <Compile Include="tests\CalculateExtrusion.cs" />
     <Compile Include="tests\MakerbotTests.cs" />
     <Compile Include="utility\LayersDetector.cs" />
@@ -63,12 +63,12 @@
     <Compile Include="compilers\SingleMaterialFFFCompiler.cs" />
     <Compile Include="generators\SingleMaterialFFFPrintGenerator.cs" />
     <Compile Include="generators\ThreeAxisPrintGenerator.cs" />
-    <Compile Include="toolpaths\FillPaths2d.cs" />
-    <Compile Include="toolpaths\LinearPath3.cs" />
-    <Compile Include="toolpaths\PathInterfaces.cs" />
-    <Compile Include="toolpaths\PathSet.cs" />
-    <Compile Include="toolpaths\PathSetBuilder.cs" />
-    <Compile Include="toolpaths\PathUtil.cs" />
+    <Compile Include="toolpaths\FillCurveSet2d.cs" />
+    <Compile Include="toolpaths\LinearToolpath3.cs" />
+    <Compile Include="toolpaths\ToolpathInterfaces.cs" />
+    <Compile Include="toolpaths\ToolpathSet.cs" />
+    <Compile Include="toolpaths\ToolpathSetBuilder.cs" />
+    <Compile Include="toolpaths\ToolpathUtil.cs" />
     <Compile Include="toolpathing\RasterFillPolygon.cs" />
     <Compile Include="toolpathing\IFillPolygon.cs" />
     <Compile Include="toolpathing\PathScheduler.cs" />
