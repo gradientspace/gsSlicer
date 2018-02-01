@@ -55,7 +55,6 @@
     <Compile Include="utility\GCodeToTubeMeshes.cs" />
     <Compile Include="utility\GCodeToToolpaths.cs" />
     <Compile Include="tests\CalculateExtrusion.cs" />
-    <Compile Include="tests\MakerbotTests.cs" />
     <Compile Include="utility\LayersDetector.cs" />
     <Compile Include="slicing\PlanarSlice.cs" />
     <Compile Include="slicing\PlanarSliceStack.cs" />
