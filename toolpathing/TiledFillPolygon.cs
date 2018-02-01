@@ -16,13 +16,13 @@ namespace gs
 
 
 		// fill paths
-		public List<FillPaths2d> Paths { get; set; }
-        public List<FillPaths2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> Paths { get; set; }
+        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
 
         public TiledFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillPaths2d>();
+			Paths = new List<FillCurveSet2d>();
 		}
 
 
@@ -85,9 +85,9 @@ namespace gs
             });
 
 
-            Paths = new List<FillPaths2d>();
+            Paths = new List<FillCurveSet2d>();
             foreach (IPathsFillPolygon fill in all_fills) {
-                List<FillPaths2d> result = fill.GetFillPaths();
+                List<FillCurveSet2d> result = fill.GetFillPaths();
                 if (result != null && result.Count > 0)
                     Paths.AddRange(result);
             }

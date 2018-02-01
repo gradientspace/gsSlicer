@@ -5,7 +5,7 @@ using g3;
 namespace gs
 {
 	[Flags]
-	public enum PathTypeFlags
+	public enum FillTypeFlags
 	{
 		Unknown = 0,
 
@@ -15,7 +15,7 @@ namespace gs
 
 		InteriorShell = 1<<2,
 
-		OpenShellPath = 1<<3,    // ie for single-line-wide features
+		OpenShellCurve = 1<<3,    // ie for single-line-wide features
 
 		SolidInfill = 1<<8,
 		SparseInfill = 1<<9,
@@ -28,21 +28,21 @@ namespace gs
     /// <summary>
     /// things that are common to FillPolyline2d and FillPolygon2d
     /// </summary>
-    public interface FillPathCurve2d
+    public interface FillCurve2d
     {
-        bool HasTypeFlag(PathTypeFlags f);
+        bool HasTypeFlag(FillTypeFlags f);
     }
 
 
 
 	/// <summary>
-	/// Additive polygon path
+	/// Additive polygon fill curve
 	/// </summary>
-	public class FillPolygon2d : Polygon2d, FillPathCurve2d
+	public class FillPolygon2d : Polygon2d, FillCurve2d
     {
-		public PathTypeFlags TypeFlags = PathTypeFlags.Unknown;
+		public FillTypeFlags TypeFlags = FillTypeFlags.Unknown;
 
-		public bool HasTypeFlag(PathTypeFlags f) {
+		public bool HasTypeFlag(FillTypeFlags f) {
 			return (TypeFlags & f) != 0;
 		}
 
@@ -64,13 +64,13 @@ namespace gs
 
 
 	/// <summary>
-	/// Additive polyline path
+	/// Additive polyline fill curve
 	/// </summary>
-	public class FillPolyline2d : PolyLine2d, FillPathCurve2d
+	public class FillPolyline2d : PolyLine2d, FillCurve2d
     {
-		public PathTypeFlags TypeFlags = PathTypeFlags.Unknown;
+		public FillTypeFlags TypeFlags = FillTypeFlags.Unknown;
 
-		public bool HasTypeFlag(PathTypeFlags f) {
+		public bool HasTypeFlag(FillTypeFlags f) {
 			return (TypeFlags & f) == f;
 		}
 

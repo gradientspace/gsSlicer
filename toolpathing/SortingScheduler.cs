@@ -55,9 +55,9 @@ namespace gs
 
 
 
-        public void AppendPaths(List<FillPaths2d> paths)
+        public void AppendPaths(List<FillCurveSet2d> paths)
         {
-            foreach (FillPaths2d polySet in paths) {
+            foreach (FillCurveSet2d polySet in paths) {
                 foreach (FillPolygon2d loop in polySet.Loops)
                     Loops.Add(new PathLoop() { curve = loop, speedHint = SpeedHint } );
                 
@@ -76,7 +76,7 @@ namespace gs
 
             List<Index3i> sorted = find_short_path_v1(startPoint);
             foreach (Index3i idx in sorted) {
-                FillPaths2d paths = new FillPaths2d();
+                FillCurveSet2d paths = new FillCurveSet2d();
 
                 SchedulerSpeedHint pathHint = SchedulerSpeedHint.Default;
                 if (idx.a == 0) { // loop
@@ -107,7 +107,7 @@ namespace gs
                 }
 
                 scheduler.SpeedHint = pathHint;
-                scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+                scheduler.AppendPaths(new List<FillCurveSet2d>() { paths });
             }
 
             scheduler.SpeedHint = saveHint;

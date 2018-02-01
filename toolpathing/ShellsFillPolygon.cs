@@ -68,14 +68,14 @@ namespace gs
         /// <summary>
         /// Shell layers are sorted outer to inner. Size of list == layers
         /// </summary>
-        public List<FillPaths2d> Shells { get; set; }
+        public List<FillCurveSet2d> Shells { get; set; }
 
         /// <summary>
         /// Return shell paths groups. Same as .Shells property, but
         /// here returned nesting order is [1...N,0]
         /// </summary>
-        public List<FillPaths2d> GetFillPaths() {
-            List<FillPaths2d> result = new List<FillPaths2d>();
+        public List<FillCurveSet2d> GetFillPaths() {
+            List<FillCurveSet2d> result = new List<FillCurveSet2d>();
             for (int k = 1; k < Shells.Count; ++k)
                 result.Add(Shells[k]);
             result.Add(Shells[0]);
@@ -90,7 +90,7 @@ namespace gs
         public ShellsFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Shells = new List<FillPaths2d>();
+			Shells = new List<FillCurveSet2d>();
 		}
 
 
@@ -111,7 +111,7 @@ namespace gs
 			List<GeneralPolygon2d> failedShells = new List<GeneralPolygon2d>();
 			List<GeneralPolygon2d> nextShellTooThin = new List<GeneralPolygon2d>();
 			for (int i = 0; i < Layers; ++i ) {
-                FillPaths2d paths = ShellPolysToPaths(current, i);
+                FillCurveSet2d paths = ShellPolysToPaths(current, i);
 				Shells.Add(paths);
 
 				List<GeneralPolygon2d> all_next = new List<GeneralPolygon2d>();
@@ -168,15 +168,15 @@ namespace gs
 
 
 
-        public virtual FillPaths2d ShellPolysToPaths(List<GeneralPolygon2d> shell_polys, int nShell)
+        public virtual FillCurveSet2d ShellPolysToPaths(List<GeneralPolygon2d> shell_polys, int nShell)
         {
-            FillPaths2d paths = new FillPaths2d();
+            FillCurveSet2d paths = new FillCurveSet2d();
 
-			PathTypeFlags flags = PathTypeFlags.PerimeterShell;
+			FillTypeFlags flags = FillTypeFlags.PerimeterShell;
 			if (nShell == 0 && ShellType == ShellTypes.ExternalPerimeters)
-				flags = PathTypeFlags.OutermostShell;
+				flags = FillTypeFlags.OutermostShell;
 			else if (ShellType == ShellTypes.InternalShell)
-				flags = PathTypeFlags.InteriorShell;
+				flags = FillTypeFlags.InteriorShell;
 				
             if ( FilterSelfOverlaps == false ) {
                 foreach (GeneralPolygon2d shell in shell_polys)

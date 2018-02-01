@@ -14,7 +14,7 @@ namespace gs
         public SparseLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
         {
             SimplifyAmount = SimplificationLevel.Moderate;
-            TypeFlags = PathTypeFlags.SparseInfill;
+            TypeFlags = FillTypeFlags.SparseInfill;
         }
     }
 
@@ -28,7 +28,7 @@ namespace gs
         public SupportLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
         {
             SimplifyAmount = SimplificationLevel.Aggressive;
-            TypeFlags = PathTypeFlags.SupportMaterial;
+            TypeFlags = FillTypeFlags.SupportMaterial;
         }
     }
 

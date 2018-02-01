@@ -63,7 +63,7 @@ namespace gs
         }
 
 
-        public virtual void AppendPaths(List<FillPaths2d> paths)
+        public virtual void AppendPaths(List<FillCurveSet2d> paths)
         {
             if (CurrentSorter == null) {
                 TargetScheduler.AppendPaths(paths);
@@ -93,7 +93,7 @@ namespace gs
             get { return false; }
         }
 
-        public override void AppendPaths(List<FillPaths2d> paths) {
+        public override void AppendPaths(List<FillCurveSet2d> paths) {
             TargetScheduler.AppendPaths(paths);
         }
     }

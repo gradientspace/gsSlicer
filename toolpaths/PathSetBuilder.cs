@@ -86,7 +86,7 @@ namespace gs
 
 		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, 
             List<Index3i> perVertexFlags = null, 
-            PathTypeFlags pathTypeFlags = PathTypeFlags.Unknown
+            FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown
         ) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;
@@ -109,7 +109,7 @@ namespace gs
 
 		public virtual Vector3d AppendExtrude(List<Vector3d> toPoints, double fSpeed, 
             List<Index3i> perVertexFlags = null,
-            PathTypeFlags pathTypeFlags = PathTypeFlags.Unknown
+            FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown
             ) {
 			LinearPath extrusion = new LinearPath(PathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;

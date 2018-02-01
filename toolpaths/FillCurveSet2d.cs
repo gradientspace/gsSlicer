@@ -6,51 +6,51 @@ using g3;
 namespace gs
 {
     /// <summary>
-    /// Collection of loop and curve centerlines of fill paths
+    /// Collection of loop and curve centerlines of fill curves
     /// 
-    /// [TODO] support thickness variation along paths?
+    /// [TODO] support thickness variation along curves?
     /// </summary>
-	public class FillPaths2d
+	public class FillCurveSet2d
 	{
 		public List<FillPolygon2d> Loops = new List<FillPolygon2d>();
 		public List<FillPolyline2d> Curves = new List<FillPolyline2d>();
 
-		public FillPaths2d()
+		public FillCurveSet2d()
 		{
 		}
 
 
-		public void Append(GeneralPolygon2d poly, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+		public void Append(GeneralPolygon2d poly, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
 			Loops.Add(new FillPolygon2d(poly.Outer) { TypeFlags = typeFlags });
 			foreach (var h in poly.Holes)
 				Loops.Add(new FillPolygon2d(h) { TypeFlags = typeFlags });
 		}
 
-		public void Append(List<GeneralPolygon2d> polys, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+		public void Append(List<GeneralPolygon2d> polys, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
 			foreach (var p in polys)
 				Append(p, typeFlags);
 		}
 
-		public void Append(Polygon2d poly, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+		public void Append(Polygon2d poly, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
 			Loops.Add(new FillPolygon2d(poly) { TypeFlags = typeFlags } );
         }
 
-        public void Append(List<Polygon2d> polys, PathTypeFlags typeFlags = PathTypeFlags.Unknown) {
+        public void Append(List<Polygon2d> polys, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
             foreach (var p in polys)
 				Append(p, typeFlags);
         }
 
-        public void Append(FillPolyline2d path) {
-			Curves.Add(path);
+        public void Append(FillPolyline2d curve) {
+			Curves.Add(curve);
 		}
 
-		public void Append(List<FillPolyline2d> paths) {
-			foreach (var p in paths)
+		public void Append(List<FillPolyline2d> curves) {
+			foreach (var p in curves)
 				Append(p);
 		}
 
 
-        public void SetFlags(PathTypeFlags flags)
+        public void SetFlags(FillTypeFlags flags)
         {
             foreach (var loop in Loops)
                 loop.TypeFlags = flags;

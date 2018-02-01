@@ -13,7 +13,7 @@ namespace gs
 
     public interface IPathsFillPolygon : IFillPolygon
     {
-        List<FillPaths2d> GetFillPaths();
+        List<FillCurveSet2d> GetFillPaths();
     }
 
     public interface IShellsFillPolygon : IPathsFillPolygon

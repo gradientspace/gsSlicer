@@ -301,8 +301,8 @@ namespace gs
 
                     // [TODO] maybe we should schedule outermost shell after infill?
                     // schedule shell paths that we pre-computed
-                    List<FillPaths2d> shells_gen_paths = shells_gen.GetFillPaths();
-                    FillPaths2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
+                    List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillPaths();
+                    FillCurveSet2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
                     bool do_outer_last = (shells_gen_paths.Count > 1);
                     groupScheduler.BeginGroup();
                     if (do_outer_last == false) {
@@ -337,7 +337,7 @@ namespace gs
 
                     groupScheduler.BeginGroup();
                     if (do_outer_last) {
-                        groupScheduler.AppendPaths( new List<FillPaths2d>() { outer_shell } );
+                        groupScheduler.AppendPaths( new List<FillCurveSet2d>() { outer_shell } );
                     }
                     groupScheduler.EndGroup();
 
@@ -438,7 +438,7 @@ namespace gs
             //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
             shells_gen.Compute();
             foreach (var fillpath in shells_gen.GetFillPaths())
-                fillpath.SetFlags(PathTypeFlags.SupportMaterial);
+                fillpath.SetFlags(FillTypeFlags.SupportMaterial);
             scheduler.AppendPaths(shells_gen.GetFillPaths());
 
             List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
@@ -460,7 +460,7 @@ namespace gs
                 infill_gen.Compute();
                 foreach (var fillpath in infill_gen.GetFillPaths()) {
                     foreach (var p in fillpath.Curves)
-                        Util.gDevAssert(p.TypeFlags == PathTypeFlags.SupportMaterial);
+                        Util.gDevAssert(p.TypeFlags == FillTypeFlags.SupportMaterial);
                 }
                 scheduler.AppendPaths(infill_gen.GetFillPaths());
             }
@@ -651,10 +651,10 @@ namespace gs
             if (slice.Paths.Count == 0)
                 return;
 
-            FillPaths2d paths = new FillPaths2d();
+            FillCurveSet2d paths = new FillCurveSet2d();
             for ( int pi = 0; pi < slice.Paths.Count; ++pi ) {
 				FillPolyline2d pline = new FillPolyline2d(slice.Paths[pi]) {
-					TypeFlags = PathTypeFlags.OpenShellPath
+					TypeFlags = FillTypeFlags.OpenShellCurve
 				};
 
                 // leave space for end-blobs (input paths are extent we want to hit)
@@ -667,7 +667,7 @@ namespace gs
                 paths.Append(pline);
             }
 
-            scheduler.AppendPaths(new List<FillPaths2d>() { paths });
+            scheduler.AppendPaths(new List<FillCurveSet2d>() { paths });
         }
 
 

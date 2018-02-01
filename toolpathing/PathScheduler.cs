@@ -12,7 +12,7 @@ namespace gs
 
     public interface IPathScheduler
     {
-        void AppendPaths(List<FillPaths2d> paths);
+        void AppendPaths(List<FillCurveSet2d> paths);
 
         SchedulerSpeedHint SpeedHint { get; set; }
     }
@@ -42,8 +42,8 @@ namespace gs
 
 
 
-        public virtual void AppendPaths(List<FillPaths2d> paths) {
-			foreach (FillPaths2d polySet in paths) {
+        public virtual void AppendPaths(List<FillCurveSet2d> paths) {
+			foreach (FillCurveSet2d polySet in paths) {
 				foreach (FillPolygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
 				}
@@ -131,10 +131,10 @@ namespace gs
         // 2) if this is an outer perimeter, scale by outer perimeter speed multiplier
         // 3) if we are being "careful" and this is support, also use that multiplier
         //       (bit of a hack, currently means on first layer we do support extra slow)
-        double select_speed(FillPathCurve2d pathCurve)
+        double select_speed(FillCurve2d pathCurve)
         {
-            bool bIsSupport = pathCurve.HasTypeFlag(PathTypeFlags.SupportMaterial);
-            bool bIsOuterPerimeter = pathCurve.HasTypeFlag(PathTypeFlags.OuterPerimeter);
+            bool bIsSupport = pathCurve.HasTypeFlag(FillTypeFlags.SupportMaterial);
+            bool bIsOuterPerimeter = pathCurve.HasTypeFlag(FillTypeFlags.OuterPerimeter);
             bool bCareful = (SpeedHint == SchedulerSpeedHint.Careful);
             double useSpeed = bCareful ? Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
             if (bIsOuterPerimeter || (bCareful && bIsSupport))

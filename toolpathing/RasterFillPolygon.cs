@@ -22,8 +22,8 @@ namespace gs
 		public bool InsetFromInputPolygon = true;
 
 		// fill paths
-		public List<FillPaths2d> Paths { get; set; }
-        public List<FillPaths2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> Paths { get; set; }
+        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
 
 
         //SegmentSet2d BoundaryPolygonCache;
@@ -31,7 +31,7 @@ namespace gs
 		public RasterFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillPaths2d>();
+			Paths = new List<FillCurveSet2d>();
 		}
 
 
@@ -61,7 +61,7 @@ namespace gs
 
 
 
-		protected FillPaths2d ComputeFillPaths(GeneralPolygon2d poly, SegmentSet2d polyCache) 
+		protected FillCurveSet2d ComputeFillPaths(GeneralPolygon2d poly, SegmentSet2d polyCache) 
 		{
 			List<List<Segment2d>> StepSpans = ComputeSegments(poly, polyCache);
 			int N = StepSpans.Count;
@@ -72,13 +72,13 @@ namespace gs
 
 			// (for now just do dumb things?)
 
-			FillPaths2d paths = new FillPaths2d();
+			FillCurveSet2d paths = new FillCurveSet2d();
 			//FillPolyline2d cur = new FillPolyline2d();
 
 			foreach ( var seglist in StepSpans ) {
 				foreach (Segment2d seg in seglist ) {
 					FillPolyline2d fill_seg = new FillPolyline2d() {
-						TypeFlags = PathTypeFlags.SolidInfill
+						TypeFlags = FillTypeFlags.SolidInfill
 					};
 					fill_seg.AppendVertex(seg.P0);
 					fill_seg.AppendVertex(seg.P1);

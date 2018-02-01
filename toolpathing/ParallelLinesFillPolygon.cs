@@ -32,12 +32,12 @@ namespace gs
         public SimplificationLevel SimplifyAmount = SimplificationLevel.Minor;
 
         // this flag is set on all Paths
-        public PathTypeFlags TypeFlags = PathTypeFlags.SolidInfill;
+        public FillTypeFlags TypeFlags = FillTypeFlags.SolidInfill;
 
 
 		// fill paths
-		public List<FillPaths2d> Paths { get; set; }
-        public List<FillPaths2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> Paths { get; set; }
+        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
 
         // [RMS] only using this for hit-testing to make sure no connectors cross polygon border...
         // [TODO] replace with GeneralPolygon2dBoxTree (currently does not have intersection test!)
@@ -46,7 +46,7 @@ namespace gs
 		public ParallelLinesFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillPaths2d>();
+			Paths = new List<FillCurveSet2d>();
 		}
 
 
@@ -56,7 +56,7 @@ namespace gs
 				BoundaryPolygonCache = new SegmentSet2d(Polygon);
 				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
 				foreach (GeneralPolygon2d poly in current) {
-                    FillPaths2d fillPaths = ComputeFillPaths(poly);
+                    FillCurveSet2d fillPaths = ComputeFillPaths(poly);
                     if (fillPaths != null )
 					    Paths.Add(fillPaths);
 				}
@@ -64,7 +64,7 @@ namespace gs
 			} else {
 				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
 				BoundaryPolygonCache = new SegmentSet2d(boundary);
-                FillPaths2d fillPaths = ComputeFillPaths(Polygon);
+                FillCurveSet2d fillPaths = ComputeFillPaths(Polygon);
                 if (fillPaths != null)
                     Paths.Add(fillPaths);
 			}
@@ -80,9 +80,9 @@ namespace gs
         /// <summary>
         /// fill poly w/ adjacent straight line segments, connected by connectors
         /// </summary>
-        protected FillPaths2d ComputeFillPaths(GeneralPolygon2d poly)
+        protected FillCurveSet2d ComputeFillPaths(GeneralPolygon2d poly)
         {
-            FillPaths2d paths = new FillPaths2d();
+            FillCurveSet2d paths = new FillCurveSet2d();
 
             // smooth the input poly a little bit, this simplifies the filling
             // (simplify after?)

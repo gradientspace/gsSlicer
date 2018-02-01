@@ -195,7 +195,7 @@ namespace gs
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
-			List<FillPaths2d> infill_paths = new List<FillPaths2d>();
+			List<FillCurveSet2d> infill_paths = new List<FillCurveSet2d>();
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
 					InsetFromInputPolygon = false,

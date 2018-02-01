@@ -9,7 +9,7 @@ namespace gs
 	{
 		List<T> Path;
 		PathTypes _pathtype;	// access via Type property
-        PathTypeFlags _pathtype_flags = PathTypeFlags.Unknown;
+        FillTypeFlags _pathtype_flags = FillTypeFlags.Unknown;
 
         // todo: add speed
         //  ?? extend PolyLine3d ??
@@ -61,7 +61,7 @@ namespace gs
 			set { _pathtype = value; }
 		}
 
-        public PathTypeFlags TypeModifiers {
+        public FillTypeFlags TypeModifiers {
             get { return _pathtype_flags; }
             set { _pathtype_flags = value; }
         }

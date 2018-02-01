@@ -130,7 +130,7 @@ namespace gs
 						curRate = newRate;
 
 						double vol_scale = 1;
-                        if ((path.TypeModifiers & PathTypeFlags.SupportMaterial) != 0)
+                        if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
                             vol_scale *= SupportExtrudeScale;
 
                         double feed = calculate_extrude(dist, curRate, vol_scale);
