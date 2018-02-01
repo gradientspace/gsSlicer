@@ -83,6 +83,8 @@ namespace gs
                     string[] stringValues = reader.ReadLine().Split(splitchars, StringSplitOptions.RemoveEmptyEntries);
                     double[] values = Array.ConvertAll( stringValues, Double.Parse);
                     Polygon2d poly = new Polygon2d(values);
+                    if (poly.VertexCount < 3)
+                        continue;
                     complex.Add(poly);
                 }
 
