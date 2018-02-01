@@ -47,9 +47,9 @@
     <Compile Include="sls\SLSCompiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="tests\CalibrationModelGenerator.cs" />
-    <Compile Include="toolpathing\GroupScheduler.cs" />
+    <Compile Include="toolpathing\GroupScheduler2d.cs" />
     <Compile Include="toolpathing\LayerShellSelector.cs" />
-    <Compile Include="toolpathing\SortingScheduler.cs" />
+    <Compile Include="toolpathing\SortingScheduler2d.cs" />
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
     <Compile Include="toolpathing\TiledFillPolygon.cs" />
     <Compile Include="utility\GCodeToTubeMeshes.cs" />
@@ -71,7 +71,7 @@
     <Compile Include="toolpaths\ToolpathUtil.cs" />
     <Compile Include="toolpathing\RasterFillPolygon.cs" />
     <Compile Include="toolpathing\IFillPolygon.cs" />
-    <Compile Include="toolpathing\PathScheduler.cs" />
+    <Compile Include="toolpathing\FillPathScheduler2d.cs" />
     <Compile Include="toolpathing\ShellsFillPolygon.cs" />
     <Compile Include="toolpathing\ParallelLinesFillPolygon.cs" />
     <Compile Include="sls\SLSPrintGenerator.cs" />

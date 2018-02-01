@@ -23,7 +23,7 @@ namespace gs
     /// [TODO] less O(N^2) business?
     /// 
     /// </summary>
-    public class SortingScheduler : IPathScheduler
+    public class SortingScheduler2d : IFillPathScheduler2d
     {
         public SchedulerSpeedHint SpeedHint { get; set; }
 
@@ -55,7 +55,7 @@ namespace gs
 
 
 
-        public void AppendPaths(List<FillCurveSet2d> paths)
+        public void AppendCurveSets(List<FillCurveSet2d> paths)
         {
             foreach (FillCurveSet2d polySet in paths) {
                 foreach (FillPolygon2d loop in polySet.Loops)
@@ -69,7 +69,7 @@ namespace gs
 
 
 
-        public void SortAndAppendTo(Vector2d startPoint, IPathScheduler scheduler)
+        public void SortAndAppendTo(Vector2d startPoint, IFillPathScheduler2d scheduler)
         {
             var saveHint = scheduler.SpeedHint;
             OutPoint = startPoint;
@@ -107,7 +107,7 @@ namespace gs
                 }
 
                 scheduler.SpeedHint = pathHint;
-                scheduler.AppendPaths(new List<FillCurveSet2d>() { paths });
+                scheduler.AppendCurveSets(new List<FillCurveSet2d>() { paths });
             }
 
             scheduler.SpeedHint = saveHint;

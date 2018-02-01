@@ -10,24 +10,22 @@ namespace gs
     }
 
 
-    public interface IPathScheduler
+    public interface IFillPathScheduler2d
     {
-        void AppendPaths(List<FillCurveSet2d> paths);
+        void AppendCurveSets(List<FillCurveSet2d> paths);
 
         SchedulerSpeedHint SpeedHint { get; set; }
     }
 
 
-
-
     // dumbest possible scheduler...
-    public class BasicPathScheduler : IPathScheduler
+    public class SequentialScheduler2d : IFillPathScheduler2d
 	{
 		public ToolpathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
 
 
-		public BasicPathScheduler(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
+		public SequentialScheduler2d(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
 		{
 			Builder = builder;
 			Settings = settings;
@@ -42,7 +40,7 @@ namespace gs
 
 
 
-        public virtual void AppendPaths(List<FillCurveSet2d> paths) {
+        public virtual void AppendCurveSets(List<FillCurveSet2d> paths) {
 			foreach (FillCurveSet2d polySet in paths) {
 				foreach (FillPolygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	

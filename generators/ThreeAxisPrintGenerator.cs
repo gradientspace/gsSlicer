@@ -20,7 +20,7 @@ namespace gs
 		public PrintLayerData PreviousLayer;
 
 		public ToolpathSetBuilder PathAccum;
-		public IPathScheduler Scheduler;
+		public IFillPathScheduler2d Scheduler;
 
 		public List<IShellsFillPolygon> ShellFills;
 
@@ -72,7 +72,7 @@ namespace gs
 		public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
 
 		// Replace this to use a different scheduler
-		public Func<PrintLayerData, IPathScheduler> SchedulerFactoryF;
+		public Func<PrintLayerData, IFillPathScheduler2d> SchedulerFactoryF;
 
         // Replace this to use a different shell selector
         public Func<PrintLayerData, ILayerShellsSelector> ShellSelectorFactoryF;
@@ -251,8 +251,8 @@ namespace gs
 
 				// rest of code does not directly access path builder, instead it
 				// sends paths to scheduler.
-				IPathScheduler layerScheduler = SchedulerFactoryF(layerdata);
-                GroupScheduler groupScheduler = new GroupScheduler(layerScheduler, Compiler.NozzlePosition.xy);
+				IFillPathScheduler2d layerScheduler = SchedulerFactoryF(layerdata);
+                GroupScheduler2d groupScheduler = new GroupScheduler2d(layerScheduler, Compiler.NozzlePosition.xy);
                 //GroupScheduler groupScheduler = new PassThroughGroupScheduler(layerScheduler, Compiler.NozzlePosition.xy);
                 layerdata.Scheduler = groupScheduler;
 
@@ -306,9 +306,9 @@ namespace gs
                     bool do_outer_last = (shells_gen_paths.Count > 1);
                     groupScheduler.BeginGroup();
                     if (do_outer_last == false) {
-                        groupScheduler.AppendPaths(shells_gen_paths);
+                        groupScheduler.AppendCurveSets(shells_gen_paths);
                     } else {
-                        groupScheduler.AppendPaths(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
+                        groupScheduler.AppendCurveSets(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
                     }
                     groupScheduler.EndGroup();
 
@@ -337,7 +337,7 @@ namespace gs
 
                     groupScheduler.BeginGroup();
                     if (do_outer_last) {
-                        groupScheduler.AppendPaths( new List<FillCurveSet2d>() { outer_shell } );
+                        groupScheduler.AppendCurveSets( new List<FillCurveSet2d>() { outer_shell } );
                     }
                     groupScheduler.EndGroup();
 
@@ -374,7 +374,7 @@ namespace gs
         /// fill all infill regions
         /// </summary>
         protected virtual void fill_infill_regions(List<GeneralPolygon2d> infill_regions,
-            IPathScheduler scheduler, PrintLayerData layer_data )
+            IFillPathScheduler2d scheduler, PrintLayerData layer_data )
         {
             foreach (GeneralPolygon2d infill_poly in infill_regions) {
                 List<GeneralPolygon2d> polys = new List<GeneralPolygon2d>() { infill_poly };
@@ -393,7 +393,7 @@ namespace gs
         /// <summary>
         /// fill polygon with sparse infill strategy
         /// </summary>
-		protected virtual void fill_infill_region(GeneralPolygon2d infill_poly, IPathScheduler scheduler, PrintLayerData layer_data)
+		protected virtual void fill_infill_region(GeneralPolygon2d infill_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
             IPathsFillPolygon infill_gen = new SparseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
@@ -403,14 +403,14 @@ namespace gs
             };
             infill_gen.Compute();
 
-			scheduler.AppendPaths(infill_gen.GetFillPaths());
+			scheduler.AppendCurveSets(infill_gen.GetFillPaths());
         }
 
 
 
 
         protected virtual void fill_support_regions(List<GeneralPolygon2d> support_regions,
-            IPathScheduler scheduler, PrintLayerData layer_data)
+            IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
             foreach (GeneralPolygon2d support_poly in support_regions)
                 fill_support_region(support_poly, scheduler, layer_data);
@@ -421,7 +421,7 @@ namespace gs
         /// <summary>
         /// fill polygon with support infill strategy
         /// </summary>
-		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IPathScheduler scheduler, PrintLayerData layer_data)
+		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
             if (support_poly.Bounds.MaxDim < 2.0)
                 return;
@@ -439,7 +439,7 @@ namespace gs
             shells_gen.Compute();
             foreach (var fillpath in shells_gen.GetFillPaths())
                 fillpath.SetFlags(FillTypeFlags.SupportMaterial);
-            scheduler.AppendPaths(shells_gen.GetFillPaths());
+            scheduler.AppendCurveSets(shells_gen.GetFillPaths());
 
             List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
             if (Settings.SparseFillBorderOverlapX > 0) {
@@ -462,7 +462,7 @@ namespace gs
                     foreach (var p in fillpath.Curves)
                         Util.gDevAssert(p.TypeFlags == FillTypeFlags.SupportMaterial);
                 }
-                scheduler.AppendPaths(infill_gen.GetFillPaths());
+                scheduler.AppendCurveSets(infill_gen.GetFillPaths());
             }
         }
 
@@ -474,7 +474,7 @@ namespace gs
         /// fill set of solid regions
         /// </summary>
         protected virtual void fill_solid_regions(List<GeneralPolygon2d> solid_regions,
-            IPathScheduler scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
+            IFillPathScheduler2d scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
         {
             foreach (GeneralPolygon2d solid_poly in solid_regions)
                 fill_solid_region(layer_data, solid_poly, scheduler, bIsInfillAdjacent);
@@ -491,7 +491,7 @@ namespace gs
         /// </summary>
         protected virtual void fill_solid_region(PrintLayerData layer_data, 
 		                                         GeneralPolygon2d solid_poly, 
-                                                 IPathScheduler scheduler,
+                                                 IFillPathScheduler2d scheduler,
                                                  bool bIsInfillAdjacent = false )
         {
             List<GeneralPolygon2d> fillPolys = new List<GeneralPolygon2d>() { solid_poly };
@@ -512,7 +512,7 @@ namespace gs
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                 interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
                 interior_shells.Compute();
-                scheduler.AppendPaths(interior_shells.GetFillPaths());
+                scheduler.AppendCurveSets(interior_shells.GetFillPaths());
                 fillPolys = interior_shells.InnerPolygons;
             }
 
@@ -532,7 +532,7 @@ namespace gs
 
                 solid_gen.Compute();
 
-				scheduler.AppendPaths(solid_gen.GetFillPaths());
+				scheduler.AppendCurveSets(solid_gen.GetFillPaths());
             }
         }
 
@@ -645,7 +645,7 @@ namespace gs
         /// schedule any non-polygonal paths for the given layer (eg paths
         /// that resulted from open meshes, for example)
         /// </summary>
-		protected virtual void add_open_paths(PrintLayerData layerdata, IPathScheduler scheduler)
+		protected virtual void add_open_paths(PrintLayerData layerdata, IFillPathScheduler2d scheduler)
         {
 			PlanarSlice slice = layerdata.Slice;
             if (slice.Paths.Count == 0)
@@ -667,7 +667,7 @@ namespace gs
                 paths.Append(pline);
             }
 
-            scheduler.AppendPaths(new List<FillCurveSet2d>() { paths });
+            scheduler.AppendCurveSets(new List<FillCurveSet2d>() { paths });
         }
 
 
@@ -896,9 +896,9 @@ namespace gs
         /// <summary>
         /// Factory function to return a new PathScheduler to use for this layer.
         /// </summary>
-		protected virtual IPathScheduler get_layer_scheduler(PrintLayerData layer_data)
+		protected virtual IFillPathScheduler2d get_layer_scheduler(PrintLayerData layer_data)
         {
-			BasicPathScheduler scheduler = new BasicPathScheduler(layer_data.PathAccum, layer_data.Settings);
+			SequentialScheduler2d scheduler = new SequentialScheduler2d(layer_data.PathAccum, layer_data.Settings);
 
             // be careful on first layer
 			scheduler.SpeedHint = (layer_data.layer_i == CurStartLayer) ?

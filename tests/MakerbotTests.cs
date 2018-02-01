@@ -74,7 +74,7 @@ namespace gs
 			// layer-up
 			currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-			BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+			SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
 
 			Polygon2d poly = new Polygon2d();
 			double r = 10;
@@ -94,7 +94,7 @@ namespace gs
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
-			scheduler.AppendPaths(shells_gen.Shells);
+			scheduler.AppendCurveSets(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
@@ -103,7 +103,7 @@ namespace gs
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.AppendPaths(infill_gen.Paths);
+				scheduler.AppendCurveSets(infill_gen.Paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -137,7 +137,7 @@ namespace gs
 			// layer-up
 			currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-			BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+			SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
 
 			ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
 			shells_gen.PathSpacing = settings.SolidFillPathSpacingMM();
@@ -145,7 +145,7 @@ namespace gs
 			shells_gen.Layers = 2;
 			shells_gen.Compute();
 
-			scheduler.AppendPaths(shells_gen.Shells);
+			scheduler.AppendCurveSets(shells_gen.Shells);
 
 			foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 				ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
@@ -154,7 +154,7 @@ namespace gs
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.AppendPaths(infill_gen.Paths);
+				scheduler.AppendCurveSets(infill_gen.Paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -209,9 +209,9 @@ namespace gs
 				paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
 				// add paths
-				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
-				scheduler.AppendPaths(shells_gen.Shells);
-				scheduler.AppendPaths(infill_paths);
+				SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
+				scheduler.AppendCurveSets(shells_gen.Shells);
+				scheduler.AppendCurveSets(infill_paths);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -250,7 +250,7 @@ namespace gs
 				// layer-up
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+				SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
 
 				GeneralPolygon2d shape = new GeneralPolygon2d(shapeIn);
 				shape.Scale(scale*Vector2d.One, Vector2d.Zero);
@@ -261,7 +261,7 @@ namespace gs
 				shells_gen.Layers = 2;
 				shells_gen.Compute();
 
-				scheduler.AppendPaths(shells_gen.Shells);
+				scheduler.AppendCurveSets(shells_gen.Shells);
 
 				foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 					ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
@@ -270,7 +270,7 @@ namespace gs
 						ToolWidth = settings.Machine.NozzleDiamMM
 					};
 					infill_gen.Compute();
-					scheduler.AppendPaths(infill_gen.Paths);
+					scheduler.AppendCurveSets(infill_gen.Paths);
 				}
 
 				cc.AppendPaths(paths.Paths);
@@ -326,7 +326,7 @@ namespace gs
 				bool is_infill = (i >= RoofFloorLayers && i < nLayers - RoofFloorLayers-1);
 				double fillScale = (is_infill) ? InfillScale : 1.0f;
 
-				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+				SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
 
 				foreach(GeneralPolygon2d shape in slice.Solids) {
 					ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
@@ -335,7 +335,7 @@ namespace gs
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
 
-					scheduler.AppendPaths(shells_gen.Shells);
+					scheduler.AppendCurveSets(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
@@ -345,7 +345,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.AppendPaths(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.Paths);
 					}
 				}
 
@@ -486,7 +486,7 @@ namespace gs
 				bool is_infill = (i >= settings.FloorLayers && i < nLayers - settings.RoofLayers - 1);
 				double fillScale = (is_infill) ? settings.SparseLinearInfillStepX : 1.0f;
 
-				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+				SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
 
 				// construct region that needs to be solid for "roofs".
 				// This is the intersection of infill polygons for the next N layers
@@ -544,7 +544,7 @@ namespace gs
 				for (int si = 0; si < curShells.Count; si++) {
 					ShellsFillPolygon shells_gen = curShells[si];
 
-					scheduler.AppendPaths(shells_gen.Shells);
+					scheduler.AppendCurveSets(shells_gen.Shells);
 
 					// construct infill poly list
 					List<GeneralPolygon2d> infillPolys = new List<GeneralPolygon2d>();
@@ -589,7 +589,7 @@ namespace gs
 							interior_shells.Layers = InteriorSolidRegionContours;
 							interior_shells.InsetFromInputPolygon = false;
 							interior_shells.Compute();
-							scheduler.AppendPaths(interior_shells.Shells);
+							scheduler.AppendCurveSets(interior_shells.Shells);
 							fillPolys = interior_shells.InnerPolygons;
 						}
 
@@ -602,7 +602,7 @@ namespace gs
 								AngleDeg = infill_angles[i % infill_angles.Length]
 							};
 							solid_gen.Compute();
-							scheduler.AppendPaths(solid_gen.Paths);
+							scheduler.AppendCurveSets(solid_gen.Paths);
 						}
 					}
 
@@ -615,7 +615,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.AppendPaths(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.Paths);
 					}
 				}
 
@@ -639,7 +639,7 @@ namespace gs
 					shells_gen.InsetFromInputPolygon = false;
 					shells_gen.Layers = 1;
 					shells_gen.Compute();
-					scheduler.AppendPaths(shells_gen.Shells);		
+					scheduler.AppendCurveSets(shells_gen.Shells);		
 				}
 
 
@@ -711,7 +711,7 @@ namespace gs
 				// layer-up
 				currentPos = paths.AppendZChange(settings.LayerHeightMM, settings.ZTravelSpeed);
 
-				BasicPathScheduler scheduler = new BasicPathScheduler(paths, settings);
+				SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, settings);
                 if (is_infill && enable_rapid)
                     scheduler.SpeedHint = SchedulerSpeedHint.Rapid;
                 else
@@ -724,7 +724,7 @@ namespace gs
 					shells_gen.Layers = 2;
 					shells_gen.Compute();
 
-					scheduler.AppendPaths(shells_gen.Shells);
+					scheduler.AppendCurveSets(shells_gen.Shells);
 
 					foreach (GeneralPolygon2d infill_poly in shells_gen.InnerPolygons) {
 						ParallelLinesFillPolygon infill_gen = new ParallelLinesFillPolygon(infill_poly) {
@@ -736,7 +736,7 @@ namespace gs
 								? 0 : (fillScale * settings.SolidFillPathSpacingMM() * (0.5))
 						};
 						infill_gen.Compute();
-						scheduler.AppendPaths(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.Paths);
 					}
 				}
 

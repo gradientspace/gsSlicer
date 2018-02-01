@@ -141,7 +141,7 @@ namespace gs
 
                 // rest of code does not directly access path builder, instead if
                 // sends paths to scheduler.
-                BasicPathScheduler scheduler = new BasicPathScheduler(paths, Settings);
+                SequentialScheduler2d scheduler = new SequentialScheduler2d(paths, Settings);
 
                 // a layer can contain multiple disjoint regions. Process each separately.
                 List<ShellsFillPolygon> layer_shells = LayerShells[layer_i];
@@ -149,7 +149,7 @@ namespace gs
 
                     // schedule shell paths that we pre-computed
                     ShellsFillPolygon shells_gen = layer_shells[si];
-                    scheduler.AppendPaths(shells_gen.Shells);
+                    scheduler.AppendCurveSets(shells_gen.Shells);
 
                     // all client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
@@ -183,7 +183,7 @@ namespace gs
         /// for the filament to attach to, so it pulls back. ugly!)
         /// </summary>
         protected virtual void fill_solid_region(int layer_i, GeneralPolygon2d solid_poly, 
-                                                 IPathScheduler scheduler,
+                                                 IFillPathScheduler2d scheduler,
                                                  bool bIsInfillAdjacent = false )
         {
             List<GeneralPolygon2d> fillPolys = new List<GeneralPolygon2d>() { solid_poly };
@@ -201,7 +201,7 @@ namespace gs
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygon = false;
                 interior_shells.Compute();
-                scheduler.AppendPaths(interior_shells.Shells);
+                scheduler.AppendCurveSets(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;
             }
 
@@ -223,7 +223,7 @@ namespace gs
                 };
 
                 tiled_fill.Compute();
-                scheduler.AppendPaths(tiled_fill.Paths);
+                scheduler.AppendCurveSets(tiled_fill.Paths);
             }
         }
 
