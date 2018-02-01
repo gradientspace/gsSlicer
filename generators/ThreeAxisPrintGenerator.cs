@@ -426,6 +426,19 @@ namespace gs
 
 
 
+
+        /// <summary>
+        /// fill set of solid regions
+        /// </summary>
+        protected virtual void fill_solid_regions(List<GeneralPolygon2d> solid_regions,
+            IPathScheduler scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
+        {
+            foreach (GeneralPolygon2d solid_poly in solid_regions)
+                fill_solid_region(layer_data, solid_poly, scheduler, bIsInfillAdjacent);
+        }
+
+
+
         /// <summary>
         /// Fill polygon with solid fill strategy. 
         /// If bIsInfillAdjacent, then we optionally add one or more shells around the solid
