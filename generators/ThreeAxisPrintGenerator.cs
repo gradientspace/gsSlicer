@@ -283,9 +283,15 @@ namespace gs
                     }
                 }
 
-				// a layer can contain multiple disjoint regions. Process each separately.
-				List<IShellsFillPolygon> layer_shells = layerdata.ShellFills;
-                for (int si = 0; si < layer_shells.Count; si++) {
+                // do support first
+                // this could be done in parallel w/ roof/floor...
+                if (Settings.EnableSupport) {
+                    List<GeneralPolygon2d> support_areas = get_layer_support_area(layer_i);
+                    groupScheduler.BeginGroup();
+                    fill_support_regions(support_areas, groupScheduler, layerdata);
+                    groupScheduler.EndGroup();
+                }
+
                 // selector determines what order we process shells in
                 ILayerShellsSelector shellSelector = ShellSelectorFactoryF(layerdata);
 
@@ -402,25 +408,62 @@ namespace gs
 
 
 
+
+        protected virtual void fill_support_regions(List<GeneralPolygon2d> support_regions,
+            IPathScheduler scheduler, PrintLayerData layer_data)
+        {
+            foreach (GeneralPolygon2d support_poly in support_regions)
+                fill_support_region(support_poly, scheduler, layer_data);
+        }
+
+
+
         /// <summary>
         /// fill polygon with support infill strategy
         /// </summary>
-		protected virtual void fill_support_region(PrintLayerData layer_data, GeneralPolygon2d support_poly, IPathScheduler scheduler)
+		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IPathScheduler scheduler, PrintLayerData layer_data)
         {
+            if (support_poly.Bounds.MaxDim < 2.0)
+                return;
             // useful to visualize support polygons...
             // [TODO] might make more sense to use a shell if poly is very thin/elongated, or tiny
-            //IShellsFillPolygon fill = compute_shells_for_shape(support_poly);
-            //scheduler.AppendPaths(fill.GetFillPaths());
 
-            IPathsFillPolygon infill_gen = new DenseLinesFillPolygon(support_poly) {
-                InsetFromInputPolygon = true,
-                PathSpacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM(),
-                ToolWidth = Settings.Machine.NozzleDiamMM,
-                AngleDeg = 0
-            };
-            infill_gen.Compute();
+            ShellsFillPolygon shells_gen = new ShellsFillPolygon(support_poly);
+            shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
+            shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
+            shells_gen.Layers = 1;
+            shells_gen.FilterSelfOverlaps = false;
+            //shells_gen.FilterSelfOverlaps = true;
+            //shells_gen.PreserveOuterShells = false;
+            //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
+            shells_gen.Compute();
+            foreach (var fillpath in shells_gen.GetFillPaths())
+                fillpath.SetFlags(PathTypeFlags.SupportMaterial);
+            scheduler.AppendPaths(shells_gen.GetFillPaths());
 
-            scheduler.AppendPaths(infill_gen.GetFillPaths());
+            List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
+            if (Settings.SparseFillBorderOverlapX > 0) {
+                double offset = Settings.Machine.NozzleDiamMM * Settings.SparseFillBorderOverlapX;
+                inner_shells = ClipperUtil.MiterOffset(inner_shells, offset);
+            }
+
+            foreach ( var poly in inner_shells ) {
+                if (poly.Bounds.MaxDim < 2.0)
+                    continue;
+
+                SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
+                    InsetFromInputPolygon = false,
+                    PathSpacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM(),
+                    ToolWidth = Settings.Machine.NozzleDiamMM,
+                    AngleDeg = 0,
+                };
+                infill_gen.Compute();
+                foreach (var fillpath in infill_gen.GetFillPaths()) {
+                    foreach (var p in fillpath.Curves)
+                        Util.gDevAssert(p.TypeFlags == PathTypeFlags.SupportMaterial);
+                }
+                scheduler.AppendPaths(infill_gen.GetFillPaths());
+            }
         }
 
 
@@ -739,15 +782,20 @@ namespace gs
         /// </summary>
         protected virtual void precompute_support_areas()
         {
+            // should be parameterizable? this is 45 degrees...
+            //   (is it? 45 if nozzlediam == layerheight...)
+            //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
+            double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(30 * MathUtil.Deg2Rad);
+            //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
+            double fPrintWidth = Settings.Machine.NozzleDiamMM;
+            double fMergeDownDilate = fPrintWidth * 0.5;  // see if(dilate) below
+            double fSupportGapInLayer = fPrintWidth * 0.5;
+            double DiscardHoleSizeMM = 0.0;
+
             int nLayers = Slices.Count;
 
             LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
 
-            // should be parameterizable? this is 45 degrees...
-            //   (is it? 45 if nozzlediam == layerheight...)
-            //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
-            double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
-            double fMergeDownDilate = Settings.Machine.NozzleDiamMM * 0.5;  // ??
 
             // Compute required support area for each layer
             // Note that this does *not* include thickness allowance, this is
@@ -773,14 +821,51 @@ namespace gs
 
                 // union down
                 List<GeneralPolygon2d> combineSupport = null;
+
+                // [RMS] smooth the support polygon from the previous layer. if we allow
+                // shrinking then they will shrink to nothing, though...need to bound this somehow
+                List<GeneralPolygon2d> support_above = new List<GeneralPolygon2d>();
+                bool grow = true, shrink = false;
+                foreach ( GeneralPolygon2d solid in prevSupport ) {
+                    GeneralPolygon2d copy = new GeneralPolygon2d();
+                    copy.Outer = new Polygon2d(solid.Outer);
+                    CurveUtils2.LaplacianSmoothConstrained(copy.Outer, 0.5, 5, fMergeDownDilate, shrink, grow);
+                    List<GeneralPolygon2d> outer_clip = (solid.Holes.Count == 0) ? null : ClipperUtil.ComputeOffsetPolygon(copy, -fPrintWidth, true);
+                    foreach (Polygon2d hole in solid.Holes) {
+                        if (hole.Bounds.MaxDim < DiscardHoleSizeMM)
+                            continue;
+                        Polygon2d new_hole = new Polygon2d(hole);
+                        CurveUtils2.LaplacianSmoothConstrained(new_hole, 0.5, 5, fMergeDownDilate, shrink, grow);
+
+                        List<GeneralPolygon2d> clipped_holes = 
+                            ClipperUtil.Difference(new GeneralPolygon2d(new_hole), outer_clip);
+                        foreach (GeneralPolygon2d cliphole in clipped_holes) {
+                            new_hole = cliphole.Outer;
+                            if (new_hole.Bounds.MaxDim > DiscardHoleSizeMM) {
+                                if (new_hole.IsClockwise == false )
+                                    new_hole.Reverse();
+                                copy.AddHole(new_hole, true);
+                            }
+                        }
+                    }
+                    support_above.Add(copy);
+                }
+
+
+
+                // [TODO] should discard small interior holes here if they don't intersect layer...
+
+                // [RMS] support polygons were contracted above, so on successive layers they will not
+                // necessarily intersect (eg on angled slab, each support area will be disjoint). 
+                // So, we grow them back, boolean, and shrink again
                 bool dilate = true;
                 if (dilate) {
-                    List<GeneralPolygon2d> a = ClipperUtil.MiterOffset(prevSupport, fMergeDownDilate);
+                    List<GeneralPolygon2d> a = ClipperUtil.MiterOffset(support_above, fMergeDownDilate);
                     List<GeneralPolygon2d> b = ClipperUtil.MiterOffset(LayerSupportAreas[i], fMergeDownDilate);
                     combineSupport = ClipperUtil.Union(a, b);
                     combineSupport = ClipperUtil.MiterOffset(combineSupport, -fMergeDownDilate);
                 } else {
-                    combineSupport = ClipperUtil.Union(prevSupport, LayerSupportAreas[i]);
+                    combineSupport = ClipperUtil.Union(support_above, LayerSupportAreas[i]);
                 }
 
                 // support area we propagate down is combined area minus solid
@@ -788,7 +873,7 @@ namespace gs
 
                 // on this layer, we need to leave space for filament, by dilating solid by
                 // half nozzle-width and subtracting it
-                List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, Settings.Machine.NozzleDiamMM*0.5);
+                List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
                 combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
 
                 // the actual area we will support is nudged inwards
