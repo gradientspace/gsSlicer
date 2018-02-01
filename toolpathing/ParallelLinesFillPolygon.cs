@@ -6,7 +6,7 @@ using g3;
 
 namespace gs
 {
-	public class ParallelLinesFillPolygon : IPathsFillPolygon
+	public class ParallelLinesFillPolygon : ICurvesFillPolygon
     {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
@@ -36,8 +36,8 @@ namespace gs
 
 
 		// fill paths
-		public List<FillCurveSet2d> Paths { get; set; }
-        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> FillCurves { get; set; }
+        public List<FillCurveSet2d> GetFillCurves() { return FillCurves; }
 
         // [RMS] only using this for hit-testing to make sure no connectors cross polygon border...
         // [TODO] replace with GeneralPolygon2dBoxTree (currently does not have intersection test!)
@@ -46,7 +46,7 @@ namespace gs
 		public ParallelLinesFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillCurveSet2d>();
+			FillCurves = new List<FillCurveSet2d>();
 		}
 
 
@@ -58,7 +58,7 @@ namespace gs
 				foreach (GeneralPolygon2d poly in current) {
                     FillCurveSet2d fillPaths = ComputeFillPaths(poly);
                     if (fillPaths != null )
-					    Paths.Add(fillPaths);
+					    FillCurves.Add(fillPaths);
 				}
 
 			} else {
@@ -66,7 +66,7 @@ namespace gs
 				BoundaryPolygonCache = new SegmentSet2d(boundary);
                 FillCurveSet2d fillPaths = ComputeFillPaths(Polygon);
                 if (fillPaths != null)
-                    Paths.Add(fillPaths);
+                    FillCurves.Add(fillPaths);
 			}
 
 

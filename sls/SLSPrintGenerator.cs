@@ -223,7 +223,7 @@ namespace gs
                 };
 
                 tiled_fill.Compute();
-                scheduler.AppendCurveSets(tiled_fill.Paths);
+                scheduler.AppendCurveSets(tiled_fill.FillCurves);
             }
         }
 

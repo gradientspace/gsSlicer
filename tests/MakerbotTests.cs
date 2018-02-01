@@ -103,7 +103,7 @@ namespace gs
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.AppendCurveSets(infill_gen.Paths);
+				scheduler.AppendCurveSets(infill_gen.FillCurves);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -154,7 +154,7 @@ namespace gs
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				scheduler.AppendCurveSets(infill_gen.Paths);
+				scheduler.AppendCurveSets(infill_gen.FillCurves);
 			}
 
 			cc.AppendPaths(paths.Paths);
@@ -201,7 +201,7 @@ namespace gs
 					ToolWidth = settings.Machine.NozzleDiamMM
 				};
 				infill_gen.Compute();
-				infill_paths.AddRange(infill_gen.Paths);
+				infill_paths.AddRange(infill_gen.FillCurves);
 			}
 
 			for (int i = 0; i < nLayers; ++i) {
@@ -270,7 +270,7 @@ namespace gs
 						ToolWidth = settings.Machine.NozzleDiamMM
 					};
 					infill_gen.Compute();
-					scheduler.AppendCurveSets(infill_gen.Paths);
+					scheduler.AppendCurveSets(infill_gen.FillCurves);
 				}
 
 				cc.AppendPaths(paths.Paths);
@@ -345,7 +345,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.AppendCurveSets(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.FillCurves);
 					}
 				}
 
@@ -602,7 +602,7 @@ namespace gs
 								AngleDeg = infill_angles[i % infill_angles.Length]
 							};
 							solid_gen.Compute();
-							scheduler.AppendCurveSets(solid_gen.Paths);
+							scheduler.AppendCurveSets(solid_gen.FillCurves);
 						}
 					}
 
@@ -615,7 +615,7 @@ namespace gs
 							AngleDeg = infill_angles[i % infill_angles.Length]
 						};
 						infill_gen.Compute();
-						scheduler.AppendCurveSets(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.FillCurves);
 					}
 				}
 
@@ -736,7 +736,7 @@ namespace gs
 								? 0 : (fillScale * settings.SolidFillPathSpacingMM() * (0.5))
 						};
 						infill_gen.Compute();
-						scheduler.AppendCurveSets(infill_gen.Paths);
+						scheduler.AppendCurveSets(infill_gen.FillCurves);
 					}
 				}
 

@@ -74,7 +74,7 @@ namespace gs
         /// Return shell paths groups. Same as .Shells property, but
         /// here returned nesting order is [1...N,0]
         /// </summary>
-        public List<FillCurveSet2d> GetFillPaths() {
+        public List<FillCurveSet2d> GetFillCurves() {
             List<FillCurveSet2d> result = new List<FillCurveSet2d>();
             for (int k = 1; k < Shells.Count; ++k)
                 result.Add(Shells[k]);

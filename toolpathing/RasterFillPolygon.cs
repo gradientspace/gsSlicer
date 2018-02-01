@@ -4,7 +4,7 @@ using g3;
 
 namespace gs
 {
-	public class RasterFillPolygon : IPathsFillPolygon
+	public class RasterFillPolygon : ICurvesFillPolygon
     {
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
@@ -22,8 +22,8 @@ namespace gs
 		public bool InsetFromInputPolygon = true;
 
 		// fill paths
-		public List<FillCurveSet2d> Paths { get; set; }
-        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> FillCurves { get; set; }
+        public List<FillCurveSet2d> GetFillCurves() { return FillCurves; }
 
 
         //SegmentSet2d BoundaryPolygonCache;
@@ -31,7 +31,7 @@ namespace gs
 		public RasterFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillCurveSet2d>();
+			FillCurves = new List<FillCurveSet2d>();
 		}
 
 
@@ -42,7 +42,7 @@ namespace gs
 				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
 				foreach (GeneralPolygon2d poly in current) {
 					SegmentSet2d polyCache = new SegmentSet2d(poly);
-					Paths.Add(ComputeFillPaths(poly, polyCache));
+					FillCurves.Add(ComputeFillPaths(poly, polyCache));
 				}
 
 			} else {
@@ -50,7 +50,7 @@ namespace gs
 				//BoundaryPolygonCache = new SegmentSet2d(boundary);
 
 				SegmentSet2d polyCache = new SegmentSet2d(Polygon);
-				Paths.Add(ComputeFillPaths(Polygon, polyCache));
+				FillCurves.Add(ComputeFillPaths(Polygon, polyCache));
 
 			}
 

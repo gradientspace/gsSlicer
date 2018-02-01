@@ -4,9 +4,9 @@ using g3;
 
 namespace gs
 {
-	public class TiledFillPolygon : IPathsFillPolygon
+	public class TiledFillPolygon : ICurvesFillPolygon
     {
-        public Func<GeneralPolygon2d, Vector2i, IPathsFillPolygon> TileFillGeneratorF;
+        public Func<GeneralPolygon2d, Vector2i, ICurvesFillPolygon> TileFillGeneratorF;
 
 		// polygon to fill
 		public GeneralPolygon2d Polygon { get; set; }
@@ -16,13 +16,13 @@ namespace gs
 
 
 		// fill paths
-		public List<FillCurveSet2d> Paths { get; set; }
-        public List<FillCurveSet2d> GetFillPaths() { return Paths; }
+		public List<FillCurveSet2d> FillCurves { get; set; }
+        public List<FillCurveSet2d> GetFillCurves() { return FillCurves; }
 
         public TiledFillPolygon(GeneralPolygon2d poly)
 		{
 			Polygon = poly;
-			Paths = new List<FillCurveSet2d>();
+			FillCurves = new List<FillCurveSet2d>();
 		}
 
 
@@ -31,7 +31,7 @@ namespace gs
             public Vector2i index;
             public Polygon2d poly;
             public List<GeneralPolygon2d> regions;
-            public IPathsFillPolygon[] fills;
+            public ICurvesFillPolygon[] fills;
         }
 
 
@@ -66,12 +66,12 @@ namespace gs
             });
 
 
-            List<IPathsFillPolygon> all_fills = new List<IPathsFillPolygon>();
+            List<ICurvesFillPolygon> all_fills = new List<ICurvesFillPolygon>();
 
             foreach ( Tile t in Tiles ) {
                 if (t.regions.Count == 0)
                     continue;
-                t.fills = new IPathsFillPolygon[t.regions.Count];
+                t.fills = new ICurvesFillPolygon[t.regions.Count];
                 for ( int k = 0; k < t.regions.Count; ++k) {
                     t.fills[k] = TileFillGeneratorF(t.regions[k], t.index);
                     if ( t.fills[k] != null )
@@ -85,11 +85,11 @@ namespace gs
             });
 
 
-            Paths = new List<FillCurveSet2d>();
-            foreach (IPathsFillPolygon fill in all_fills) {
-                List<FillCurveSet2d> result = fill.GetFillPaths();
+            FillCurves = new List<FillCurveSet2d>();
+            foreach (ICurvesFillPolygon fill in all_fills) {
+                List<FillCurveSet2d> result = fill.GetFillCurves();
                 if (result != null && result.Count > 0)
-                    Paths.AddRange(result);
+                    FillCurves.AddRange(result);
             }
 
 

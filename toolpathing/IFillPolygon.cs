@@ -11,12 +11,12 @@ namespace gs
 	}
 
 
-    public interface IPathsFillPolygon : IFillPolygon
+    public interface ICurvesFillPolygon : IFillPolygon
     {
-        List<FillCurveSet2d> GetFillPaths();
+        List<FillCurveSet2d> GetFillCurves();
     }
 
-    public interface IShellsFillPolygon : IPathsFillPolygon
+    public interface IShellsFillPolygon : ICurvesFillPolygon
     {
         List<GeneralPolygon2d> GetInnerPolygons();
     }

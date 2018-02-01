@@ -301,7 +301,7 @@ namespace gs
 
                     // [TODO] maybe we should schedule outermost shell after infill?
                     // schedule shell paths that we pre-computed
-                    List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillPaths();
+                    List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillCurves();
                     FillCurveSet2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
                     bool do_outer_last = (shells_gen_paths.Count > 1);
                     groupScheduler.BeginGroup();
@@ -395,7 +395,7 @@ namespace gs
         /// </summary>
 		protected virtual void fill_infill_region(GeneralPolygon2d infill_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
-            IPathsFillPolygon infill_gen = new SparseLinesFillPolygon(infill_poly) {
+            ICurvesFillPolygon infill_gen = new SparseLinesFillPolygon(infill_poly) {
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
@@ -403,7 +403,7 @@ namespace gs
             };
             infill_gen.Compute();
 
-			scheduler.AppendCurveSets(infill_gen.GetFillPaths());
+			scheduler.AppendCurveSets(infill_gen.GetFillCurves());
         }
 
 
@@ -437,9 +437,9 @@ namespace gs
             //shells_gen.PreserveOuterShells = false;
             //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
             shells_gen.Compute();
-            foreach (var fillpath in shells_gen.GetFillPaths())
+            foreach (var fillpath in shells_gen.GetFillCurves())
                 fillpath.SetFlags(FillTypeFlags.SupportMaterial);
-            scheduler.AppendCurveSets(shells_gen.GetFillPaths());
+            scheduler.AppendCurveSets(shells_gen.GetFillCurves());
 
             List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
             if (Settings.SparseFillBorderOverlapX > 0) {
@@ -458,11 +458,11 @@ namespace gs
                     AngleDeg = 0,
                 };
                 infill_gen.Compute();
-                foreach (var fillpath in infill_gen.GetFillPaths()) {
+                foreach (var fillpath in infill_gen.GetFillCurves()) {
                     foreach (var p in fillpath.Curves)
                         Util.gDevAssert(p.TypeFlags == FillTypeFlags.SupportMaterial);
                 }
-                scheduler.AppendCurveSets(infill_gen.GetFillPaths());
+                scheduler.AppendCurveSets(infill_gen.GetFillCurves());
             }
         }
 
@@ -512,7 +512,7 @@ namespace gs
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                 interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
                 interior_shells.Compute();
-                scheduler.AppendCurveSets(interior_shells.GetFillPaths());
+                scheduler.AppendCurveSets(interior_shells.GetFillCurves());
                 fillPolys = interior_shells.InnerPolygons;
             }
 
@@ -523,7 +523,7 @@ namespace gs
 
             // now actually fill solid regions
             foreach (GeneralPolygon2d fillPoly in fillPolys) {
-				IPathsFillPolygon solid_gen = new ParallelLinesFillPolygon(fillPoly) {
+				ICurvesFillPolygon solid_gen = new ParallelLinesFillPolygon(fillPoly) {
                     InsetFromInputPolygon = false,
                     PathSpacing = Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
@@ -532,7 +532,7 @@ namespace gs
 
                 solid_gen.Compute();
 
-				scheduler.AppendCurveSets(solid_gen.GetFillPaths());
+				scheduler.AppendCurveSets(solid_gen.GetFillCurves());
             }
         }
 
