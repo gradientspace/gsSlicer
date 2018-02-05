@@ -23,6 +23,7 @@ namespace gs
 		public IFillPathScheduler2d Scheduler;
 
 		public List<IShellsFillPolygon> ShellFills;
+        public List<GeneralPolygon2d> SupportAreas;
 
 		public TemporalPathHash Spatial;
 
@@ -71,7 +72,7 @@ namespace gs
         };
 
 
-		// Replace this if you want to cusotmize PrintLayerData type
+		// Replace this if you want to customize PrintLayerData type
 		public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
 
 		// Replace this to use a different path builder
@@ -91,8 +92,8 @@ namespace gs
 		// from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
 		public Action<IFillPolygon, int> BeginShellF;
 
-		// called at the end of each layer, before we compile the paths
-		public Action<PrintLayerData, ToolpathSet> PostProcessLayerPathsF;
+        // called at the end of each layer, before we compile the paths
+        public ILayerPathsPostProcessor LayerPostProcessor;
 
 
         // this is called on polyline paths, return *true* to filter out a path. Useful for things like very short segments, etc
@@ -151,9 +152,9 @@ namespace gs
 
 			BeginShellF = (shell_fill, tag) => { };
 
-			PostProcessLayerPathsF = (layer_data, paths) => { };
+            LayerPostProcessor = null;
 
-			if (PathFilterF == null)
+            if (PathFilterF == null)
 				PathFilterF = (pline) => { return pline.ArcLength < 3 * Settings.Machine.NozzleDiamMM; };
 
         }
@@ -295,11 +296,13 @@ namespace gs
 
                 // do support first
                 // this could be done in parallel w/ roof/floor...
+                List<GeneralPolygon2d> support_areas = new List<GeneralPolygon2d>();
                 if (Settings.EnableSupport) {
-                    List<GeneralPolygon2d> support_areas = get_layer_support_area(layer_i);
+                    support_areas = get_layer_support_area(layer_i);
                     groupScheduler.BeginGroup();
                     fill_support_regions(support_areas, groupScheduler, layerdata);
                     groupScheduler.EndGroup();
+                    layerdata.SupportAreas = support_areas;
                 }
 
                 // selector determines what order we process shells in
@@ -363,16 +366,18 @@ namespace gs
                 layerdata.Scheduler = groupScheduler.TargetScheduler;
 
 				// last change to post-process paths for this layer before they are baked in
-				PostProcessLayerPathsF(layerdata, pathAccum.Paths);
+                if ( LayerPostProcessor != null )
+                    LayerPostProcessor.Process(layerdata, pathAccum.Paths);
 
                 // compile this layer 
                 // [TODO] we could do this in a separate thread, in a queue of jobs?
 				Compiler.AppendPaths(pathAccum.Paths);
 
-				// we might want to consider this layer while we process next one
-				prevLayerData = layerdata;
                 if (AccumulatedPaths != null)
                     AccumulatedPaths.Append(pathAccum.Paths);
+
+                // we might want to consider this layer while we process next one
+                prevLayerData = layerdata;
 
                 count_progress_step();
             }
@@ -431,37 +436,48 @@ namespace gs
 
 
         /// <summary>
-        /// fill polygon with support infill strategy
+        /// fill polygon with support strategy
+        ///     - single outer shell if Settings.EnableSupportShells = true
+        ///     - then infill w/ spacing Settings.SupportSpacingStepX
         /// </summary>
 		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
-            if (support_poly.Bounds.MaxDim < 2.0)
+            // [RMS] this may be too aggressive - esp for tall posts
+            // [TODO] should be a setting
+            double MinPolyDimension = 2.0;
+
+            if (support_poly.Bounds.MaxDim < MinPolyDimension)
                 return;
-            // useful to visualize support polygons...
-            // [TODO] might make more sense to use a shell if poly is very thin/elongated, or tiny
 
-            ShellsFillPolygon shells_gen = new ShellsFillPolygon(support_poly);
-            shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
-            shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
-            shells_gen.Layers = 1;
-            shells_gen.FilterSelfOverlaps = false;
-            //shells_gen.FilterSelfOverlaps = true;
-            //shells_gen.PreserveOuterShells = false;
-            //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
-            shells_gen.Compute();
-            List<FillCurveSet2d> shell_fill_curves = shells_gen.GetFillCurves();
-            foreach (var fillpath in shell_fill_curves )
-                fillpath.AddFlags(FillTypeFlags.SupportMaterial);
-            scheduler.AppendCurveSets(shell_fill_curves);
+            List<GeneralPolygon2d> infill_polys = new List<GeneralPolygon2d>() { support_poly };
 
-            List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
-            if (Settings.SparseFillBorderOverlapX > 0) {
-                double offset = Settings.Machine.NozzleDiamMM * Settings.SparseFillBorderOverlapX;
-                inner_shells = ClipperUtil.MiterOffset(inner_shells, offset);
-            }
+            if (Settings.EnableSupportShell) {
+                ShellsFillPolygon shells_gen = new ShellsFillPolygon(support_poly);
+                shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
+                shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
+                shells_gen.Layers = 1;
+                shells_gen.FilterSelfOverlaps = false;
+                shells_gen.InsetFromInputPolygon = false;
+                //shells_gen.FilterSelfOverlaps = true;
+                //shells_gen.PreserveOuterShells = false;
+                //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
+                shells_gen.Compute();
+                List<FillCurveSet2d> shell_fill_curves = shells_gen.GetFillCurves();
+                foreach (var fillpath in shell_fill_curves)
+                    fillpath.AddFlags(FillTypeFlags.SupportMaterial);
+                scheduler.AppendCurveSets(shell_fill_curves);
 
-            foreach ( var poly in inner_shells ) {
-                if (poly.Bounds.MaxDim < 2.0)
+                // expand inner polygon so that infill overlaps shell
+                List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
+                if (Settings.SparseFillBorderOverlapX > 0) {
+                    double offset = Settings.Machine.NozzleDiamMM * Settings.SparseFillBorderOverlapX;
+                    infill_polys = ClipperUtil.MiterOffset(inner_shells, offset);
+                }
+
+            } 
+
+            foreach ( var poly in infill_polys ) {
+                if (poly.Bounds.MaxDim < MinPolyDimension)
                     continue;
 
                 SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
@@ -794,11 +810,12 @@ namespace gs
             // should be parameterizable? this is 45 degrees...
             //   (is it? 45 if nozzlediam == layerheight...)
             //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
-            double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(30 * MathUtil.Deg2Rad);
+            //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(30 * MathUtil.Deg2Rad);
             //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
+            double fOverhangAllowance = Settings.Machine.NozzleDiamMM;      // ??
             double fPrintWidth = Settings.Machine.NozzleDiamMM;
             double fMergeDownDilate = fPrintWidth * 0.5;  // see if(dilate) below
-            double fSupportGapInLayer = fPrintWidth * 0.5;
+            double fSupportGapInLayer = Settings.SupportGapInLayerX * fPrintWidth;
             double DiscardHoleSizeMM = 0.0;
 
             int nLayers = Slices.Count;

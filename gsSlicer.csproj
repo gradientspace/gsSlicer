@@ -49,8 +49,10 @@
     <Compile Include="tests\CalibrationModelGenerator.cs" />
     <Compile Include="toolpathing\GroupScheduler2d.cs" />
     <Compile Include="toolpathing\LayerShellSelector.cs" />
+    <Compile Include="toolpathing\PathPostProcessor.cs" />
     <Compile Include="toolpathing\SortingScheduler2d.cs" />
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
+    <Compile Include="toolpathing\SupportPostProcessors.cs" />
     <Compile Include="toolpathing\TiledFillPolygon.cs" />
     <Compile Include="utility\GCodeToTubeMeshes.cs" />
     <Compile Include="utility\GCodeToToolpaths.cs" />
