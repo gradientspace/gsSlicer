@@ -14,50 +14,65 @@ namespace gs
 		Composite,
 		Custom
 	};
-		
-	/// <summary>
-	/// PathVertex.Flags field is 3 ints that can be used for whatever purpose.
-	/// First int we assume is one of these values, or a client-defined value.
-	/// </summary>
-	public enum ToolpathVertexFlags {
-		NoFlags = 0,
 
-		IsConnector = 1,				// move to this vertex is a 'connector' move
-
-        IsSupport = 2,                  // move to this vertex is a 'support' deposition   (currently unused)
-
-		ClientDefinedFlag = 100		// use a value > this for custom flags 
-	}
+    /// <summary>
+    /// PathVertex.Flags field is 3 ints that can be used for whatever purpose.
+    /// First int we assume is one of these values, or a client-defined value.
+    /// </summary>
+    [Flags]
+    public enum TPVertexFlags
+    {
+        None            = 0,
+        IsConnector     = 1,            // connects spans of a linear fill. also currently not used (!)
+        IsSupport       = 1 << 1        // unused currently?
+    }
 
 
+    public class TPVertexData
+    {
+        // information about the move *to* this vertex (ie the segment before it)
+        public TPVertexFlags Flags = TPVertexFlags.None;
 
-	public interface IToolpathVertex {
+        // (optional) modifier functions that will be applied to this vertex
+        // during gcode emission
+        public Func<Vector3d, Vector3d> PositionF = null;
+        public Func<double, double> FeedRateModifierF = null;
+        public Func<Vector3d, Vector3d> ExtrusionModifierF = null;
+    }
+
+
+	public interface IToolpathVertex
+    {
 		Vector3d Position { get; set; }
-	}
+        double FeedRate { get; set; }
+        TPVertexData ExtendedData { get; set; }
+    }
+
 
 	public struct PrintVertex : IToolpathVertex 
 	{
 		public Vector3d Position { get; set; }
-		public double FeedRate { get; set; }
-		public Vector3d Extrusion { get; set; }
-		public Index3i Flags { get; set; }
+        public double FeedRate { get; set; }
+        public TPVertexData ExtendedData { get; set; }
 
-		public object Source { get; set; }
+        public Vector3d Extrusion { get; set; }
+
+        public object Source { get; set; }
 
 		public PrintVertex(Vector3d pos, double rate) {
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = Vector3d.Zero;
-			Flags = Index3i.Zero;
-			Source = null;
+            ExtendedData = null;
+            Source = null;
 		}
 
 		public PrintVertex(Vector3d pos, double rate, double ExtruderA) {
 			Position = pos;
 			FeedRate = rate;
 			Extrusion = new Vector3d(ExtruderA, 0, 0);
-			Flags = Index3i.Zero;
-			Source = null;
+            ExtendedData = null;
+            Source = null;
 		}
 
 		public static implicit operator Vector3d(PrintVertex v)

@@ -20,25 +20,35 @@ namespace gs
 		}
 
 
-		public void Append(GeneralPolygon2d poly, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
+		public void Append(GeneralPolygon2d poly, FillTypeFlags typeFlags) {
 			Loops.Add(new FillPolygon2d(poly.Outer) { TypeFlags = typeFlags });
 			foreach (var h in poly.Holes)
 				Loops.Add(new FillPolygon2d(h) { TypeFlags = typeFlags });
 		}
 
-		public void Append(List<GeneralPolygon2d> polys, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
+		public void Append(List<GeneralPolygon2d> polys, FillTypeFlags typeFlags) {
 			foreach (var p in polys)
 				Append(p, typeFlags);
 		}
 
-		public void Append(Polygon2d poly, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
+		public void Append(Polygon2d poly, FillTypeFlags typeFlags) {
 			Loops.Add(new FillPolygon2d(poly) { TypeFlags = typeFlags } );
         }
 
-        public void Append(List<Polygon2d> polys, FillTypeFlags typeFlags = FillTypeFlags.Unknown) {
+        public void Append(List<Polygon2d> polys, FillTypeFlags typeFlags) {
             foreach (var p in polys)
 				Append(p, typeFlags);
         }
+
+        public void Append(FillPolygon2d loop) {
+			Loops.Add(loop);
+		}
+
+        public void Append(List<FillPolygon2d> loops) {
+            foreach ( var l in loops )
+			    Loops.Add(l);
+		}
+
 
         public void Append(FillPolyline2d curve) {
 			Curves.Add(curve);
@@ -58,11 +68,19 @@ namespace gs
                 curve.TypeFlags = flags;
         }
 
+        public void AddFlags(FillTypeFlags flags)
+        {
+            foreach (var loop in Loops)
+                loop.TypeFlags |= flags;
+            foreach (var curve in Curves)
+                curve.TypeFlags |= flags;
+        }
+
 
 
         // DEPRECATED - remove?
-		// this connects up the paths with small connectors? used in DenseLinesFillPolygon
-		public void OptimizeCurves(double max_dist, Func<Segment2d, bool> ValidateF) {
+        // this connects up the paths with small connectors? used in DenseLinesFillPolygon
+        public void OptimizeCurves(double max_dist, Func<Segment2d, bool> ValidateF) {
 			int[] which = new int[4];
 			double[] dists = new double[4];
 			for (int ci = 0; ci < Curves.Count; ++ci ) {

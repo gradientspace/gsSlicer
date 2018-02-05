@@ -74,7 +74,7 @@ namespace gs
 
             double useSpeed = select_speed(poly);
 
-			Builder.AppendExtrude(loopV, useSpeed, null, poly.TypeFlags);
+			Builder.AppendExtrude(loopV, useSpeed, poly.TypeFlags, null);
 		}
 
 
@@ -101,25 +101,25 @@ namespace gs
 			Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
 
 			List<Vector2d> loopV;
-			List<Index3i> flags = null;
+			List<TPVertexFlags> flags = null;
 			if (bReverse) {
 				loopV = new List<Vector2d>(N);
 				for (int i = N - 1; i >= 0; --i)
 					loopV.Add(curve[i]);
 				if (curve.HasFlags) {
-					flags = new List<Index3i>(N);
+					flags = new List<TPVertexFlags>(N);
 					for (int i = N - 1; i >= 0; --i)
 						flags.Add(curve.GetFlag(i));
 				}
 			} else {
 				loopV = new List<Vector2d>(curve);
 				if (curve.HasFlags)
-					flags = new List<Index3i>(curve.Flags());
+					flags = new List<TPVertexFlags>(curve.Flags());
 			}
 
             double useSpeed = select_speed(curve);
 
-            Builder.AppendExtrude(loopV, useSpeed, flags, curve.TypeFlags);
+            Builder.AppendExtrude(loopV, useSpeed, curve.TypeFlags, flags);
 		}
 
 

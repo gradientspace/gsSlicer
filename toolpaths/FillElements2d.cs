@@ -75,7 +75,7 @@ namespace gs
 		}
 
 		// [TODO] maybe remove? see below.
-		List<Index3i> flags;
+		List<TPVertexFlags> flags;
 		bool has_flags = false;
 
 		public FillPolyline2d() : base()
@@ -93,9 +93,9 @@ namespace gs
 		void alloc_flags()
 		{
 			if (flags == null) {
-				flags = new List<Index3i>();
+				flags = new List<TPVertexFlags>();
 				for (int i = 0; i < vertices.Count; ++i)
-					flags.Add(Index3i.Zero);
+					flags.Add(TPVertexFlags.None);
 			}
 		}
 
@@ -103,14 +103,14 @@ namespace gs
 		{
 			base.AppendVertex(v);
 			if (flags != null)
-				flags.Add(Index3i.Zero);
+				flags.Add(TPVertexFlags.None);
 		}
 		public override void AppendVertices(IEnumerable<Vector2d> v)
 		{
 			base.AppendVertices(v);
 			if (flags != null) {
 				foreach (var x in v)
-					flags.Add(Index3i.Zero);
+					flags.Add(TPVertexFlags.None);
 			}
 		}
 
@@ -129,7 +129,7 @@ namespace gs
             int i, k, pv;            // misc counters
             Vector2d[] vt = new Vector2d[n];  // vertex buffer
             bool has_flags = HasFlags;
-            Index3i[] vf = (has_flags) ? new Index3i[n] : null;
+            TPVertexFlags[] vf = (has_flags) ? new TPVertexFlags[n] : null;
             bool[] mk = new bool[n];
             for (i = 0; i < n; ++i)     // marker buffer
                 mk[i] = false;
@@ -159,7 +159,7 @@ namespace gs
 
             // copy marked vertices back to this polygon
             vertices = new List<Vector2d>();
-            flags = (has_flags) ? new List<Index3i>() : null;
+            flags = (has_flags) ? new List<TPVertexFlags>() : null;
             for (i = 0; i < k; ++i) {
                 if (mk[i]) {
                     vertices.Add(vt[i]);
@@ -173,14 +173,14 @@ namespace gs
         }
 
 
-		public void AppendVertex(Vector2d v, Index3i flag)
+		public void AppendVertex(Vector2d v, TPVertexFlags flag)
 		{
 			alloc_flags();
 			base.AppendVertex(v);
 			flags.Add(flag);
 			has_flags = true;
 		}
-		public void AppendVertices(IEnumerable<Vector2d> v, IEnumerable<Index3i> f)
+		public void AppendVertices(IEnumerable<Vector2d> v, IEnumerable<TPVertexFlags> f)
 		{
 			alloc_flags();
 			base.AppendVertices(v);
@@ -190,12 +190,12 @@ namespace gs
 
 
 		// [RMS] this is *only* used for PathUtil.ConnectorVFlags. Maybe remove this capability?
-		public Index3i GetFlag(int i) { return (flags == null) ? Index3i.Zero : flags[i]; }
-		public void SetFlag(int i, Index3i flag) { alloc_flags(); flags[i] = flag; }
+		public TPVertexFlags GetFlag(int i) { return (flags == null) ? TPVertexFlags.None : flags[i]; }
+		public void SetFlag(int i, TPVertexFlags flag) { alloc_flags(); flags[i] = flag; }
 
 		public bool HasFlags {
 			get { return flags != null && has_flags; }
 		}
-		public IReadOnlyList<Index3i> Flags() { return flags.AsReadOnly(); }
+		public IReadOnlyList<TPVertexFlags> Flags() { return flags.AsReadOnly(); }
 	}
 }

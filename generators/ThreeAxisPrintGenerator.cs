@@ -257,6 +257,7 @@ namespace gs
                 layerdata.Scheduler = groupScheduler;
 
                 BeginLayerF(layerdata);
+                Compiler.AppendComment(string.Format("layer {0} - {1}mm", layer_i, Compiler.NozzlePosition.z));
 
 				layerdata.ShellFills = get_layer_shells(layer_i);
 
@@ -437,9 +438,10 @@ namespace gs
             //shells_gen.PreserveOuterShells = false;
             //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
             shells_gen.Compute();
-            foreach (var fillpath in shells_gen.GetFillCurves())
-                fillpath.SetFlags(FillTypeFlags.SupportMaterial);
-            scheduler.AppendCurveSets(shells_gen.GetFillCurves());
+            List<FillCurveSet2d> shell_fill_curves = shells_gen.GetFillCurves();
+            foreach (var fillpath in shell_fill_curves )
+                fillpath.AddFlags(FillTypeFlags.SupportMaterial);
+            scheduler.AppendCurveSets(shell_fill_curves);
 
             List<GeneralPolygon2d> inner_shells = shells_gen.GetInnerPolygons();
             if (Settings.SparseFillBorderOverlapX > 0) {
@@ -458,10 +460,6 @@ namespace gs
                     AngleDeg = 0,
                 };
                 infill_gen.Compute();
-                foreach (var fillpath in infill_gen.GetFillCurves()) {
-                    foreach (var p in fillpath.Curves)
-                        Util.gDevAssert(p.TypeFlags == FillTypeFlags.SupportMaterial);
-                }
                 scheduler.AppendCurveSets(infill_gen.GetFillCurves());
             }
         }

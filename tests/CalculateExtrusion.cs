@@ -153,7 +153,7 @@ namespace gs
 
 
 		bool is_connection(Index3i flags) {
-			return flags.a == (int)ToolpathVertexFlags.IsConnector;
+			return (flags.a & (int)TPVertexFlags.IsConnector) != 0;
 		}
 
 

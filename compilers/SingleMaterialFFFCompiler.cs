@@ -15,6 +15,7 @@ namespace gs
 
         void Begin();
         void AppendPaths(ToolpathSet paths);
+        void AppendComment(string comment);
         void End();
     }
 
@@ -125,6 +126,12 @@ namespace gs
 
 
 
+        public virtual void AppendComment(string comment)
+        {
+            Assembler.AppendComment(comment);
+        }
 
-	}
+
+
+    }
 }

@@ -124,7 +124,7 @@ namespace gs
                     vid = next.b;
                     int gid = pathGraph.GetEdgeGroup(eid);
                     if (gid < 0) {
-                        path.AppendVertex(pathGraph.GetVertex(vid), ToolpathUtil.ConnectorVFlag);
+                        path.AppendVertex(pathGraph.GetVertex(vid), TPVertexFlags.IsConnector);
                     } else {
                         path.AppendVertex(pathGraph.GetVertex(vid));
                     }
