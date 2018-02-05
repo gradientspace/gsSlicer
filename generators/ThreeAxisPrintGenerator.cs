@@ -54,6 +54,12 @@ namespace gs
         // available after calling Generate()
         public GCodeFile Result;
 
+        // Generally we discard the paths at each layer as we generate them. If you 
+        // would like to analyze, set this to true, and then AccumulatedPaths will
+        // be available after calling Generate(). The list AccumulatedPaths.Paths will 
+        // be a list with a separate PathSet for each layer, in bottom-up order.
+        public bool AccumulatePathSet = false;
+        public ToolpathSet AccumulatedPaths = null;
 
 		/*
 		 * Customizable functions you can use to configure/modify slicer behavior
@@ -221,6 +227,9 @@ namespace gs
             TotalProgress = 2 * (Slices.Count-1);
             CurProgress = 0;
 
+            if (AccumulatePathSet == true)
+                AccumulatedPaths = new ToolpathSet();
+
             // initialize compiler and get start nozzle position
             Compiler.Begin();
 
@@ -362,6 +371,8 @@ namespace gs
 
 				// we might want to consider this layer while we process next one
 				prevLayerData = layerdata;
+                if (AccumulatedPaths != null)
+                    AccumulatedPaths.Append(pathAccum.Paths);
 
                 count_progress_step();
             }
