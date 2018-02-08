@@ -812,7 +812,8 @@ namespace gs
             //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
             //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(30 * MathUtil.Deg2Rad);
             //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
-            double fOverhangAllowance = Settings.Machine.NozzleDiamMM;      // ??
+            double fOverhangAllowance = Settings.Machine.NozzleDiamMM;          // support inset half a nozzle
+            //double fOverhangAllowance = Settings.Machine.NozzleDiamMM * 0.5;  // support directly below outer perimeter
             double fPrintWidth = Settings.Machine.NozzleDiamMM;
             double fMergeDownDilate = fPrintWidth * 0.5;  // see if(dilate) below
             double fSupportGapInLayer = Settings.SupportGapInLayerX * fPrintWidth;

@@ -19,11 +19,13 @@ namespace gs
 
 		public double EstimatedLayerHeight;
 
-		public LayersDetector(ToolpathSet paths)
+		public LayersDetector(ToolpathSet paths, double knownLayerHeight = 0)
 		{
 			Paths = paths;
 			Compute();
-		}
+            if (knownLayerHeight > 0)
+                EstimatedLayerHeight = knownLayerHeight;
+        }
 
 
 
