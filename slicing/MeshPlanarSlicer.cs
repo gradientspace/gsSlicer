@@ -94,9 +94,12 @@ namespace gs
             TotalCompute = Meshes.Count * nLayers;
             Progress = 0;
 
-            // this sucks. oh well!
+
+            // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
 				DMesh3 mesh = Meshes[mi].mesh;
+                // [TODO] should we hang on to this spatial? or should it be part of assembly?
+                DMeshAABBTree3 spatial = new DMeshAABBTree3(mesh, true);
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
                 bool closed = (Meshes[mi].options.IsOpen) ? false : mesh.IsClosed();
@@ -104,48 +107,23 @@ namespace gs
                 var useOpenMode = (Meshes[mi].options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
                     DefaultOpenPathMode : Meshes[mi].options.OpenPathMode;
 
-                // each layer is independent because we are slicing new mesh
+                // each layer is independent so we can do in parallel
                 gParallel.ForEach(Interval1i.Range(NH), (i) => {
 					double z = heights[i];
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
 
-					// compute cut
-					DMesh3 sliceMesh = new DMesh3(mesh);
-					MeshPlaneCut cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z), Vector3d.AxisZ);
-					cut.Cut();
+                    // compute cut
+                    Polygon2d[] polys; PolyLine2d[] paths;
+                    compute_plane_curves(mesh, spatial, z, out polys, out paths);
 
-
-                    // in pathological cases (eg two stacked cubes) the cutting plane can cut right
-                    // between the two cubes, hitting neither. So, if we get no loops, try jittering the plane a bit
-                    if ( (closed && cut.CutLoops.Count == 0) || (closed == false && cut.CutSpans.Count == 0) ) {
-                        sliceMesh = new DMesh3(mesh);
-                        cut = new MeshPlaneCut(sliceMesh, new Vector3d(0, 0, z + LayerHeightMM*0.25), Vector3d.AxisZ);
-                        cut.Cut();
-                    }
-
-                    Polygon2d[] polys = new Polygon2d[cut.CutLoops.Count];
-                    for ( int li = 0; li < polys.Length; ++li) {
-                        EdgeLoop loop = cut.CutLoops[li];
-                        polys[li] = new Polygon2d();
-                        foreach (int vid in loop.Vertices) {
-                            Vector3d v = sliceMesh.GetVertex(vid);
-                            polys[li].AppendVertex(v.xy);
-                        }
-                    }
-
-                    PolyLine2d[] paths = new PolyLine2d[cut.CutSpans.Count];
-                    for (int pi = 0; pi < paths.Length; ++pi) {
-                        EdgeSpan span = cut.CutSpans[pi];
-                        paths[pi] = new PolyLine2d();
-                        foreach (int vid in span.Vertices) {
-                            Vector3d v = sliceMesh.GetVertex(vid);
-                            paths[pi].AppendVertex(v.xy);
-                        }
+                    // if we didn't hit anything, try again with jittered plane
+                    // [TODO] this could be better...
+                    if ( (closed && polys.Length == 0) || (closed == false &&  polys.Length == 0 && paths.Length == 0)) {
+                        compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, out polys, out paths);
                     }
 
                     if (closed) {
-
 						// construct planar complex and "solids"
 						// (ie outer polys and nested holes)
 						PlanarComplex complex = new PlanarComplex();
@@ -208,6 +186,73 @@ namespace gs
 
 			return stack;
 		}
+
+
+
+        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, double z, out Polygon2d[] loops, out PolyLine2d[] curves )
+        {
+            Func<Vector3d, double> planeF = (v) => {
+                return v.z - z;
+            };
+
+            // find list of triangles that intersect this z-value
+            PlaneIntersectionTraversal planeIntr = new PlaneIntersectionTraversal(mesh, z);
+            spatial.DoTraversal(planeIntr);
+            List<int> triangles = planeIntr.triangles;
+
+            // compute intersection iso-curves, which produces a 3D graph of undirected edges
+            MeshIsoCurves iso = new MeshIsoCurves(mesh, planeF) { WantGraphEdgeInfo = true };
+            iso.Compute(triangles);
+            DGraph3 graph = iso.Graph;
+            if ( graph.EdgeCount == 0 ) {
+                loops = new Polygon2d[0];
+                curves = new PolyLine2d[0];
+                return false;
+            }
+
+            // extract loops and open curves from graph
+            DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, iso.ShouldReverseGraphEdge);
+            loops = new Polygon2d[c.Loops.Count];
+            for (int li = 0; li < loops.Length; ++li) {
+                DCurve3 loop = c.Loops[li];
+                loops[li] = new Polygon2d();
+                foreach (Vector3d v in loop.Vertices) 
+                    loops[li].AppendVertex(v.xy);
+            }
+
+            curves = new PolyLine2d[c.Paths.Count];
+            for (int pi = 0; pi < curves.Length; ++pi) {
+                DCurve3 span = c.Paths[pi];
+                curves[pi] = new PolyLine2d();
+                foreach (Vector3d v in span.Vertices) 
+                    curves[pi].AppendVertex(v.xy);
+            }
+
+            return true;
+        }
+
+
+
+        class PlaneIntersectionTraversal : DMeshAABBTree3.TreeTraversal
+        {
+            public DMesh3 Mesh;
+            public double Z;
+            public List<int> triangles = new List<int>();
+            public PlaneIntersectionTraversal(DMesh3 mesh, double z)
+            {
+                this.Mesh = mesh;
+                this.Z = z;
+                this.NextBoxF = (box, depth) => {
+                    return (Z >= box.Min.z && Z <= box.Max.z);
+                };
+                this.NextTriangleF = (tID) => {
+                    AxisAlignedBox3d box = Mesh.GetTriBounds(tID);
+                    if (Z >= box.Min.z && z <= box.Max.z)
+                        triangles.Add(tID);
+                };
+            }
+        }
+
 
 	}
 }
