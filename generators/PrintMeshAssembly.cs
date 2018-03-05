@@ -4,8 +4,13 @@ using g3;
 
 namespace gs
 {
+    /// <summary>
+    /// Options for PrintMeshAssembly meshes
+    /// </summary>
     public struct PrintMeshOptions
     {
+        public bool IsSupport;      // treat as support volume
+
         public bool IsOpen;         // treat as open mesh (ie do not fill)
 
         public enum OpenPathsModes
@@ -16,15 +21,25 @@ namespace gs
 
 
         public static readonly PrintMeshOptions Default = new PrintMeshOptions() {
-            OpenPathMode = OpenPathsModes.Default,
-            IsOpen = false
+            IsSupport = false,
+            IsOpen = false,
+            OpenPathMode = OpenPathsModes.Default
         };
 
+        public static readonly PrintMeshOptions Support = new PrintMeshOptions() {
+            IsSupport = true,
+            IsOpen = false,
+            OpenPathMode = OpenPathsModes.Default
+        };
     }
 
 
 
-    // [TODO] flesh out this class...
+
+    /// <summary>
+    /// Represents set of print meshes and per-mesh options
+    /// [TODO] this could be more useful...also we might want to include more than just meshes?
+    /// </summary>
     public class PrintMeshAssembly
     {
         class MeshInfo

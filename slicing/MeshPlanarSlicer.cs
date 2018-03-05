@@ -98,14 +98,16 @@ namespace gs
             // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
 				DMesh3 mesh = Meshes[mi].mesh;
+                PrintMeshOptions mesh_options = Meshes[mi].options;
+
                 // [TODO] should we hang on to this spatial? or should it be part of assembly?
                 DMeshAABBTree3 spatial = new DMeshAABBTree3(mesh, true);
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
-                bool closed = (Meshes[mi].options.IsOpen) ? false : mesh.IsClosed();
-
-                var useOpenMode = (Meshes[mi].options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
-                    DefaultOpenPathMode : Meshes[mi].options.OpenPathMode;
+                bool is_support = mesh_options.IsSupport;
+                bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
+                var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
+                    DefaultOpenPathMode : mesh_options.OpenPathMode;
 
                 // each layer is independent so we can do in parallel
                 gParallel.ForEach(Interval1i.Range(NH), (i) => {
@@ -119,11 +121,11 @@ namespace gs
 
                     // if we didn't hit anything, try again with jittered plane
                     // [TODO] this could be better...
-                    if ( (closed && polys.Length == 0) || (closed == false &&  polys.Length == 0 && paths.Length == 0)) {
+                    if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
                         compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, out polys, out paths);
                     }
 
-                    if (closed) {
+                    if (is_closed) {
 						// construct planar complex and "solids"
 						// (ie outer polys and nested holes)
 						PlanarComplex complex = new PlanarComplex();
@@ -140,7 +142,10 @@ namespace gs
 						PlanarComplex.SolidRegionInfo solids =
 							complex.FindSolidRegions(options);
 
-						slices[i].AddPolygons(solids.Polygons);
+                        if (is_support)
+                            slices[i].AddSupportPolygons(solids.Polygons);
+                        else
+    						slices[i].AddPolygons(solids.Polygons);
 
                     } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
 

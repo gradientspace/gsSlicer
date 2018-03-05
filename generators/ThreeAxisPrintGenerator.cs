@@ -898,6 +898,11 @@ namespace gs
                 // support area we propagate down is combined area minus solid
                 prevSupport = ClipperUtil.Difference(combineSupport, slice.Solids);
 
+                // if we have explicit support, we can union it in now
+                if ( slice.SupportSolids.Count > 0 ) {
+                    combineSupport = ClipperUtil.Union(combineSupport, slice.SupportSolids);
+                }
+
                 // on this layer, we need to leave space for filament, by dilating solid by
                 // half nozzle-width and subtracting it
                 List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
@@ -908,7 +913,7 @@ namespace gs
 
                 LayerSupportAreas[i] = new List<GeneralPolygon2d>();
                 foreach (GeneralPolygon2d poly in combineSupport) {
-                    poly.Simplify(Settings.Machine.NozzleDiamMM, Settings.Machine.NozzleDiamMM * 0.05, true);
+                    PolySimplification2.Simplify(poly, Settings.Machine.NozzleDiamMM);
                     LayerSupportAreas[i].Add(poly);
                 }
             }
