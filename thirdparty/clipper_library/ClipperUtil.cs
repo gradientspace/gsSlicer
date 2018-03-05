@@ -12,6 +12,11 @@ namespace gs
 
     public static class ClipperUtil
     {
+        // [RMS] enable/disable filtering of problematic goemetry (currently, tiny holes).
+        // Probably this should be handled by caller passing in some kind of filter, but that
+        // requires changing a lot of interfaces...
+        public static bool ENABLE_FILTERING_HACKS = true;
+
 
         // Clipper uses integer coordinates, so we need to scale our doubles.
         // This value determines # of integers per mm.
@@ -419,6 +424,14 @@ namespace gs
 					throw new Exception("ClipperUtil.Convert: found open hole contour??");
 
 				Polygon2d hole = ConvertFromClipper(holeNode.Contour, nIntScale);
+
+                // [RMS] discard extremely tiny holes, for which we cannot reliably
+                //   determine orientation, which causes AddHole() to assert
+                if (ENABLE_FILTERING_HACKS) {
+                    if (Math.Abs(hole.SignedArea) < MathUtil.ZeroTolerance)
+                        continue;
+                }
+
 				poly.AddHole(hole, false);
 
 				// recurse for new top-level children
