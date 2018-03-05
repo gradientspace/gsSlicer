@@ -4,10 +4,21 @@ using g3;
 
 namespace gs 
 {
+    /// <summary>
+    /// This class implements calculation of the filament extrusion distance/volume along
+    /// a ToolpathSet. Currently the actual extrusion calculation is quite basic.
+    /// 
+    /// Note that this is (currently) also where retraction happens. Possibly this would
+    /// be better handled elsewhere, since ideally it is a temporary +/- to the extrusion,
+    /// such that the actual accumulated extrusion amount is not modified.
+    /// 
+    /// </summary>
 	public class CalculateExtrusion 
 	{
 		public ToolpathSet Paths;
 		public SingleMaterialFFFSettings Settings;
+
+        public bool EnableRetraction = true;
 
 		double FilamentDiam = 1.75;
 		double NozzleDiam = 0.4;
@@ -33,7 +44,8 @@ namespace gs
 			Paths = paths;
 			Settings = settings;
 
-			FilamentDiam = settings.Machine.FilamentDiamMM;
+            EnableRetraction = settings.EnableRetraction;
+            FilamentDiam = settings.Machine.FilamentDiamMM;
 			NozzleDiam = settings.Machine.NozzleDiamMM;
 			LayerHeight = settings.LayerHeightMM;
 			FixedRetractDistance = settings.RetractDistanceMM;
@@ -95,16 +107,23 @@ namespace gs
 				if ( ! (path.Type == ToolpathTypes.Deposition || path.Type == ToolpathTypes.PlaneChange || path.Type == ToolpathTypes.Travel) )
 					throw new Exception("Unknown path type!");
 
-                bool skip_retract = (path.Type == ToolpathTypes.Travel) &&
-                                    (prev_path.Type == ToolpathTypes.Deposition) &&
-                                    (prev_path.EndPosition.Distance(path.StartPosition) < MinRetractTravelLength);
+                // if we are travelling between two extrusion paths, and the travel distance is very short,
+                // then we will skip the retract.
+                bool skip_retract = false;
+                if ( path.Type == ToolpathTypes.Travel && 
+                     (prev_path != null && prev_path.Type == ToolpathTypes.Deposition) &&
+                     (pi < N-1 && allPaths[pi+1].Type == ToolpathTypes.Deposition) ) {
+
+                    skip_retract = (path.StartPosition.Distance(path.EndPosition) < MinRetractTravelLength);
+                }
+                if (EnableRetraction == false)
+                    skip_retract = true;
 
                 for ( int i = 0; i < path.VertexCount; ++i ) {
 					bool last_vtx = (i == path.VertexCount-1);
 
 					Vector3d newPos = path[i].Position;
 					double newRate = path[i].FeedRate;
-					//Index3i flags = path[i].Flags;
 
 					if ( path.Type != ToolpathTypes.Deposition ) {
 
@@ -113,28 +132,34 @@ namespace gs
                             if (!inRetract) {
                                 curA -= FixedRetractDistance;
                                 inRetract = true;
-                            } else {
-                                if (last_vtx) {
-                                    curA += FixedRetractDistance;
-                                    inRetract = false;
-                                }
-                            }
+                            } 
                         }
 
 						curPos = newPos;
 						curRate = newRate;
 
 					} else {
-						double dist = (newPos - curPos).Length;
-						curPos = newPos;
-						curRate = newRate;
 
-						double vol_scale = 1;
-                        if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
-                            vol_scale *= SupportExtrudeScale;
+                        // for i == 0 this dist is always 0 !!
+                        double dist = (newPos - curPos).Length;
 
-                        double feed = calculate_extrude(dist, curRate, vol_scale);
-						curA += feed;
+                        if (i == 0) {
+                            Util.gDevAssert(dist == 0);     // next path starts at end of previous!!
+                            if (inRetract) {
+                                curA += FixedRetractDistance;
+                                inRetract = false;
+                            }
+                        } else {
+                            curPos = newPos;
+                            curRate = newRate;
+
+                            double vol_scale = 1;
+                            if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
+                                vol_scale *= SupportExtrudeScale;
+
+                            double feed = calculate_extrude(dist, curRate, vol_scale);
+                            curA += feed;
+                        }
 					}
 
 					PrintVertex v = path[i];
