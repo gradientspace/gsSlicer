@@ -144,7 +144,7 @@ namespace gs
                 // [TODO] we could do this at graph level...)
                 // [TODO] maybe should be checkign for collisions? we could end up creating
                 //  non-trivial overlaps here...
-                if ( SimplifyAmount != SimplificationLevel.None ) {
+                if ( SimplifyAmount != SimplificationLevel.None && path.VertexCount > 2 ) {
                     PolySimplification2 simp = new PolySimplification2(path);
                     switch (SimplifyAmount) {
                         default:

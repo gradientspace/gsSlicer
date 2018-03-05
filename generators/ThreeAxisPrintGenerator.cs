@@ -457,7 +457,7 @@ namespace gs
                 shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
                 shells_gen.Layers = 1;
                 shells_gen.FilterSelfOverlaps = false;
-                shells_gen.InsetFromInputPolygon = false;
+                shells_gen.InsetFromInputPolygon = true;
                 //shells_gen.FilterSelfOverlaps = true;
                 //shells_gen.PreserveOuterShells = false;
                 //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
@@ -481,7 +481,7 @@ namespace gs
                     continue;
 
                 SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
-                    InsetFromInputPolygon = false,
+                    InsetFromInputPolygon = (Settings.EnableSupportShell == false),
                     PathSpacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
                     AngleDeg = 0,
@@ -807,32 +807,69 @@ namespace gs
         /// </summary>
         protected virtual void precompute_support_areas()
         {
-            // should be parameterizable? this is 45 degrees...
-            //   (is it? 45 if nozzlediam == layerheight...)
-            //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
-            //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(30 * MathUtil.Deg2Rad);
-            //double fOverhangAllowance = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
-            double fOverhangAllowance = Settings.Machine.NozzleDiamMM;          // support inset half a nozzle
-            //double fOverhangAllowance = Settings.Machine.NozzleDiamMM * 0.5;  // support directly below outer perimeter
+            /*
+             *  Here is the strategy for computing support areas:
+             *    For layer i, support region is union of:
+             *         1) Difference[ offset(layer i+1 solids, fOverhangAngleDist), layer i solids ]
+             *              (ie the bit of the next layer we need to support)
+             *         2) support region at layer i+1
+             *         3) any pre-defined support solids  (ie from user-defined mesh) 
+             *         
+             *    Once we have support region at layer i, we subtract expanded layer i solid, to leave a gap
+             *         (this is fSupportGapInLayer)
+             *    
+             *    Note that for (2) above, it is frequently the case that support regions in successive
+             *    layers are disjoint. To merge these regions, we dilate/union/contract.
+             *    The dilation amount is the fMergeDownDilate parameter.
+             */
+
             double fPrintWidth = Settings.Machine.NozzleDiamMM;
-            double fMergeDownDilate = fPrintWidth * 0.5;  // see if(dilate) below
-            double fSupportGapInLayer = Settings.SupportGapInLayerX * fPrintWidth;
-            double DiscardHoleSizeMM = 0.0;
+
+
+            // "insert" distance that is related to overhang angle
+            //  distance = 0 means, full support
+            //  distance = nozzle_diam means, 45 degrees overhang
+            //  ***can't use angle w/ nozzle diam. Angle is related to layer height.
+            //double fOverhangAngleDist = 0;
+            double fOverhangAngleDist = Settings.LayerHeightMM / Math.Tan(Settings.SupportOverhangAngleDeg * MathUtil.Deg2Rad);
+            //double fOverhangAngleDist = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
+            //double fOverhangAngleDist = Settings.Machine.NozzleDiamMM;          // support inset half a nozzle
+            //double fOverhangAngleDist = Settings.Machine.NozzleDiamMM * 0.9;  // support directly below outer perimeter
+            //double fOverhangAngleDist = Settings.Machine.NozzleDiamMM;          // support inset half a nozzle
+
+            // amount we dilate/contract support regions when merging them,
+            // to ensure overlap. Using a larger value here has the effect of
+            // smoothing out the support polygons. However it can also end up
+            // merging disjoint regions...
+            double fMergeDownDilate = Settings.Machine.NozzleDiamMM * 2.0;
+
+            // space we leave between support polygons and solids
+            // [TODO] do we need to include SupportAreaOffsetX here?
+            double fSupportGapInLayer = Settings.SupportSolidSpace;
+            
+            // we will throw away tiny support regions smaller than these thresholds
+            double DiscardHoleSizeMM = 0.1;
+            double DiscardHoleArea = 0.1 * 0.1;
 
             int nLayers = Slices.Count;
-
             LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
 
 
-            // Compute required support area for each layer
-            // Note that this does *not* include thickness allowance, this is
-            // the "outer" support-requiring polygon
+            // For layer i, compute support region needed to support layer (i+1)
+            // We do this by shrinking/offsetting layer i+1, and then subtracting layer i
+            // The overhang angle gives us the offset distance
+            // This is the *absolute* support area - no inset for filament width or spacing from model
             gParallel.ForEach(Interval1i.Range(nLayers-1), (layeri) => {
                 PlanarSlice slice = Slices[layeri];
                 PlanarSlice next_slice = Slices[layeri + 1];
 
-                List<GeneralPolygon2d> insetPolys = ClipperUtil.MiterOffset(next_slice.Solids, -fOverhangAllowance);
+                List<GeneralPolygon2d> insetPolys = ClipperUtil.MiterOffset(next_slice.Solids, -fOverhangAngleDist);
                 List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(insetPolys, slice.Solids);
+
+                // expand back out so it is full area, plus inset/outset
+                supportPolys = ClipperUtil.MiterOffset(supportPolys, 
+                    fOverhangAngleDist + Settings.SupportAreaOffsetX*Settings.Machine.NozzleDiamMM);
+
                 LayerSupportAreas[layeri] = supportPolys;
                 count_progress_step();
             });
@@ -856,35 +893,39 @@ namespace gs
                 foreach ( GeneralPolygon2d solid in prevSupport ) {
                     GeneralPolygon2d copy = new GeneralPolygon2d();
                     copy.Outer = new Polygon2d(solid.Outer);
-                    CurveUtils2.LaplacianSmoothConstrained(copy.Outer, 0.5, 5, fMergeDownDilate, shrink, grow);
+                    if ( grow || shrink )
+                        CurveUtils2.LaplacianSmoothConstrained(copy.Outer, 0.5, 5, fMergeDownDilate, shrink, grow);
+
                     List<GeneralPolygon2d> outer_clip = (solid.Holes.Count == 0) ? null : ClipperUtil.ComputeOffsetPolygon(copy, -fPrintWidth, true);
                     foreach (Polygon2d hole in solid.Holes) {
-                        if (hole.Bounds.MaxDim < DiscardHoleSizeMM)
+                        if (hole.Bounds.MaxDim < DiscardHoleSizeMM || Math.Abs(hole.SignedArea) < DiscardHoleArea)
                             continue;
                         Polygon2d new_hole = new Polygon2d(hole);
-                        CurveUtils2.LaplacianSmoothConstrained(new_hole, 0.5, 5, fMergeDownDilate, shrink, grow);
+                        if (grow || shrink)
+                            CurveUtils2.LaplacianSmoothConstrained(new_hole, 0.5, 5, fMergeDownDilate, shrink, grow);
 
                         List<GeneralPolygon2d> clipped_holes = 
                             ClipperUtil.Difference(new GeneralPolygon2d(new_hole), outer_clip);
                         foreach (GeneralPolygon2d cliphole in clipped_holes) {
                             new_hole = cliphole.Outer;
-                            if (new_hole.Bounds.MaxDim > DiscardHoleSizeMM) {
+                            if (new_hole.Bounds.MaxDim > DiscardHoleSizeMM && Math.Abs(new_hole.SignedArea) > DiscardHoleArea) {
                                 if (new_hole.IsClockwise == false )
                                     new_hole.Reverse();
-                                copy.AddHole(new_hole, true);
+                                copy.AddHole(new_hole, false);
                             }
                         }
                     }
+
                     support_above.Add(copy);
                 }
 
 
-
                 // [TODO] should discard small interior holes here if they don't intersect layer...
 
-                // [RMS] support polygons were contracted above, so on successive layers they will not
-                // necessarily intersect (eg on angled slab, each support area will be disjoint). 
-                // So, we grow them back, boolean, and shrink again
+
+                // [RMS] support polygons on successive layers they will not necessarily intersect, because
+                // they are offset inwards on each layer. But as we merge down, we want them to be combined.
+                // So, we do a dilate / boolean / contract. 
                 bool dilate = true;
                 if (dilate) {
                     List<GeneralPolygon2d> a = ClipperUtil.MiterOffset(support_above, fMergeDownDilate);
@@ -903,13 +944,9 @@ namespace gs
                     combineSupport = ClipperUtil.Union(combineSupport, slice.SupportSolids);
                 }
 
-                // on this layer, we need to leave space for filament, by dilating solid by
-                // half nozzle-width and subtracting it
+                // make sure there is space between solid and support
                 List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
                 combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
-
-                // the actual area we will support is nudged inwards
-                //combineSupport = ClipperUtil.MiterOffset(combineSupport, -fOverhangAllowance);
 
                 LayerSupportAreas[i] = new List<GeneralPolygon2d>();
                 foreach (GeneralPolygon2d poly in combineSupport) {
