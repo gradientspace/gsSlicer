@@ -147,6 +147,27 @@ namespace gs
 
 
 
+		/// <summary>
+		/// Dwell for a number of milliseconds (1000ms=1s). Optionally, retract/unretract.
+		/// </summary>
+		public virtual void AppendDwell(int ms, bool bRetract)
+		{
+			AssemblerCommandsToolpath dwell_path = new AssemblerCommandsToolpath() {
+				AssemblerF = (iassembler, icomplier) => {
+					BaseDepositionAssembler asm = iassembler as BaseDepositionAssembler;
+					if (asm == null)
+						throw new Exception("ToolpathSetBuilder.AppendDwell: unsupported assembler");
+					asm.FlushQueues();
+					if ( bRetract )
+						asm.BeginRetractRelativeDist(asm.NozzlePosition, 9999, -1.0f);
+					asm.AppendDwell(ms);
+					if (bRetract)
+						asm.EndRetract(asm.NozzlePosition, 9999);					
+				}
+			};
+			AppendPath(dwell_path);			
+		}
+
 
         /// <summary>
         /// Command toolpaths are used to pass special commands/etc to compiler.
