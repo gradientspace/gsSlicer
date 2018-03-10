@@ -31,11 +31,17 @@ namespace gs
 		}
 
 		public virtual void AppendPath(IToolpath p) {
-			if ( ! currentPos.EpsilonEqual(p.StartPosition, MathUtil.Epsilon) )
-				throw new Exception("PathSetBuilder.AppendPath: disconnected path");
-			Paths.Append(p);
-			currentPos = p.EndPosition;
-		}
+            if (IsCommandToolpath(p)) {
+                Paths.Append(p);
+
+            } else {
+
+                if (!currentPos.EpsilonEqual(p.StartPosition, MathUtil.Epsilon))
+                    throw new Exception("PathSetBuilder.AppendPath: disconnected path");
+                Paths.Append(p);
+                currentPos = p.EndPosition;
+            }
+        }
 
 		public virtual Vector3d AppendZChange(double ZChange, double fSpeed) {
 			LinearToolpath zup = new LinearToolpath(ToolpathTypes.PlaneChange);
@@ -140,5 +146,18 @@ namespace gs
 		}
 
 
-	}
+
+
+        /// <summary>
+        /// Command toolpaths are used to pass special commands/etc to compiler.
+        /// These toolpaths do not affect the current extruder position/etc.
+        /// </summary>
+        protected virtual bool IsCommandToolpath(IToolpath toolpath)
+        {
+            return toolpath.Type == ToolpathTypes.Custom
+                || toolpath.Type == ToolpathTypes.CustomAssemblerCommands;
+        }
+
+
+    }
 }

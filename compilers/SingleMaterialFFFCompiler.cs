@@ -86,8 +86,14 @@ namespace gs
 
             int path_index = 0;
 			foreach (var gpath in paths) {
-				LinearToolpath p = gpath as LinearToolpath;
                 path_index++;
+
+                if ( IsCommandToolpath(gpath) ) {
+                    ProcessCommandToolpath(gpath);
+                    continue;
+                }
+
+				LinearToolpath p = gpath as LinearToolpath;
 
 				if (p[0].Position.Distance(Assembler.NozzlePosition) > 0.00001)
 					throw new Exception("SingleMaterialFFFCompiler.AppendPaths: path " + path_index + ": Start of path is not same as end of previous path!");
@@ -114,6 +120,7 @@ namespace gs
 						Assembler.EndTravel();
 						Assembler.EnableFan();
 					}
+
 				}
 
 				i = 1;      // do not need to emit code for first point of path, 
@@ -142,6 +149,37 @@ namespace gs
             Assembler.AppendComment(comment);
         }
 
+
+
+        /// <summary>
+        /// Command toolpaths are used to pass special commands/etc to the Assembler.
+        /// The positions will be ignored
+        /// </summary>
+        protected virtual bool IsCommandToolpath(IToolpath toolpath)
+        {
+            return toolpath.Type == ToolpathTypes.Custom
+                || toolpath.Type == ToolpathTypes.CustomAssemblerCommands;
+        }
+
+
+        /// <summary>
+        /// Called on toolpath if IsCommandToolpath() returns true
+        /// </summary>
+        protected virtual void ProcessCommandToolpath(IToolpath toolpath)
+        {
+            if (toolpath.Type == ToolpathTypes.CustomAssemblerCommands) {
+                AssemblerCommandsToolpath assembler_path = toolpath as AssemblerCommandsToolpath;
+                if (assembler_path != null && assembler_path.AssemblerF != null) {
+                    assembler_path.AssemblerF(Assembler, this);
+                } else {
+                    emit_message("ProcessCommandToolpath: invalid " + toolpath.Type.ToString());
+                }
+
+            } else {
+                emit_message("ProcessCommandToolpath: unhandled type " + toolpath.Type.ToString());
+            }
+            
+        }
 
 
 

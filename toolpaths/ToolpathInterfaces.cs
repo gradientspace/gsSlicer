@@ -11,6 +11,8 @@ namespace gs
 		Travel,
 		PlaneChange,
 
+        CustomAssemblerCommands,
+
 		Composite,
 		Custom
 	};
@@ -123,7 +125,7 @@ namespace gs
 	// in the path stream.
 	public class SentinelToolpath : IToolpath
 	{
-		public ToolpathTypes Type { 
+		public virtual ToolpathTypes Type { 
 			get {
 				return ToolpathTypes.Custom;
 			}
@@ -165,5 +167,16 @@ namespace gs
 		}
 
 	}
+
+
+
+    public class AssemblerCommandsToolpath : SentinelToolpath
+    {
+        public override ToolpathTypes Type {
+            get { return ToolpathTypes.CustomAssemblerCommands; }
+        }
+
+        public Action<IDepositionAssembler, ThreeAxisPrinterCompiler> AssemblerF;
+    }
 
 }
