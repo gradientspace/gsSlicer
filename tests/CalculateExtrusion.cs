@@ -29,11 +29,6 @@ namespace gs
         // [RMS] if we travel less than this distance, we don't retract
         double MinRetractTravelLength = 2.5;
 
-		// [RMS] this is a fudge factor thatwe maybe should not use?
-		//public double HackCorrection = 1.052;    // fitting to error from makerbot slicer
-		public double HackCorrection = 1.0;
-
-
 		// output statistics
 		public int NumPaths = 0;
 		public double ExtrusionLength = 0;
@@ -52,25 +47,6 @@ namespace gs
             MinRetractTravelLength = settings.MinRetractTravelLength;
             SupportExtrudeScale = settings.SupportVolumeScale;
         }
-
-		/// <summary>
-		/// This function computes the amount of filament to extrude (ie how
-		/// much to turn extruder stepper) along pathLen distance, at moveRate speed.
-		/// volumeScale allows for local tuning of this.
-		/// </summary>
-		public double calculate_extrude(double pathLen, double moveRate, double volumeScale = 1.0) 
-		{
-			double section_area = NozzleDiam * LayerHeight * HackCorrection;
-			double linear_vol = pathLen * section_area;
-			linear_vol *= volumeScale;
-
-			double fil_rad = FilamentDiam/2;
-			double fil_area = Math.PI*fil_rad*fil_rad;
-			double fil_len = linear_vol / fil_area;
-
-			return fil_len;
-		}
-
 
 
 
@@ -157,7 +133,9 @@ namespace gs
                             if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
                                 vol_scale *= SupportExtrudeScale;
 
-                            double feed = calculate_extrude(dist, curRate, vol_scale);
+                            double feed = ExtrusionMath.PathLengthToFilamentLength(
+                                Settings.LayerHeightMM, Settings.Machine.NozzleDiamMM, Settings.Machine.FilamentDiamMM,
+                                dist, vol_scale);
                             curA += feed;
                         }
 					}
@@ -181,91 +159,6 @@ namespace gs
 			return (flags.a & (int)TPVertexFlags.IsConnector) != 0;
 		}
 
-
-
-
-		public void TestCalculation()
-		{
-			double curA = 0;
-			Vector3d curPos = Vector3d.Zero;
-			double curRate = 0;
-
-			bool inRetract = false;
-
-			// filter paths
-			List<IToolpath> allPaths = new List<IToolpath>();
-			foreach ( IToolpath ipath in Paths ) {
-				ToolpathUtil.ApplyToLeafPaths(ipath, (p) => { 
-					if (p is LinearToolpath3<PrintVertex> || p is ResetExtruderPathHack) { 
-						allPaths.Add(p); 
-					} 
-				});
-			}
-			int N = allPaths.Count;
-			System.Console.WriteLine("CalculateExtruderMotion: have {0} paths", N);
-
-
-			for ( int pi = 0; pi < N; ++pi ) {
-				if ( allPaths[pi] is ResetExtruderPathHack ) {
-					curA = 0;
-					continue;
-				}
-
-				LinearToolpath3<PrintVertex> path = allPaths[pi] as LinearToolpath3<PrintVertex>;
-				if ( path == null )
-					throw new Exception("Invalid path type!");
-
-				for ( int i = 0; i < path.VertexCount; ++i ) {
-					bool last_vtx = (i == path.VertexCount-1);
-					    
-					Vector3d newPos = path[i].Position;
-					double newRate = path[i].FeedRate;
-
-					bool send_a = false;
-					string comment = "";
-
-					if ( path.Type != ToolpathTypes.Deposition ) {
-						if ( ! inRetract ) {
-							curA -= FixedRetractDistance;
-							send_a = true;
-							comment = "retract";
-							inRetract = true;
-						} else {
-							if ( last_vtx ) {
-								curA += FixedRetractDistance;
-								send_a = true;
-								comment = "restart";
-								inRetract = false;
-							}
-						}
-						curPos = newPos;
-						curRate = newRate;
-
-					} else {
-						double dist = (newPos - curPos).Length;
-						curPos = newPos;
-						curRate = newRate;
-
-						double feed = calculate_extrude(dist, curRate);
-						curA += feed;
-						send_a = true;
-					}
-
-					Vector3d extrudePos = path[i].Extrusion;
-
-					if ( send_a )
-						System.Console.WriteLine("G1 X{0:F3} Y{1:F3} Z{2:F3} F{3:F0} A{4:F5}; {5}  realA{6:F5} errA{7:F5}", 
-						                         curPos.x, curPos.y, curPos.z, curRate, curA, comment, path[i].Extrusion.x, (curA-path[i].Extrusion.x));
-					else
-						System.Console.WriteLine("G1 X{0:F3} Y{1:F3} Z{2:F3} F{3:F0}; {4}  {5:F5}", 
-						                         curPos.x, curPos.y, curPos.z, curRate, comment, path[i].Extrusion.x);
-				}
-
-
-			}
-
-
-		}
 
 
 	}
