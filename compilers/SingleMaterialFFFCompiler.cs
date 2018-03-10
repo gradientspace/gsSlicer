@@ -13,6 +13,9 @@ namespace gs
         // current nozzle position
         Vector3d NozzlePosition { get; }
 
+        // compiler will call this to emit status messages / etc
+        Action<string> EmitMessageF { get; set; }
+
         void Begin();
         void AppendPaths(ToolpathSet paths);
         void AppendComment(string comment);
@@ -28,6 +31,12 @@ namespace gs
         BaseDepositionAssembler Assembler;
 
         AssemblerFactoryF AssemblerF;
+
+        /// <summary>
+        /// compiler will call this to emit status messages / etc
+        /// </summary>
+        public virtual Action<string> EmitMessageF { get; set; }
+
 
         public SingleMaterialFFFCompiler(GCodeBuilder builder, SingleMaterialFFFSettings settings, AssemblerFactoryF AssemblerF )
 		{
@@ -64,7 +73,9 @@ namespace gs
 		}
 
 
-
+        /// <summary>
+        /// Compile this set of toolpaths and pass to assembler
+        /// </summary>
 		public virtual void AppendPaths(ToolpathSet paths)
         {
             Assembler.FlushQueues();
@@ -132,6 +143,13 @@ namespace gs
         }
 
 
+
+
+        protected virtual void emit_message(string text, params object[] args)
+        {
+            if (EmitMessageF != null)
+                EmitMessageF(string.Format(text, args));
+        }
 
     }
 }

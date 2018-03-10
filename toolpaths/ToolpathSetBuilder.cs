@@ -86,7 +86,26 @@ namespace gs
 		}
 
 
-		public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, 
+
+        public virtual Vector3d AppendExtrude(Vector2d toPos, double fSpeed,
+            FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown)
+        {
+            return AppendExtrude(new Vector3d(toPos.x, toPos.y, currentPos.z), fSpeed, pathTypeFlags);
+        }
+        public virtual Vector3d AppendExtrude(Vector3d toPos, double fSpeed,
+            FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown)
+        {
+            LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
+            extrusion.TypeModifiers = pathTypeFlags;
+            extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue));
+            extrusion.AppendVertex(new PrintVertex(toPos, fSpeed));
+            AppendPath(extrusion);
+            return currentPos;
+        }
+
+
+
+        public virtual Vector3d AppendExtrude(List<Vector2d> toPoints, double fSpeed, 
             FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown,
             List<TPVertexFlags> perVertexFlags = null )
         {
