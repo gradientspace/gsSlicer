@@ -5,6 +5,14 @@ using g3;
 
 namespace gs
 {
+    /// <summary>
+    /// Computes a PlanarSliceStack from a set of input meshes, by horizonally
+    /// slicing them at regular Z-intervals. This is where we need to sort out
+    /// any complications like overlapping shells, etc. Much of that work is
+    /// done in PlanarSlice.resolve().
+    /// 
+    /// The input meshes are not modified in this process.
+    /// </summary>
 	public class MeshPlanarSlicer
 	{
         class SliceMesh
@@ -16,24 +24,57 @@ namespace gs
         }
         List<SliceMesh> Meshes = new List<SliceMesh>();
 
+        /// <summary>
+        /// Slice height
+        /// </summary>
 		public double LayerHeightMM = 0.2;
+
+        /// <summary>
+        /// Open-sheet meshes slice into open paths. For OpenPathsModes.Embedded mode, we need
+        /// to subtract thickened path from the solids. This is the path thickness.
+        /// </summary>
         public double OpenPathDefaultWidthMM = 0.4;
-		public int MaxLayerCount = 10000;		// just for sanity-check
+
+        /// <summary>
+        /// Normally we slice in interval [zmin,zmax]. Set this to 0 if you
+        /// want to slice [0,zmax].
+        /// </summary>
+        public double SetMinZValue = double.MinValue;
+
+        /// <summary>
+        /// If true, then any empty slices at bottom of stack are discarded.
+        /// </summary>
+        public bool DiscardEmptyBaseSlices = false;
+
 
 		public enum SliceLocations {
 			Base, EpsilonBase, MidLine
 		}
+
+        /// <summary>
+        /// Where in layer should we compute slice
+        /// </summary>
 		public SliceLocations SliceLocation = SliceLocations.MidLine;
 
+        /// <summary>
+        /// How should open paths be handled. Is overriden by
+        /// PrintMeshOptions.OpenPathsModes for specific meshes
+        /// </summary>
         public PrintMeshOptions.OpenPathsModes DefaultOpenPathMode = PrintMeshOptions.OpenPathsModes.Clipped;
+
+
+        public int MaxLayerCount = 10000;		// just for sanity-check
+
 
         // these can be used for progress tracking
         public int TotalCompute = 0;
         public int Progress = 0;
 
+
 		public MeshPlanarSlicer()
 		{
 		}
+
 
         public int AddMesh(DMesh3 mesh, PrintMeshOptions options) {
             SliceMesh m = new SliceMesh() {
@@ -59,14 +100,21 @@ namespace gs
 
 
 
-
+        /// <summary>
+        /// Slice the meshes and return the slice stack. 
+        /// </summary>
 		public PlanarSliceStack Compute()
 		{
+            if (Meshes.Count == 0)
+                return new PlanarSliceStack();
+
 			Interval1d zrange = Interval1d.Empty;
 			foreach ( var meshinfo in Meshes ) {
 				zrange.Contain(meshinfo.bounds.Min.z);
 				zrange.Contain(meshinfo.bounds.Max.z);
 			}
+            if (SetMinZValue != double.MinValue)
+                zrange.a = SetMinZValue;
 
 			int nLayers = (int)(zrange.Length / LayerHeightMM);
 			if (nLayers > MaxLayerCount)
@@ -91,7 +139,8 @@ namespace gs
                 slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
             }
 
-            TotalCompute = Meshes.Count * nLayers;
+            // assume Resolve() takes 2x as long as meshes...
+            TotalCompute = (Meshes.Count * NH) +  (2*NH);
             Progress = 0;
 
 
@@ -175,6 +224,7 @@ namespace gs
             // resolve planar intersections, etc
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
                 slices[i].Resolve();
+                Interlocked.Add(ref Progress, 2);
             });
 
             // discard spurious empty slices
@@ -182,8 +232,10 @@ namespace gs
             while (slices[last].IsEmpty && last > 0)
                 last--;
             int first = 0;
-            while (slices[first].IsEmpty && first < slices.Length)
-                first++;
+            if (DiscardEmptyBaseSlices) {
+                while (slices[first].IsEmpty && first < slices.Length)
+                    first++;
+            }
 
             PlanarSliceStack stack = new PlanarSliceStack();
             for (int k = first; k <= last; ++k)

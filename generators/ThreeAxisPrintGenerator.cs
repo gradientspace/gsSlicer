@@ -225,7 +225,8 @@ namespace gs
             //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
             OverhangAllowanceMM = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
 
-            TotalProgress = 2 * (Slices.Count-1);
+            int NProgressStepsPerLayer = 8 + (Settings.EnableSupport ? 2 : 0);
+            TotalProgress = NProgressStepsPerLayer * (Slices.Count - 1);
             CurProgress = 0;
 
             if (AccumulatePathSet == true)
@@ -293,16 +294,20 @@ namespace gs
                         floor_cover = find_floor_areas_for_layer(layer_i+1);   // will return "our" layer
                     }
                 }
+                count_progress_step();
 
                 // do support first
                 // this could be done in parallel w/ roof/floor...
                 List<GeneralPolygon2d> support_areas = new List<GeneralPolygon2d>();
                 if (Settings.EnableSupport) {
                     support_areas = get_layer_support_area(layer_i);
-                    groupScheduler.BeginGroup();
-                    fill_support_regions(support_areas, groupScheduler, layerdata);
-                    groupScheduler.EndGroup();
-                    layerdata.SupportAreas = support_areas;
+                    if (support_areas != null) {
+                        groupScheduler.BeginGroup();
+                        fill_support_regions(support_areas, groupScheduler, layerdata);
+                        groupScheduler.EndGroup();
+                        layerdata.SupportAreas = support_areas;
+                    }
+                    count_progress_step();
                 }
 
                 // selector determines what order we process shells in
@@ -324,6 +329,7 @@ namespace gs
                         groupScheduler.AppendCurveSets(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
                     }
                     groupScheduler.EndGroup();
+                    count_progress_step();
 
                     // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
@@ -347,6 +353,7 @@ namespace gs
                     groupScheduler.BeginGroup();
                     fill_infill_regions(infill_regions, groupScheduler, layerdata);
                     groupScheduler.EndGroup();
+                    count_progress_step();
 
                     groupScheduler.BeginGroup();
                     if (do_outer_last) {
@@ -383,6 +390,7 @@ namespace gs
             }
 
             Compiler.End();
+            CurProgress = TotalProgress;
         }
 
 
@@ -853,6 +861,8 @@ namespace gs
 
             int nLayers = Slices.Count;
             LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
+            if (nLayers <= 1)
+                return;
 
 
             // For layer i, compute support region needed to support layer (i+1)
