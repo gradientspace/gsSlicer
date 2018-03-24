@@ -10,8 +10,9 @@ namespace gs
     /// also returns border polygons of "inner" region inside shells (.InnerPolygons)
     /// 
     /// Parameters:
-    ///     .Layers:     number of shells
-    ///     .ToolWidth:  thickness of 'tool', this is the space between subsequent shells
+    ///     .Layers:       number of shells
+    ///     .ToolWidth:    thickness of 'tool'
+	///     .PathSpacing:  spacing between paths. Generally should be >= ToolWidth
     ///     
     /// Options:
     ///     .InsetFromInputPolygon    : if true, initial shell is inset half a ToolWidth from input Polygon
@@ -30,7 +31,7 @@ namespace gs
         // parameters
         public int Layers = 2;
         public double ToolWidth = 0.4;
-		public double PathSpacing = 0.4;    // [TODO] this parameter is currently ignored?
+		public double PathSpacing = 0.4; 
 
 		public double DiscardTinyPerimterLengthMM = 1.0;
 		public double DiscardTinyPolygonAreaMM2 = 1.0;
@@ -107,6 +108,11 @@ namespace gs
 			   	new List<GeneralPolygon2d>() { Polygon };
             List<GeneralPolygon2d> current_prev = null;
 
+			if (current.Count == 0) {
+				HandleTinyPolygon();
+				return true;
+			}
+
 			// convert previous layer to shell, and then compute next layer
 			List<GeneralPolygon2d> failedShells = new List<GeneralPolygon2d>();
 			List<GeneralPolygon2d> nextShellTooThin = new List<GeneralPolygon2d>();
@@ -117,7 +123,7 @@ namespace gs
 				List<GeneralPolygon2d> all_next = new List<GeneralPolygon2d>();
 				foreach ( GeneralPolygon2d gpoly in current ) {
 					List<GeneralPolygon2d> offsets =
-						ClipperUtil.ComputeOffsetPolygon(gpoly, -ToolWidth, true);
+						ClipperUtil.ComputeOffsetPolygon(gpoly, -PathSpacing, true);
 
 					List<GeneralPolygon2d> filtered = new List<GeneralPolygon2d>();
 					foreach (var v in offsets) {
@@ -167,7 +173,38 @@ namespace gs
 		}
 
 
+		/// <summary>
+		/// Fallback to deal with very tiny polygons that disappear when insetting.
+		/// This happens at Z-minima-tips, which can be a problem because it may leave
+		/// gaps between layers. For tips we draw a tiny circle. 
+		/// For elongated shapes we...?? currently do something dumb.
+		/// Probably should use robust thinning!
+		/// </summary>
+		public virtual void HandleTinyPolygon()
+		{
+			//(InsetFromInputPolygon) ?
+			//ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true) :	
+			AxisAlignedBox2d bounds = Polygon.Bounds;
+			if (bounds.MaxDim < ToolWidth) {
+				GeneralPolygon2d min_poly = new GeneralPolygon2d(Polygon2d.MakeCircle(ToolWidth/4, 6));
+				min_poly.Outer.Translate(bounds.Center);
+				FillCurveSet2d paths = ShellPolysToPaths(new List<GeneralPolygon2d>() { min_poly }, 0);
+				Shells.Add(paths);
 
+			} else {
+				FillCurveSet2d paths = ShellPolysToPaths(new List<GeneralPolygon2d>() { Polygon }, 0);
+				Shells.Add(paths);
+			}
+
+			InnerPolygons = new List<GeneralPolygon2d>();
+		}
+
+
+		/// <summary>
+		/// Convert the input polygons to a set of paths. 
+		/// If FilterSelfOverlaps=true, then the paths will be clipped against
+		/// themselves, in an attempt to avoid over-printing.
+		/// </summary>
         public virtual FillCurveSet2d ShellPolysToPaths(List<GeneralPolygon2d> shell_polys, int nShell)
         {
             FillCurveSet2d paths = new FillCurveSet2d();
