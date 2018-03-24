@@ -232,6 +232,12 @@ namespace gs
             if (AccumulatePathSet == true)
                 AccumulatedPaths = new ToolpathSet();
 
+			// build spatial caches for slice polygons
+			bool need_slice_spatial = (Settings.EnableSupport);
+			if (need_slice_spatial) {
+				Slices.BuildSliceSpatialCaches(true);
+			}
+
             // initialize compiler and get start nozzle position
             Compiler.Begin();
 
@@ -242,12 +248,6 @@ namespace gs
 
             if (Settings.EnableSupport)
                 precompute_support_areas();
-
-			// build spatial caches for slice polygons
-			bool need_slice_spatial = (Settings.EnableSupport);
-			if (need_slice_spatial) {
-				Slices.BuildSliceSpatialCaches(true);
-			}
 
 			PrintLayerData prevLayerData = null;
 
@@ -500,9 +500,6 @@ namespace gs
             } 
 
             foreach ( var poly in infill_polys ) {
-                if (poly.Bounds.MaxDim < MinPolyDimension)
-                    continue;
-
                 SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
                     InsetFromInputPolygon = (Settings.EnableSupportShell == false),
 					PathSpacing = support_spacing,
