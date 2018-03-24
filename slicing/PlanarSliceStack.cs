@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using g3;
 
 namespace gs
@@ -48,6 +49,17 @@ namespace gs
 
 
 
+		public void BuildSliceSpatialCaches(bool bParallel)
+		{
+			if (bParallel) {
+				gParallel.ForEach(Slices, (slice) => {
+					slice.BuildSpatialCaches();
+				});
+			} else {
+				foreach (var slice in Slices)
+					slice.BuildSpatialCaches();
+			}
+		}
 
 
 

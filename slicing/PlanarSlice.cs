@@ -28,6 +28,8 @@ namespace gs
         public List<PolyLine2d> ClippedPaths = new List<PolyLine2d>();
         public List<GeneralPolygon2d> InputSupportSolids = new List<GeneralPolygon2d>();
 
+		public List<Vector2d> InputSupportPoints = new List<Vector2d>();
+
         /*
          *  Output geometry, produced by Resolve(). These should not have any intersections.
          *     - "solid" polygons-with-holes
@@ -223,6 +225,66 @@ namespace gs
 		}
 
 
+		/// <summary>
+		/// Returns the unsigned minimum distance to the solid/path polylines.
+		/// Must call BuildSpatialCaches() first, then it is safe to call
+		/// this function from multiple threads.
+		/// </summary>
+		public double DistanceSquared(Vector2d pt, double max_dist = double.MaxValue, bool solids = true, bool paths = true)
+		{
+			if (spatial_caches_available == false)
+				throw new Exception("PlanarSlice.DistanceSquared: call BiuldSpatialCaches first!");
+			
+			double dist_sqr = double.MaxValue;
+			if (max_dist != double.MaxValue)
+				max_dist = max_dist * max_dist;
+
+			int NS = Solids.Count;
+			for (int i = 0; i < NS; ++i) {
+				double d = solid_bounds[i].Distance(pt);
+				if (d * d > dist_sqr)
+					continue;
+				int iHole, iSeg; double segT;
+				d = Solids[i].DistanceSquared(pt, out iHole, out iSeg, out segT);
+				if (d < dist_sqr)
+					dist_sqr = d;
+			}
+			int NP = Paths.Count;
+			for (int i = 0; i < NP; ++i) {
+				double d = path_bounds[i].Distance(pt);
+				if (d * d > dist_sqr)
+					continue;				
+				d = Paths[i].DistanceSquared(pt);
+				if (d < dist_sqr)
+					dist_sqr = d;
+			}
+			return dist_sqr;
+		}
+
+
+		/// <summary>
+		/// Precompute spatial caching information. This is not thread-safe.
+		/// (Currently just list of bboxes for each solid/path.)
+		/// </summary>
+		public void BuildSpatialCaches()
+		{
+			int NS = Solids.Count;
+			solid_bounds = new AxisAlignedBox2d[NS];
+			for (int i = 0; i < NS; ++i) {
+				solid_bounds[i] = Solids[i].Bounds;
+			}
+
+			int NP = Paths.Count;
+			path_bounds = new AxisAlignedBox2d[NP];
+			for (int i = 0; i < NP; ++i) {
+				path_bounds[i] = Paths[i].Bounds;
+			}
+
+			spatial_caches_available = true;
+		}
+		AxisAlignedBox2d[] solid_bounds;
+		AxisAlignedBox2d[] path_bounds;
+		bool spatial_caches_available = false;
 
 
 
