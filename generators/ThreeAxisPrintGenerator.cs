@@ -830,7 +830,7 @@ namespace gs
             /*
              *  Here is the strategy for computing support areas:
              *    For layer i, support region is union of:
-             *         1) Difference[ offset(layer i+1 solids, fOverhangAngleDist), layer i solids ]
+             *         1) Difference[ layer i+1 solids, offset(layer i solids, fOverhangAngleDist) ]
              *              (ie the bit of the next layer we need to support)
              *         2) support region at layer i+1
              *         3) any pre-defined support solids  (ie from user-defined mesh) 
@@ -866,37 +866,102 @@ namespace gs
             // space we leave between support polygons and solids
             // [TODO] do we need to include SupportAreaOffsetX here?
             double fSupportGapInLayer = Settings.SupportSolidSpace;
-            
-            // we will throw away tiny support regions smaller than these thresholds
-            double DiscardHoleSizeMM = 0.1;
-            double DiscardHoleArea = 0.1 * 0.1;
 
-            int nLayers = Slices.Count;
-            LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
-            if (nLayers <= 1)
-                return;
+			// extra offset we add to support polygons, eg to nudge them
+			// in/out depending on shell layers, etc
+			double fSupportOffset = Settings.SupportAreaOffsetX * Settings.Machine.NozzleDiamMM;
+
+			// we will throw away holes in support regions smaller than these thresholds
+			double DiscardHoleSizeMM = Settings.Machine.NozzleDiamMM;
+			double DiscardHoleArea = DiscardHoleSizeMM * DiscardHoleSizeMM;
+
+			// if support poly is further than this from model, we consider
+			// it a min-z-tip and it gets special handling
+			double fSupportMinDist = Settings.Machine.NozzleDiamMM;
 
 
-            // For layer i, compute support region needed to support layer (i+1)
-            // We do this by shrinking/offsetting layer i+1, and then subtracting layer i
-            // The overhang angle gives us the offset distance
-            // This is the *absolute* support area - no inset for filament width or spacing from model
-            gParallel.ForEach(Interval1i.Range(nLayers-1), (layeri) => {
-                PlanarSlice slice = Slices[layeri];
-                PlanarSlice next_slice = Slices[layeri + 1];
+			int nLayers = Slices.Count;
+			LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
+			if (nLayers <= 1)
+				return;
 
-                List<GeneralPolygon2d> insetPolys = ClipperUtil.MiterOffset(next_slice.Solids, -fOverhangAngleDist);
-                List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(insetPolys, slice.Solids);
 
-                // expand back out so it is full area, plus inset/outset
-                supportPolys = ClipperUtil.MiterOffset(supportPolys, 
-                    fOverhangAngleDist + Settings.SupportAreaOffsetX*Settings.Machine.NozzleDiamMM);
+			/*
+			 * Step 1: compute absolute support polygon for each layer
+			 */
+
+			// For layer i, compute support region needed to support layer (i+1)
+			// This is the *absolute* support area - no inset for filament width or spacing from model
+			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
+				PlanarSlice slice = Slices[layeri];
+				PlanarSlice next_slice = Slices[layeri + 1];
+
+				// expand this layer and subtract from next layer. leftovers are
+				// what needs to be supported on next layer.
+				List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, fOverhangAngleDist);
+				List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(next_slice.Solids, expandPolys);
+
+				// if we have an support inset/outset, apply it here.
+				// for insets the poly may disappear, in that case we
+				// keep the original poly.
+				// [TODO] handle partial-disappears
+				if (fSupportOffset != 0) {
+					List<GeneralPolygon2d> offsetPolys = new List<GeneralPolygon2d>();
+					foreach (var poly in supportPolys) {
+						List<GeneralPolygon2d> offset = ClipperUtil.MiterOffset(poly, fSupportOffset);
+						// if offset is empty, use original poly
+						if (offset.Count == 0) {
+							offsetPolys.Add(poly);
+						} else {
+							offsetPolys.AddRange(offset);
+						}
+					}
+					supportPolys = offsetPolys;
+				}
+
+				// now we need to deal with tiny polys. If they are min-z-tips,
+				// we want to add larger support regions underneath them. 
+				// We determine this by measuring distance to this layer.
+				// NOTE: we **cannot** discard tiny polys here, because a bunch of
+				// tiny per-layer polygons may merge into larger support regions
+				// after dilate/contract, eg on angled thin strips. 
+				// NOTE2: we could discard tiny polys if we are sure they are
+				// sufficiently supported, but the test is kind of expensive, 
+				// need to spatial query in a ring and make sure it is 
+				// connected on multiple sides...
+				List<GeneralPolygon2d> filteredPolys = new List<GeneralPolygon2d>();
+				foreach ( var poly in supportPolys ) {
+					var bounds = poly.Bounds;
+					// big enough to keep
+					if (bounds.MaxDim > 4*fPrintWidth) {
+						filteredPolys.Add(poly);
+						continue;
+					}
+					// check distance. if we are not close to any solids, this 
+					// is a min-z-tip, and gets a larger support poly.
+					double dist_sqr = slice.DistanceSquared(bounds.Center, 3*fSupportMinDist);
+					if (dist_sqr < fSupportMinDist * fSupportMinDist) {
+						filteredPolys.Add(poly);
+					} else {
+						filteredPolys.Add(make_support_point_poly(bounds.Center));
+					}
+				}
+				supportPolys = filteredPolys;
+
+
+				// add any explicit support points in this layer as circles
+				foreach (Vector2d v in slice.InputSupportPoints)
+					supportPolys.Add(make_support_point_poly(v));
 
                 LayerSupportAreas[layeri] = supportPolys;
                 count_progress_step();
             });
             LayerSupportAreas[nLayers-1] = new List<GeneralPolygon2d>();
 
+
+			/*
+			 * Step 1: sweep support polygons downwards
+			 */
 
 			// now merge support layers. Process is to track "current" support area,
 			// at layer below we union with that layers support, and then subtract
