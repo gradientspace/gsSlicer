@@ -243,6 +243,12 @@ namespace gs
             if (Settings.EnableSupport)
                 precompute_support_areas();
 
+			// build spatial caches for slice polygons
+			bool need_slice_spatial = (Settings.EnableSupport);
+			if (need_slice_spatial) {
+				Slices.BuildSliceSpatialCaches(true);
+			}
+
 			PrintLayerData prevLayerData = null;
 
             // Now generate paths for each layer.
