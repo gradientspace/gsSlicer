@@ -456,25 +456,34 @@ namespace gs
         /// </summary>
 		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
-            // [RMS] this may be too aggressive - esp for tall posts
-            // [TODO] should be a setting
-            double MinPolyDimension = 2.0;
+			AxisAlignedBox2d bounds = support_poly.Bounds;
 
-            if (support_poly.Bounds.MaxDim < MinPolyDimension)
-                return;
+			// settings may require a shell. However if support region
+			// is very small, we will also use nested shells because infill
+			// poly will likely be empty. In this case we nudge up the spacing
+			// so that they are more loosely bonded
+			int nShells = (Settings.EnableSupportShell) ? 1 : 0;
+			double support_spacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM();
+			double shell_spacing = Settings.Machine.NozzleDiamMM;
+			if (bounds.MaxDim < 2 * support_spacing) {
+				nShells = 3;
+				shell_spacing = Settings.Machine.NozzleDiamMM + 0.05;
+			}
 
             List<GeneralPolygon2d> infill_polys = new List<GeneralPolygon2d>() { support_poly };
 
-            if (Settings.EnableSupportShell) {
+			if (nShells > 0) {
                 ShellsFillPolygon shells_gen = new ShellsFillPolygon(support_poly);
-                shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
+				shells_gen.PathSpacing = shell_spacing;
                 shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
-                shells_gen.Layers = 1;
+				shells_gen.Layers = nShells;
                 shells_gen.FilterSelfOverlaps = false;
                 shells_gen.InsetFromInputPolygon = true;
                 //shells_gen.FilterSelfOverlaps = true;
                 //shells_gen.PreserveOuterShells = false;
                 //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
+				shells_gen.DiscardTinyPolygonAreaMM2 = 0.0;
+				shells_gen.DiscardTinyPerimterLengthMM = 0.0;
                 shells_gen.Compute();
                 List<FillCurveSet2d> shell_fill_curves = shells_gen.GetFillCurves();
                 foreach (var fillpath in shell_fill_curves)
@@ -496,7 +505,7 @@ namespace gs
 
                 SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
                     InsetFromInputPolygon = (Settings.EnableSupportShell == false),
-                    PathSpacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM(),
+					PathSpacing = support_spacing,
                     ToolWidth = Settings.Machine.NozzleDiamMM,
                     AngleDeg = 0,
                 };
