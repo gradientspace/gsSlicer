@@ -980,7 +980,15 @@ namespace gs
         }
 
 
-
+		protected virtual GeneralPolygon2d make_support_point_poly(Vector2d v, double diameter = -1)
+		{
+			if ( diameter <= 0 )
+				diameter = Settings.SupportPointDiam;
+			Polygon2d circ = Polygon2d.MakeCircle(
+				diameter * 0.5, Settings.SupportPointSides);
+			circ.Translate(v);
+			return new GeneralPolygon2d(circ);			
+		}
 
 
 
