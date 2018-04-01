@@ -54,6 +54,7 @@
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
     <Compile Include="toolpathing\SupportPostProcessors.cs" />
     <Compile Include="toolpathing\TiledFillPolygon.cs" />
+    <Compile Include="utility\CalculatePrintTime.cs" />
     <Compile Include="utility\GCodeToTubeMeshes.cs" />
     <Compile Include="utility\GCodeToToolpaths.cs" />
     <Compile Include="tests\CalculateExtrusion.cs" />

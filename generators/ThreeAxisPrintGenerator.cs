@@ -378,14 +378,21 @@ namespace gs
                 // discard the group scheduler
                 layerdata.Scheduler = groupScheduler.TargetScheduler;
 
-				// last change to post-process paths for this layer before they are baked in
+				// last chance to post-process paths for this layer before they are baked in
                 if ( LayerPostProcessor != null )
                     LayerPostProcessor.Process(layerdata, pathAccum.Paths);
 
+                // change speeds if layer is going to finish too quickly
+                if (Settings.MinLayerTime > 0) {
+                    CalculatePrintTime layer_time_calc = new CalculatePrintTime(pathAccum.Paths, Settings);
+                    layer_time_calc.EnforceMinLayerTime();
+                }
+
                 // compile this layer 
                 // [TODO] we could do this in a separate thread, in a queue of jobs?
-				Compiler.AppendPaths(pathAccum.Paths);
+                Compiler.AppendPaths(pathAccum.Paths);
 
+                // add this layer to running pathset
                 if (AccumulatedPaths != null)
                     AccumulatedPaths.Append(pathAccum.Paths);
 
