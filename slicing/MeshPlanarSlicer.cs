@@ -268,7 +268,7 @@ namespace gs
             }
 
             // extract loops and open curves from graph
-            DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, iso.ShouldReverseGraphEdge);
+            DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge);
             loops = new Polygon2d[c.Loops.Count];
             for (int li = 0; li < loops.Length; ++li) {
                 DCurve3 loop = c.Loops[li];
