@@ -35,6 +35,25 @@ namespace gs
         /// </summary>
         public double OpenPathDefaultWidthMM = 0.4;
 
+
+		/// <summary>
+		/// Support "tips" (ie z-minima vertices) can be detected geometrically and
+		/// added to PlanarSlice.InputSupportPoints. 
+		/// </summary>
+		public bool SupportMinZTips = false;
+
+		/// <summary>
+		/// What is the largest floating polygon we will consider a "tip"
+		/// </summary>
+		public double MinZTipMaxDiam = 2.0;
+
+		/// <summary>
+		/// Often desirable to support a Z-minima tip several layers "up" around it.
+		/// This is how many layers.
+		/// </summary>
+		public int MinZTipExtraLayers = 6;
+
+
         /// <summary>
         /// Normally we slice in interval [zmin,zmax]. Set this to 0 if you
         /// want to slice [0,zmax].
@@ -240,6 +259,9 @@ namespace gs
             PlanarSliceStack stack = new PlanarSliceStack();
             for (int k = first; k <= last; ++k)
                 stack.Add(slices[k]);
+
+			if ( SupportMinZTips )
+				stack.AddMinZTipSupportPoints(MinZTipMaxDiam, MinZTipExtraLayers);
 
 			return stack;
 		}

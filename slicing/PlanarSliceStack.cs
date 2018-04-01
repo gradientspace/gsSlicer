@@ -63,6 +63,54 @@ namespace gs
 
 
 
+		/// <summary>
+		/// Add explicit support points for any small floating polygons.
+		/// These can be used at toolpathing time to ensure support for
+		/// such areas, which otherwise might be lost (or insufficiently
+		/// supported) by the standard techniques to detect support regions.
+		/// </summary>
+		public void AddMinZTipSupportPoints(double tipDiamThresh = 2.0, int nExtraLayers = 0)
+		{
+			List<Vector3d> tips = new List<Vector3d>();
+			SpinLock tiplock = new SpinLock();
+
+			int N = Slices.Count;
+			gParallel.ForEach(Interval1i.FromToInclusive(1, N - 1), (li) => {
+				PlanarSlice slice = Slices[li];
+				PlanarSlice prev = Slices[li - 1];
+				foreach (GeneralPolygon2d poly in slice.InputSolids) {
+					AxisAlignedBox2d bounds = poly.Bounds;
+					if (bounds.MaxDim > tipDiamThresh)
+						continue;
+					Vector2d c = bounds.Center;
+					bool contained = false;
+					foreach (var poly2 in prev.InputSolids) {
+						if (poly2.Contains(c)) {
+							contained = true;
+							break;
+						}
+					}
+					if (contained)
+						continue;
+					bool entered = false;
+					tiplock.Enter(ref entered);
+					tips.Add(new Vector3d(c.x, c.y, li));
+					tiplock.Exit();
+				}
+			});
+
+			foreach (var tip in tips) {
+				int layer_i = (int)tip.z;
+				int add_to = Math.Min(N - 1, layer_i + nExtraLayers);
+				for (int i = layer_i; i < add_to; ++i)
+					Slices[i].InputSupportPoints.Add(tip.xy);
+			}
+		}
+
+
+
+
+
 
         /// <summary>
         /// Format is:
