@@ -225,7 +225,7 @@ namespace gs
             //double fOverhangAllowance = 0.5 * settings.NozzleDiamMM;
             OverhangAllowanceMM = Settings.LayerHeightMM / Math.Tan(45 * MathUtil.Deg2Rad);
 
-            int NProgressStepsPerLayer = 8 + (Settings.EnableSupport ? 2 : 0);
+            int NProgressStepsPerLayer = 10;
             TotalProgress = NProgressStepsPerLayer * (Slices.Count - 1);
             CurProgress = 0;
 
@@ -233,7 +233,7 @@ namespace gs
                 AccumulatedPaths = new ToolpathSet();
 
 			// build spatial caches for slice polygons
-			bool need_slice_spatial = (Settings.EnableSupport);
+			bool need_slice_spatial = (Settings.GenerateSupport);
 			if (need_slice_spatial) {
 				Slices.BuildSliceSpatialCaches(true);
 			}
@@ -246,8 +246,7 @@ namespace gs
             precompute_shells();
             int nLayers = Slices.Count;
 
-            if (Settings.EnableSupport)
-                precompute_support_areas();
+            precompute_support_areas();
 
 			PrintLayerData prevLayerData = null;
 
@@ -305,16 +304,14 @@ namespace gs
                 // do support first
                 // this could be done in parallel w/ roof/floor...
                 List<GeneralPolygon2d> support_areas = new List<GeneralPolygon2d>();
-                if (Settings.EnableSupport) {
-                    support_areas = get_layer_support_area(layer_i);
-                    if (support_areas != null) {
-                        groupScheduler.BeginGroup();
-                        fill_support_regions(support_areas, groupScheduler, layerdata);
-                        groupScheduler.EndGroup();
-                        layerdata.SupportAreas = support_areas;
-                    }
-                    count_progress_step();
+                support_areas = get_layer_support_area(layer_i);
+                if (support_areas != null) {
+                    groupScheduler.BeginGroup();
+                    fill_support_regions(support_areas, groupScheduler, layerdata);
+                    groupScheduler.EndGroup();
+                    layerdata.SupportAreas = support_areas;
                 }
+                count_progress_step();
 
                 // selector determines what order we process shells in
                 ILayerShellsSelector shellSelector = ShellSelectorFactoryF(layerdata);
@@ -834,6 +831,19 @@ namespace gs
         /// </summary>
         protected virtual void precompute_support_areas()
         {
+            if (Settings.GenerateSupport)
+                generate_support_areas();
+            else
+                add_existing_support_areas();
+        }
+
+
+        /// <summary>
+        /// Auto-generate the planar solids required to support each area,
+        /// and then sweep them downwards.
+        /// </summary>
+        protected virtual void generate_support_areas()
+        {
             /*
              *  Here is the strategy for computing support areas:
              *    For layer i, support region is union of:
@@ -967,7 +977,7 @@ namespace gs
 
 
 			/*
-			 * Step 1: sweep support polygons downwards
+			 * Step 2: sweep support polygons downwards
 			 */
 
 			// now merge support layers. Process is to track "current" support area,
@@ -1033,6 +1043,8 @@ namespace gs
                 // support area we propagate down is combined area minus solid
                 prevSupport = ClipperUtil.Difference(combineSupport, slice.Solids);
 
+                // [TODO] everything after here can be done in parallel in a second pass, right?
+
                 // if we have explicit support, we can union it in now
                 if ( slice.SupportSolids.Count > 0 ) {
                     combineSupport = ClipperUtil.Union(combineSupport, slice.SupportSolids);
@@ -1048,7 +1060,43 @@ namespace gs
                     LayerSupportAreas[i].Add(poly);
                 }
             }
+        }
 
+
+        /// <summary>
+        /// Add explicit support solids defined in PlanarSlices. This is called when
+        /// Settings.GenerateSupport = false, otherwise these solids are included in
+        /// precompute_support_areas().  (todo: have that call this?)
+        /// </summary>
+        protected virtual void add_existing_support_areas()
+        {
+            // space we leave between support polygons and solids
+            double fSupportGapInLayer = Settings.SupportSolidSpace;
+
+            int nLayers = Slices.Count;
+            LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
+            if (nLayers <= 1)
+                return;
+
+            gParallel.ForEach(Interval1i.Range(Slices.Count), (i) => {
+                PlanarSlice slice = Slices[i];
+                if (slice.SupportSolids.Count == 0)
+                    return;
+
+                // if we have explicit support, we can union it in now
+                List<GeneralPolygon2d> combineSupport = slice.SupportSolids;
+
+                // make sure there is space between solid and support
+                List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
+                combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
+
+                LayerSupportAreas[i] = new List<GeneralPolygon2d>();
+                foreach (GeneralPolygon2d poly in combineSupport) {
+                    PolySimplification2.Simplify(poly, 0.5 * Settings.Machine.NozzleDiamMM);
+                    LayerSupportAreas[i].Add(poly);
+                }
+                count_progress_step();
+            });
         }
 
 
