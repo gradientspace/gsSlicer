@@ -1086,15 +1086,18 @@ namespace gs
                 // if we have explicit support, we can union it in now
                 List<GeneralPolygon2d> combineSupport = slice.SupportSolids;
 
+                // simplify each poly
+                // [RMS] for existing support we do only a very tiny amount of simplification...
+                foreach (GeneralPolygon2d poly in combineSupport) {
+                    PolySimplification2.Simplify(poly, 0.05 * Settings.Machine.NozzleDiamMM);
+                }
+
                 // make sure there is space between solid and support
                 List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
                 combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
 
-                LayerSupportAreas[i] = new List<GeneralPolygon2d>();
-                foreach (GeneralPolygon2d poly in combineSupport) {
-                    PolySimplification2.Simplify(poly, 0.5 * Settings.Machine.NozzleDiamMM);
-                    LayerSupportAreas[i].Add(poly);
-                }
+                LayerSupportAreas[i] = combineSupport;
+
                 count_progress_step();
             });
         }
