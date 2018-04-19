@@ -83,14 +83,17 @@ namespace gs
 				if ( ! (path.Type == ToolpathTypes.Deposition || path.Type == ToolpathTypes.PlaneChange || path.Type == ToolpathTypes.Travel) )
 					throw new Exception("Unknown path type!");
 
-                // if we are travelling between two extrusion paths, and the travel distance is very short,
-                // then we will skip the retract.
+                // if we are travelling between two extrusion paths, and neither is support, 
+                // and the travel distance is very short,then we will skip the retract. 
+                // [TODO] should only do this on interior travels. We should determine that upstream and set a flag on travel path.
                 bool skip_retract = false;
-                if ( path.Type == ToolpathTypes.Travel && 
-                     (prev_path != null && prev_path.Type == ToolpathTypes.Deposition) &&
-                     (pi < N-1 && allPaths[pi+1].Type == ToolpathTypes.Deposition) ) {
-
-                    skip_retract = (path.StartPosition.Distance(path.EndPosition) < MinRetractTravelLength);
+                if ( path.Type == ToolpathTypes.Travel && path.Length < MinRetractTravelLength ) {
+                    bool prev_is_model_deposition =
+                        (prev_path != null) && (prev_path.Type == ToolpathTypes.Deposition) && ((prev_path.TypeModifiers & FillTypeFlags.SupportMaterial) == 0);
+                    LinearToolpath3<PrintVertex> next_path = (pi < N-1) ? (allPaths[pi + 1] as LinearToolpath3<PrintVertex>) : null;
+                    bool next_is_model_deposition =
+                        (next_path != null) && (next_path.Type == ToolpathTypes.Deposition) && ((next_path.TypeModifiers & FillTypeFlags.SupportMaterial) == 0);
+                    skip_retract = prev_is_model_deposition && next_is_model_deposition;
                 }
                 if (EnableRetraction == false)
                     skip_retract = true;
