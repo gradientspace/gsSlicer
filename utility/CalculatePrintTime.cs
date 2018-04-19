@@ -99,7 +99,10 @@ namespace gs
                             for (int i = 0; i < path.VertexCount; ++i) {
                                 PrintVertex v = path[i];
                                 double rate = path[i].FeedRate;
-                                v.FeedRate *= scaleFactor;
+                                double scaledRate = v.FeedRate * scaleFactor;
+                                if (scaledRate < Settings.MinExtrudeSpeed)
+                                    scaledRate = Settings.MinExtrudeSpeed;
+                                v.FeedRate = scaledRate;
                                 path.UpdateVertex(i, v);
                             }
                         }

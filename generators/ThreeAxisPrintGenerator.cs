@@ -466,6 +466,8 @@ namespace gs
 			// is very small, we will also use nested shells because infill
 			// poly will likely be empty. In this case we nudge up the spacing
 			// so that they are more loosely bonded
+            // [TODO] we should only do this if we are directly below model. Otherwise this
+            // branch is hit on any thin tube supports, that we could be printing empty
 			int nShells = (Settings.EnableSupportShell) ? 1 : 0;
 			double support_spacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM();
 			double shell_spacing = Settings.Machine.NozzleDiamMM;
