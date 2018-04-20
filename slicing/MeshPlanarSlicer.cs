@@ -24,6 +24,14 @@ namespace gs
         }
         List<SliceMesh> Meshes = new List<SliceMesh>();
 
+
+        // factory functions you can replace to customize objects/behavior
+        public Func<PlanarSliceStack> SliceStackFactoryF = () => { return new PlanarSliceStack(); };
+        public Func<double, int, PlanarSlice> SliceFactoryF = (ZHeight, idx) => {
+            return new PlanarSlice() { Z = ZHeight, LayerIndex = idx };
+        };
+
+
         /// <summary>
         /// Slice height
         /// </summary>
@@ -154,7 +162,7 @@ namespace gs
 			// process each *slice* in parallel
 			PlanarSlice[] slices = new PlanarSlice[NH];
             for (int i = 0; i < NH; ++i) {
-                slices[i] = new PlanarSlice() { Z = heights[i] };
+                slices[i] = SliceFactoryF(heights[i], i);
                 slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
             }
 
@@ -259,7 +267,7 @@ namespace gs
                     first++;
             }
 
-            PlanarSliceStack stack = new PlanarSliceStack();
+            PlanarSliceStack stack = SliceStackFactoryF();
             for (int k = first; k <= last; ++k)
                 stack.Add(slices[k]);
 

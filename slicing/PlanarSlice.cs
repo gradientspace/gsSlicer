@@ -11,6 +11,9 @@ namespace gs
     /// </summary>
 	public class PlanarSlice
 	{
+        public static double MIN_AREA = 0.001;      // polygons/holes smaller than this are discarded
+
+        public int LayerIndex = 0;
 		public double Z = 0;
 
         public double EmbeddedPathWidth = 0;
@@ -115,45 +118,40 @@ namespace gs
         /// <summary>
         /// Convert assembly of polygons, polylines, etc, into a set of printable solids and paths
         /// </summary>
-        public void Resolve()
+        public virtual void Resolve()
         {
             // combine solids, process largest-to-smallest
             if (InputSolids.Count > 0) {
                 GeneralPolygon2d[] solids = InputSolids.ToArray();
+
+                solids = process_input_solids_before_sort(solids);
+
+                // sort by decreasing weight
                 double[] weights = new double[solids.Length];
-                for (int i = 0; i < solids.Length; ++i) {
-                    double w = Math.Abs(solids[i].Outer.SignedArea);
-                    weights[i] = w;
-                }
+                for (int i = 0; i < solids.Length; ++i) 
+                    weights[i] = sorting_weight(solids[i]);
                 Array.Sort(weights, solids); Array.Reverse(solids);
 
+                solids = process_input_solids_after_sort(solids);
 
                 Solids = new List<GeneralPolygon2d>();
                 for ( int k = 0; k < solids.Length; ++k ) {
-                    GeneralPolygon2d solid = solids[k];
 
-                    // solid may contain overlapping holes. We need to resolve these before continuing,
-                    // otherwise those overlapping regions will be filled by Clipper even/odd rules
-                    // [TODO] can we configure clipper to not do this?
-                    List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
-                    resolvedSolid.Add(new GeneralPolygon2d(solid.Outer));
-                    foreach (Polygon2d hole in solid.Holes) {
-                        GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
-                        resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference);
-                    }
+                    // convert this polygon into the solid we want to use
+                    List<GeneralPolygon2d> resolvedSolid = make_solid(solids[k]);
 
                     // now union in with accumulated solids
                     if (Solids.Count == 0) {
                         Solids.AddRange(resolvedSolid);
                     } else {
-                        Solids = ClipperUtil.PolygonBoolean(Solids, resolvedSolid, ClipperUtil.BooleanOp.Union);
+                        Solids = combine_solids(Solids, resolvedSolid);
                     }
                 }
             }
 
             // subtract input cavities
             foreach (var cavity in InputCavities) {
-                Solids = ClipperUtil.Difference(Solids, cavity);
+                Solids = remove_cavity(Solids, cavity);
             }
 
             // subtract thickened embedded paths from solids
@@ -165,13 +163,15 @@ namespace gs
                 Paths.Add(path);
             }
 
+            // cleanup
+            filter_solids(Solids);
+
             // subtract solids from clipped paths
             foreach ( var path in ClippedPaths ) {
                 List<PolyLine2d> clipped = ClipperUtil.ClipAgainstPolygon(Solids, path);
                 foreach ( var cp in clipped)
                     Paths.Add(cp);
             }
-
 
             // combine support solids, while also subtracting print solids and thickened paths
             if ( InputSupportSolids.Count > 0 ) {
@@ -186,13 +186,9 @@ namespace gs
                 }
 
                 foreach ( var solid in InputSupportSolids) {
-                    // [RMS] same as above, we explicitly subtract holes to resolve overlaps
-                    List<GeneralPolygon2d> resolved = new List<GeneralPolygon2d>();
-                    resolved.Add(new GeneralPolygon2d(solid.Outer));
-                    foreach (Polygon2d hole in solid.Holes) {
-                        GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
-                        resolved = ClipperUtil.PolygonBoolean(resolved, holePoly, ClipperUtil.BooleanOp.Difference);
-                    }
+
+                    // convert this polygon into the solid we want to use
+                    List<GeneralPolygon2d> resolved = make_solid(solid);
 
                     // now subtract print solids
                     resolved = ClipperUtil.PolygonBoolean(resolved, Solids, ClipperUtil.BooleanOp.Difference);
@@ -205,17 +201,73 @@ namespace gs
                     if (SupportSolids.Count == 0) {
                         SupportSolids.AddRange(resolved);
                     } else {
-                        SupportSolids = ClipperUtil.PolygonBoolean(Solids, resolved, ClipperUtil.BooleanOp.Union);
+                        SupportSolids = ClipperUtil.PolygonBoolean(SupportSolids, resolved, ClipperUtil.BooleanOp.Union);
                     }
                 }
+
+                filter_solids(SupportSolids);
             }
-
-
         }
 
 
 
-        protected Polygon2d make_thickened_path(PolyLine2d path, double width)
+        /*
+         *  functions for subclasses to override to customize behavior
+         */
+
+
+        protected virtual GeneralPolygon2d[] process_input_solids_before_sort(GeneralPolygon2d[] solids) {
+            return solids;
+        }
+
+        protected virtual GeneralPolygon2d[] process_input_solids_after_sort(GeneralPolygon2d[] solids) {
+            return solids;
+        }
+
+        protected virtual double sorting_weight(GeneralPolygon2d poly) {
+            return poly.Outer.Area;
+        }
+
+
+        protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d solid)
+        {
+            // solid may contain overlapping holes. We need to resolve these before continuing,
+            // otherwise those overlapping regions will be filled by Clipper even/odd rules
+            // [TODO] can we configure clipper to not do this?
+            List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
+            resolvedSolid.Add(new GeneralPolygon2d(solid.Outer));
+            foreach (Polygon2d hole in solid.Holes) {
+                GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
+                resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference);
+            }
+            return resolvedSolid;
+        }
+
+        protected virtual List<GeneralPolygon2d> combine_solids(List<GeneralPolygon2d> all_solids, List<GeneralPolygon2d> new_solids)
+        {
+            return ClipperUtil.PolygonBoolean(all_solids, new_solids, ClipperUtil.BooleanOp.Union);
+        }
+
+
+        protected virtual List<GeneralPolygon2d> remove_cavity(List<GeneralPolygon2d> solids, GeneralPolygon2d cavity)
+        {
+            return ClipperUtil.Difference(solids, cavity);
+        }
+
+
+        protected virtual void filter_solids(List<GeneralPolygon2d> solids)
+        {
+            if (MIN_AREA > 0) {
+                CurveUtils2.FilterDegenerate(solids, MIN_AREA);
+            }
+        }
+
+
+
+
+
+
+        protected virtual Polygon2d make_thickened_path(PolyLine2d path, double width)
         {
             PolyLine2d pos = new PolyLine2d(path), neg = new PolyLine2d(path);
             pos.VertexOffset(width / 2);
@@ -324,6 +376,8 @@ namespace gs
             writer.Write(InputSupportSolids.Count);
             for (int k = 0; k < InputSupportSolids.Count; ++k)
                 gSerialization.Store(InputSupportSolids[k], writer);
+            for (int k = 0; k < InputCavities.Count; ++k)
+                gSerialization.Store(InputCavities[k], writer);
 
 
             writer.Write(Solids.Count);
@@ -358,6 +412,10 @@ namespace gs
             InputSupportSolids = new List<GeneralPolygon2d>();
             for (int k = 0; k < nInputSupportSolids; ++k)
                 gSerialization.Restore(InputSupportSolids[k], reader);
+            int nInputCavities = reader.ReadInt32();
+            InputCavities = new List<GeneralPolygon2d>();
+            for (int k = 0; k < nInputCavities; ++k)
+                gSerialization.Restore(InputCavities[k], reader);
 
             int nSolids = reader.ReadInt32();
             Solids = new List<GeneralPolygon2d>();
