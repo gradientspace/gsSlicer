@@ -172,6 +172,7 @@ namespace gs
                 DMeshAABBTree3 spatial = new DMeshAABBTree3(mesh, true);
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
+                bool is_cavity = mesh_options.IsCavity;
                 bool is_support = mesh_options.IsSupport;
                 bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
                 var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
@@ -212,6 +213,8 @@ namespace gs
 
                         if (is_support)
                             slices[i].AddSupportPolygons(solids.Polygons);
+                        else if (is_cavity)
+                            slices[i].AddCavityPolygons(solids.Polygons);
                         else
     						slices[i].AddPolygons(solids.Polygons);
 

@@ -26,6 +26,7 @@ namespace gs
         public List<GeneralPolygon2d> InputSolids = new List<GeneralPolygon2d>();
         public List<PolyLine2d> EmbeddedPaths = new List<PolyLine2d>();
         public List<PolyLine2d> ClippedPaths = new List<PolyLine2d>();
+        public List<GeneralPolygon2d> InputCavities = new List<GeneralPolygon2d>();
         public List<GeneralPolygon2d> InputSupportSolids = new List<GeneralPolygon2d>();
 
 		public List<Vector2d> InputSupportPoints = new List<Vector2d>();
@@ -97,6 +98,20 @@ namespace gs
         }
 
 
+
+        public void AddCavityPolygon(GeneralPolygon2d poly)
+        {
+            if (poly.Outer.IsClockwise)
+                poly.Reverse();
+            InputCavities.Add(poly);
+        }
+        public void AddCavityPolygons(IEnumerable<GeneralPolygon2d> polys)
+        {
+            foreach (GeneralPolygon2d p in polys)
+                AddCavityPolygon(p);
+        }
+
+
         /// <summary>
         /// Convert assembly of polygons, polylines, etc, into a set of printable solids and paths
         /// </summary>
@@ -134,6 +149,11 @@ namespace gs
                         Solids = ClipperUtil.PolygonBoolean(Solids, resolvedSolid, ClipperUtil.BooleanOp.Union);
                     }
                 }
+            }
+
+            // subtract input cavities
+            foreach (var cavity in InputCavities) {
+                Solids = ClipperUtil.Difference(Solids, cavity);
             }
 
             // subtract thickened embedded paths from solids

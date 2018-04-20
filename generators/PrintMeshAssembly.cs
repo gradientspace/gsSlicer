@@ -10,7 +10,7 @@ namespace gs
     public struct PrintMeshOptions
     {
         public bool IsSupport;      // treat as support volume
-
+        public bool IsCavity;       // treat as cavity
         public bool IsOpen;         // treat as open mesh (ie do not fill)
 
         public enum OpenPathsModes
@@ -22,12 +22,21 @@ namespace gs
 
         public static readonly PrintMeshOptions Default = new PrintMeshOptions() {
             IsSupport = false,
+            IsCavity = false,
             IsOpen = false,
             OpenPathMode = OpenPathsModes.Default
         };
 
         public static readonly PrintMeshOptions Support = new PrintMeshOptions() {
             IsSupport = true,
+            IsCavity = false,
+            IsOpen = false,
+            OpenPathMode = OpenPathsModes.Default
+        };
+
+        public static readonly PrintMeshOptions Cavity = new PrintMeshOptions() {
+            IsSupport = false,
+            IsCavity = true,
             IsOpen = false,
             OpenPathMode = OpenPathsModes.Default
         };
