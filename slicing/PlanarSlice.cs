@@ -124,7 +124,7 @@ namespace gs
             if (InputSolids.Count > 0) {
                 GeneralPolygon2d[] solids = InputSolids.ToArray();
 
-                solids = process_input_solids_before_sort(solids);
+                solids = process_input_polys_before_sort(solids);
 
                 // sort by decreasing weight
                 double[] weights = new double[solids.Length];
@@ -132,13 +132,13 @@ namespace gs
                     weights[i] = sorting_weight(solids[i]);
                 Array.Sort(weights, solids); Array.Reverse(solids);
 
-                solids = process_input_solids_after_sort(solids);
+                solids = process_input_polys_after_sort(solids);
 
                 Solids = new List<GeneralPolygon2d>();
                 for ( int k = 0; k < solids.Length; ++k ) {
 
                     // convert this polygon into the solid we want to use
-                    List<GeneralPolygon2d> resolvedSolid = make_solid(solids[k]);
+                    List<GeneralPolygon2d> resolvedSolid = make_solid(solids[k], false);
 
                     // now union in with accumulated solids
                     if (Solids.Count == 0) {
@@ -188,7 +188,7 @@ namespace gs
                 foreach ( var solid in InputSupportSolids) {
 
                     // convert this polygon into the solid we want to use
-                    List<GeneralPolygon2d> resolved = make_solid(solid);
+                    List<GeneralPolygon2d> resolved = make_solid(solid, true);
 
                     // now subtract print solids
                     resolved = ClipperUtil.PolygonBoolean(resolved, Solids, ClipperUtil.BooleanOp.Difference);
@@ -216,11 +216,11 @@ namespace gs
          */
 
 
-        protected virtual GeneralPolygon2d[] process_input_solids_before_sort(GeneralPolygon2d[] solids) {
+        protected virtual GeneralPolygon2d[] process_input_polys_before_sort(GeneralPolygon2d[] solids) {
             return solids;
         }
 
-        protected virtual GeneralPolygon2d[] process_input_solids_after_sort(GeneralPolygon2d[] solids) {
+        protected virtual GeneralPolygon2d[] process_input_polys_after_sort(GeneralPolygon2d[] solids) {
             return solids;
         }
 
@@ -229,14 +229,14 @@ namespace gs
         }
 
 
-        protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d solid)
+        protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d poly, bool bIsSupportSolid)
         {
             // solid may contain overlapping holes. We need to resolve these before continuing,
             // otherwise those overlapping regions will be filled by Clipper even/odd rules
             // [TODO] can we configure clipper to not do this?
             List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
-            resolvedSolid.Add(new GeneralPolygon2d(solid.Outer));
-            foreach (Polygon2d hole in solid.Holes) {
+            resolvedSolid.Add(new GeneralPolygon2d(poly.Outer));
+            foreach (Polygon2d hole in poly.Holes) {
                 GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
                 resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference);
             }

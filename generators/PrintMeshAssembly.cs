@@ -7,11 +7,11 @@ namespace gs
     /// <summary>
     /// Options for PrintMeshAssembly meshes
     /// </summary>
-    public struct PrintMeshOptions
+    public class PrintMeshOptions
     {
-        public bool IsSupport;      // treat as support volume
-        public bool IsCavity;       // treat as cavity
-        public bool IsOpen;         // treat as open mesh (ie do not fill)
+        public bool IsSupport = false;      // treat as support volume
+        public bool IsCavity = false;       // treat as cavity
+        public bool IsOpen = false;         // treat as open mesh (ie do not fill)
 
         public enum OpenPathsModes
         {
@@ -19,27 +19,44 @@ namespace gs
         }
         public OpenPathsModes OpenPathMode;
 
+        public object Extended = null;
 
-        public static readonly PrintMeshOptions Default = new PrintMeshOptions() {
-            IsSupport = false,
-            IsCavity = false,
-            IsOpen = false,
-            OpenPathMode = OpenPathsModes.Default
-        };
+        public PrintMeshOptions Clone()
+        {
+            return new PrintMeshOptions() {
+                IsSupport = this.IsSupport,
+                IsCavity = this.IsCavity,
+                IsOpen = this.IsOpen,
+                OpenPathMode = this.OpenPathMode
+            };
+        }
 
-        public static readonly PrintMeshOptions Support = new PrintMeshOptions() {
-            IsSupport = true,
-            IsCavity = false,
-            IsOpen = false,
-            OpenPathMode = OpenPathsModes.Default
-        };
+        public static PrintMeshOptions Default() {
+            return new PrintMeshOptions() {
+                IsSupport = false,
+                IsCavity = false,
+                IsOpen = false,
+                OpenPathMode = OpenPathsModes.Default
+            };
+        }
 
-        public static readonly PrintMeshOptions Cavity = new PrintMeshOptions() {
-            IsSupport = false,
-            IsCavity = true,
-            IsOpen = false,
-            OpenPathMode = OpenPathsModes.Default
-        };
+        public static PrintMeshOptions Support() {
+            return new PrintMeshOptions() {
+                IsSupport = true,
+                IsCavity = false,
+                IsOpen = false,
+                OpenPathMode = OpenPathsModes.Default
+            };
+        }
+
+        public static PrintMeshOptions Cavity() {
+            return new PrintMeshOptions() {
+                IsSupport = false,
+                IsCavity = true,
+                IsOpen = false,
+                OpenPathMode = OpenPathsModes.Default
+            };
+        }
     }
 
 
@@ -86,11 +103,11 @@ namespace gs
             meshes.Add(mi);
         }
         public void AddMesh(DMesh3 mesh) {
-            AddMesh(mesh, PrintMeshOptions.Default);
+            AddMesh(mesh, PrintMeshOptions.Default());
         }
 
         public void AddMeshes(IEnumerable<DMesh3> meshes) {
-            AddMeshes(meshes, PrintMeshOptions.Default);
+            AddMeshes(meshes, PrintMeshOptions.Default());
         }
         public void AddMeshes(IEnumerable<DMesh3> meshes, PrintMeshOptions options) {
             foreach (var v in meshes)

@@ -114,7 +114,7 @@ namespace gs
             return idx;
 		}
         public int AddMesh(DMesh3 mesh) {
-            return AddMesh(mesh, PrintMeshOptions.Default);
+            return AddMesh(mesh, PrintMeshOptions.Default());
         }
 
 
@@ -220,11 +220,11 @@ namespace gs
 							complex.FindSolidRegions(options);
 
                         if (is_support)
-                            slices[i].AddSupportPolygons(solids.Polygons);
+                            add_support_polygons(slices[i], solids.Polygons, mesh_options);
                         else if (is_cavity)
-                            slices[i].AddCavityPolygons(solids.Polygons);
+                            add_cavity_polygons(slices[i], solids.Polygons, mesh_options);
                         else
-    						slices[i].AddPolygons(solids.Polygons);
+                            add_solid_polygons(slices[i], solids.Polygons, mesh_options);
 
                     } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
 
@@ -276,6 +276,23 @@ namespace gs
 
 			return stack;
 		}
+
+
+
+        protected virtual void add_support_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddSupportPolygons(polygons);
+        }
+
+        protected virtual void add_cavity_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddCavityPolygons(polygons);
+        }
+
+        protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddPolygons(polygons);
+        }
 
 
 
