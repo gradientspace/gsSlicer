@@ -263,6 +263,17 @@ namespace gs
         }
 
 
+        /// <summary>
+        /// use during resolve() processing to transfer tags/metadata to child polygons
+        /// created by processing ops
+        /// </summary>
+        protected virtual void transfer_tags(GeneralPolygon2d oldPoly, GeneralPolygon2d newPoly)
+        {
+            if (Tags.Has(oldPoly)) {
+                int t = Tags.Get(oldPoly);
+                Tags.Add(newPoly, t);
+            }
+        }
 
 
 
