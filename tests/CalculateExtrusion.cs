@@ -133,8 +133,10 @@ namespace gs
                             curRate = newRate;
 
                             double vol_scale = 1;
-                            if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
-                                vol_scale *= SupportExtrudeScale;
+							if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
+								vol_scale *= SupportExtrudeScale;
+							else if ((path.TypeModifiers & FillTypeFlags.BridgeSupport) != 0)
+								vol_scale *= Settings.BridgeVolumeScale;
 
                             double feed = ExtrusionMath.PathLengthToFilamentLength(
                                 Settings.LayerHeightMM, Settings.Machine.NozzleDiamMM, Settings.Machine.FilamentDiamMM,

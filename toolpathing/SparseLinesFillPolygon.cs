@@ -32,4 +32,20 @@ namespace gs
         }
     }
 
+
+
+
+	/// <summary>
+	/// configure dense-fill for bridge fill
+	/// </summary>
+	public class BridgeLinesFillPolygon : ParallelLinesFillPolygon
+	{
+		public BridgeLinesFillPolygon(GeneralPolygon2d poly) : base(poly)
+		{
+			SimplifyAmount = SimplificationLevel.Minor;
+			TypeFlags = FillTypeFlags.BridgeSupport;
+		}
+	}
+
+
 }

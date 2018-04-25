@@ -137,6 +137,11 @@ namespace gs
             double useSpeed = bCareful ? Settings.CarefulExtrudeSpeed : Settings.RapidExtrudeSpeed;
             if (bIsOuterPerimeter || (bCareful && bIsSupport))
                 useSpeed *= Settings.OuterPerimeterSpeedX;
+
+			bool bIsBridgeSupport = pathCurve.HasTypeFlag(FillTypeFlags.BridgeSupport);
+			if (bIsBridgeSupport)
+				useSpeed = Settings.CarefulExtrudeSpeed * Settings.BridgeExtrudeSpeedX;
+
             return useSpeed;
         }
 

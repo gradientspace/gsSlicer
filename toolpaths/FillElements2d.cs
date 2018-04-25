@@ -20,7 +20,8 @@ namespace gs
 		SolidInfill = 1<<8,
 		SparseInfill = 1<<9,
 
-        SupportMaterial = 1<<10
+        SupportMaterial = 1<<10,
+		BridgeSupport = 1<<11
 	}
 
 

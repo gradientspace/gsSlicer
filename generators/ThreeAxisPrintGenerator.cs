@@ -204,6 +204,8 @@ namespace gs
         double OverhangAllowanceMM;
         protected virtual double LayerFillAngleF(int layer_i)
         {
+			//return 90;
+			//return (layer_i % 2 == 0) ? 0 : 90;
             return (layer_i % 2 == 0) ? -45 : 45;
         }
 
@@ -527,6 +529,30 @@ namespace gs
         protected virtual void fill_solid_regions(List<GeneralPolygon2d> solid_regions,
             IFillPathScheduler2d scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
         {
+			// if we have bridge regions on this layer, we subtract them from solid regions
+			// and fill them using bridge strategy
+			if (layer_data.layer_i > 0 && Settings.EnableBridging) {
+				// bridge regions for layer i were computed at layer i-1...
+				List<GeneralPolygon2d> bridge_regions = get_layer_bridge_area(layer_data.layer_i - 1);
+
+				if (bridge_regions.Count > 0) {
+					// bridge_regions are the physical bridge polygon.
+					// solid_regions are the regions we have not yet filled this layer.
+					// bridge works better if there is a 'landing pad' on either side, so we
+					// expand and then clip with the solid regions, to get actual bridge fill region.
+
+					double path_width = Settings.Machine.NozzleDiamMM;
+					double shells_width = Settings.Shells * path_width;
+					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width);
+					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions);
+					// now have to subtract bridge region from solid region, in case there is leftover
+					solid_regions = ClipperUtil.Difference(solid_regions, bridge_regions);
+
+					foreach (var bridge_poly in bridge_regions)
+						fill_bridge_region(bridge_poly, scheduler, layer_data);
+				}
+			}
+
             foreach (GeneralPolygon2d solid_poly in solid_regions)
                 fill_solid_region(layer_data, solid_poly, scheduler, bIsInfillAdjacent);
         }
@@ -586,6 +612,43 @@ namespace gs
 				scheduler.AppendCurveSets(solid_gen.GetFillCurves());
             }
         }
+
+
+
+
+		/// <summary>
+		/// Fill a bridge region. Goal is to use shortest paths possible.
+		/// So, instead of just using fixed angle, we fit bounding box and
+		/// use the shorter axis. 
+		/// </summary>
+		protected virtual void fill_bridge_region(GeneralPolygon2d poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
+		{
+			double spacing = Settings.BridgeFillPathSpacingMM();
+
+			// fit bbox to try to find fill angle that has shortest spans
+			Box2d box = poly.Outer.MinimalBoundingBox(0.00001);
+			Vector2d axis = (box.Extent.x > box.Extent.y) ? box.AxisY : box.AxisX;
+			double angle = Math.Atan2(axis.y, axis.x) * MathUtil.Rad2Deg;
+
+			// [RMS] should we do something like this?
+			//if (Settings.SolidFillBorderOverlapX > 0) {
+			//	double offset = Settings.Machine.NozzleDiamMM * Settings.SolidFillBorderOverlapX;
+			//	fillPolys = ClipperUtil.MiterOffset(fillPolys, offset);
+			//}
+
+			BridgeLinesFillPolygon fill_gen = new BridgeLinesFillPolygon(poly) {
+				InsetFromInputPolygon = false,
+				PathSpacing = spacing,
+				ToolWidth = Settings.Machine.NozzleDiamMM,
+				AngleDeg = angle,
+			};
+			fill_gen.Compute();
+			scheduler.AppendCurveSets(fill_gen.GetFillCurves());
+		}
+
+
+
+
 
 
 
@@ -821,6 +884,21 @@ namespace gs
             return LayerSupportAreas[layer_i];
         }
 
+		// The set of bridge areas for each layer. These are basically the support
+		// areas that we can bridge. So, they are one layer below the model area.
+		protected List<GeneralPolygon2d>[] LayerBridgeAreas;
+
+		/// <summary>
+		/// return the set of bridgeable support-region polygons for a layer.
+		/// Note that the bridge regions for layer i are at layer i-1 (because
+		/// these are the support areas)
+		/// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_bridge_area(int layer_i)
+		{
+			return LayerBridgeAreas[layer_i];
+		}
+
+
 
 
         /// <summary>
@@ -828,11 +906,53 @@ namespace gs
         /// </summary>
         protected virtual void precompute_support_areas()
         {
+			generate_bridge_areas();
+
             if (Settings.GenerateSupport)
                 generate_support_areas();
             else
                 add_existing_support_areas();
         }
+
+
+		/// <summary>
+        /// Find the unsupported regions in each layer that can be bridged
+        /// </summary>
+		protected virtual void generate_bridge_areas()
+		{
+			int nLayers = Slices.Count;
+
+			LayerBridgeAreas = new List<GeneralPolygon2d>[nLayers];
+			if (nLayers <= 1)
+				return;
+
+			// [RMS] does this make sense? maybe should be using 0 here?
+			double bridge_tol = Settings.Machine.NozzleDiamMM * 0.5;
+			double min_area = Settings.Machine.NozzleDiamMM;
+			min_area *= min_area;
+
+			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
+				PlanarSlice slice = Slices[layeri];
+				PlanarSlice next_slice = Slices[layeri + 1];
+
+				// To find bridgeable regions, we compute all floating regions in next layer. 
+				// Then we look for polys that are bridgeable, ie thing enough and fully anchored.
+				List<GeneralPolygon2d> bridgePolys = null;
+				if (Settings.EnableBridging) {
+					bridgePolys = ClipperUtil.Difference(next_slice.Solids, slice.Solids);
+					bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
+						return layeri > 0 && is_bridgeable(p, layeri, bridge_tol);
+					});
+					bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
+				}
+
+				LayerBridgeAreas[layeri] = (bridgePolys != null)
+					? bridgePolys : new List<GeneralPolygon2d>();
+			});
+			LayerBridgeAreas[nLayers - 1] = new List<GeneralPolygon2d>();
+
+		}
+
 
 
         /// <summary>
@@ -915,6 +1035,12 @@ namespace gs
 				List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, fOverhangAngleDist);
 				List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(next_slice.Solids, expandPolys);
 
+				// subtract regions we are going to bridge
+				List<GeneralPolygon2d> bridgePolys = get_layer_bridge_area(layeri);
+				if (bridgePolys.Count > 0) {
+					supportPolys = ClipperUtil.Difference(supportPolys, bridgePolys);
+				}
+
 				// if we have an support inset/outset, apply it here.
 				// for insets the poly may disappear, in that case we
 				// keep the original poly.
@@ -960,8 +1086,8 @@ namespace gs
 						filteredPolys.Add(make_support_point_poly(bounds.Center));
 					}
 				}
-				supportPolys = filteredPolys;
-
+				supportPolys.Clear();
+				supportPolys.AddRange(filteredPolys);
 
 				// add any explicit support points in this layer as circles
 				foreach (Vector2d v in slice.InputSupportPoints)
@@ -1100,6 +1226,13 @@ namespace gs
         }
 
 
+		/*
+		 * Bridging and Support utility functions
+		 */ 
+
+		/// <summary>
+		/// generate support point polygon (eg circle)
+		/// </summary>
 		protected virtual GeneralPolygon2d make_support_point_poly(Vector2d v, double diameter = -1)
 		{
 			if ( diameter <= 0 )
@@ -1108,6 +1241,69 @@ namespace gs
 				diameter * 0.5, Settings.SupportPointSides);
 			circ.Translate(v);
 			return new GeneralPolygon2d(circ);			
+		}
+
+		/// <summary>
+		/// Check if polygon can be bridged. Currently we allow this if all hold:
+		/// 1) contracting by max bridge width produces empty polygon
+		/// 2) all "turning" vertices of polygon are connected to previous layer
+		/// [TODO] not sure this actually guarantees that unsupported distances
+		/// *between* turns are within bridge threshold...
+		/// </summary>
+		protected virtual bool is_bridgeable(GeneralPolygon2d support_poly, int iLayer, double fTolDelta)
+		{
+			double max_bridge_dist = Settings.MaxBridgeWidthMM;
+
+			// if we inset by half bridge dist, and this doesn't completely wipe out 
+			// polygon, then it is too wide to bridge, somewhere
+			// [TODO] this is a reasonable way to decompose into bridgeable chunks...
+			double inset_delta = max_bridge_dist * 0.55;
+			List<GeneralPolygon2d> offset = ClipperUtil.MiterOffset(support_poly, -inset_delta);
+			if (offset != null && offset.Count > 0)
+				return false;
+
+			if (is_fully_connected(support_poly.Outer, iLayer, fTolDelta) == false)
+				return false;
+			foreach (var h in support_poly.Holes) {
+				if (is_fully_connected(h, iLayer, fTolDelta) == false)
+					return false;
+			}
+
+			return true;
+		}
+
+		/// <summary> 
+		/// check if all turn vertices of poly are connected ( see is_connected(vector2d) )
+		/// </summary>
+		protected virtual bool is_fully_connected(Polygon2d poly, int iLayer, double fTolDelta)
+		{
+			int NV = poly.VertexCount;
+			for (int k = 0; k < NV; ++k) {
+				Vector2d v = poly[k];
+				if ( k > 0 && poly.OpeningAngleDeg(k) > 179 )
+					continue;
+				if (is_connected(poly[k], iLayer, fTolDelta) == false)
+					return false;
+			}
+			return true;
+		}
+
+		/// <summary>
+		/// Check if position is "connected" to a solid in the slice
+		/// at layer i, where connected means distance is within tolerance
+		/// [TODO] I don't think this will return true if pos is inside one of the solids...
+		/// </summary>
+		protected virtual bool is_connected(Vector2d pos, int iLayer, double fTolDelta)
+		{
+			double maxdist = fTolDelta;
+			double maxdist_sqr = maxdist * maxdist;
+
+			PlanarSlice slice = Slices[iLayer];
+			double dist_sqr = slice.DistanceSquared(pos, maxdist_sqr, true, true);
+			if (dist_sqr < maxdist_sqr)
+				return true;
+			
+			return false;
 		}
 
 

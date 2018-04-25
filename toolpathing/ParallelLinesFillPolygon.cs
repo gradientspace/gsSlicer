@@ -17,6 +17,10 @@ namespace gs
 		public double AngleDeg = 45.0;
 		public double PathShift = 0;
 
+		// if true, we will nudge PathSpacing up/down to ensure that 
+		// we don't leave pathwidth-gap at end of span
+		public bool AdjustSpacingToMaximizeFill = true;
+
         // paths shorter than this are discarded
         public double MinPathLengthMM = 2.0;
 
@@ -441,13 +445,16 @@ namespace gs
             // [TODO] also check holes? or assume they are contained? should be
             //  classified as outside by winding check anyway...
 
-            // construct interval we will along to shoot parallel rays
+            // construct interval we will step along to shoot parallel rays
             dirInterval.a -= 10 * ToolWidth;
             dirInterval.b += 10 * ToolWidth;
             double extent = dirInterval.Length;
 
-            axisInterval.a += ToolWidth * 0.1 + PathShift;
-            axisInterval.b -= ToolWidth * 0.1;
+			// nudge in a very tiny amount so that if poly is a rectangle, first
+			// line is not directly on boundary
+            axisInterval.a += ToolWidth * 0.01;
+            axisInterval.b -= ToolWidth * 0.01;
+			axisInterval.a -= PathShift;
             if (axisInterval.b < axisInterval.a)
                 return null;     // [RMS] is this right? I guess so. interval is too small to fill?
 
@@ -468,6 +475,14 @@ namespace gs
             double range = axisInterval.Length;
             int N = (int)(range / PathSpacing) + 1;
 
+			// nudge spacing so that we exactly fill the available space
+			double use_spacing = PathSpacing;
+			if ( bIsSparse == false && AdjustSpacingToMaximizeFill ) {
+				int nn = (int)(range / use_spacing);
+				use_spacing = range / (double)nn;
+				N = (int)(range / use_spacing) + 1;
+			}
+
             DGraph2 graph = new DGraph2();
             graph.AppendPolygon(poly);
             GraphSplitter2d splitter = new GraphSplitter2d(graph);
@@ -475,7 +490,7 @@ namespace gs
 
             // insert sequential rays
             for (int ti = 0; ti <= N; ++ti) {
-                Vector2d o = startCorner + (double)ti * PathSpacing * axis;
+				Vector2d o = startCorner + (double)ti * use_spacing * axis;
                 Line2d ray = new Line2d(o, dir);
                 splitter.InsertLine(ray, ti);
             }
