@@ -320,7 +320,6 @@ namespace gs
                 IShellsFillPolygon shells_gen = shellSelector.Next(groupScheduler.CurrentPosition);
                 while ( shells_gen != null ) { 
 
-                    // [TODO] maybe we should schedule outermost shell after infill?
                     // schedule shell paths that we pre-computed
                     List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillCurves();
                     FillCurveSet2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
@@ -349,6 +348,7 @@ namespace gs
 
                     // fill solid regions
                     groupScheduler.BeginGroup();
+					// [RMS] always call this for now because we may have bridge regions
                     fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
                     groupScheduler.EndGroup();
 
@@ -810,13 +810,8 @@ namespace gs
 
 
 
-        // The set of perimeter fills for each layer. 
-        // If we have sparse infill, we need to have multiple shells available to do roof/floors.
-        // To do support, we ideally would have them all.
-        // Currently we precompute all shell-fills up-front, in precompute_shells().
-        // However you could override this behavior, eg do on-demand compute, in GetLayerShells()
+        // The set of support areas for each layer
         protected List<GeneralPolygon2d>[] LayerSupportAreas;
-
 
         /// <summary>
         /// return the set of support-region polygons for a layer. 
