@@ -44,7 +44,7 @@ namespace gs
 
 		// if true, we inset half of tool-width from Polygon,
 		// otherwise first layer is polygon
-		public bool InsetFromInputPolygon = true;
+		public double InsetFromInputPolygonX = 0.5;
 
         // if true, inset InnerPolygons by a tool-width from last Shell,
         // otherwise InnerPolygons lies on that Shell
@@ -54,7 +54,8 @@ namespace gs
         public enum ShellTypes
         {
             ExternalPerimeters,
-            InternalShell
+            InternalShell,
+			BridgeShell
         }
         public ShellTypes ShellType = ShellTypes.ExternalPerimeters;
 
@@ -103,8 +104,8 @@ namespace gs
 			thin_check_thresh_sqr *= thin_check_thresh_sqr;
 
 			// first shell is either polygon, or inset from that polygon
-			List<GeneralPolygon2d> current = (InsetFromInputPolygon) ?
-				ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true) :
+			List<GeneralPolygon2d> current = (InsetFromInputPolygonX != 0) ?
+				ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth*InsetFromInputPolygonX, true) :
 			   	new List<GeneralPolygon2d>() { Polygon };
             List<GeneralPolygon2d> current_prev = null;
 
@@ -214,6 +215,8 @@ namespace gs
 				flags = FillTypeFlags.OutermostShell;
 			else if (ShellType == ShellTypes.InternalShell)
 				flags = FillTypeFlags.InteriorShell;
+			else if (ShellType == ShellTypes.BridgeShell)
+				flags = FillTypeFlags.BridgeSupport;			
 				
             if ( FilterSelfOverlaps == false ) {
                 foreach (GeneralPolygon2d shell in shell_polys)

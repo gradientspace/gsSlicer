@@ -487,7 +487,6 @@ namespace gs
                 shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
 				shells_gen.Layers = nShells;
                 shells_gen.FilterSelfOverlaps = false;
-                shells_gen.InsetFromInputPolygon = true;
                 //shells_gen.FilterSelfOverlaps = true;
                 //shells_gen.PreserveOuterShells = false;
                 //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
@@ -591,7 +590,7 @@ namespace gs
                 interior_shells.PathSpacing = Settings.SolidFillPathSpacingMM();
                 interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
-                interior_shells.InsetFromInputPolygon = false;
+                interior_shells.InsetFromInputPolygonX = 0;
                 interior_shells.ShellType = ShellsFillPolygon.ShellTypes.InternalShell;
                 interior_shells.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
                 interior_shells.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;

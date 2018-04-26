@@ -199,7 +199,7 @@ namespace gs
                 interior_shells.PathSpacing = Settings.SolidFillPathSpacingMM();
                 interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
-                interior_shells.InsetFromInputPolygon = false;
+                interior_shells.InsetFromInputPolygonX = 0;
                 interior_shells.Compute();
                 scheduler.AppendCurveSets(interior_shells.Shells);
                 fillPolys = interior_shells.InnerPolygons;
