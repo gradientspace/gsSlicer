@@ -45,7 +45,7 @@ namespace gs
 
         // [RMS] only using this for hit-testing to make sure no connectors cross polygon border...
         // [TODO] replace with GeneralPolygon2dBoxTree (currently does not have intersection test!)
-        SegmentSet2d BoundaryPolygonCache;
+        //SegmentSet2d BoundaryPolygonCache;
 
 		public ParallelLinesFillPolygon(GeneralPolygon2d poly)
 		{
@@ -57,7 +57,7 @@ namespace gs
 		public bool Compute()
 		{
 			if ( InsetFromInputPolygon ) {
-				BoundaryPolygonCache = new SegmentSet2d(Polygon);
+				//BoundaryPolygonCache = new SegmentSet2d(Polygon);
 				List<GeneralPolygon2d> current = ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth / 2, true);
 				foreach (GeneralPolygon2d poly in current) {
                     FillCurveSet2d fillPaths = ComputeFillPaths(poly);
@@ -67,7 +67,7 @@ namespace gs
 
 			} else {
 				List<GeneralPolygon2d> boundary = ClipperUtil.ComputeOffsetPolygon(Polygon, ToolWidth / 2, true);
-				BoundaryPolygonCache = new SegmentSet2d(boundary);
+				//BoundaryPolygonCache = new SegmentSet2d(boundary);
                 FillCurveSet2d fillPaths = ComputeFillPaths(Polygon);
                 if (fillPaths != null)
                     FillCurves.Add(fillPaths);
