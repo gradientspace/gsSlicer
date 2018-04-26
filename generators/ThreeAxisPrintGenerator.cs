@@ -235,7 +235,8 @@ namespace gs
                 AccumulatedPaths = new ToolpathSet();
 
 			// build spatial caches for slice polygons
-			bool need_slice_spatial = (Settings.GenerateSupport);
+			//bool need_slice_spatial = (Settings.GenerateSupport);
+			bool need_slice_spatial = true;  // need this for bridges...
 			if (need_slice_spatial) {
 				Slices.BuildSliceSpatialCaches(true);
 			}
@@ -545,11 +546,17 @@ namespace gs
 					double shells_width = Settings.Shells * path_width;
 					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width);
 					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions);
-					// now have to subtract bridge region from solid region, in case there is leftover
-					solid_regions = ClipperUtil.Difference(solid_regions, bridge_regions);
 
-					foreach (var bridge_poly in bridge_regions)
-						fill_bridge_region(bridge_poly, scheduler, layer_data);
+					if (bridge_regions.Count > 0) {
+						// now have to subtract bridge region from solid region, in case there is leftover.
+						// We are not going to inset bridge region or solid fill,  
+						// so we need to add *two* half-width tolerances
+						var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM);
+						solid_regions = ClipperUtil.Difference(solid_regions, offset_regions);
+
+						foreach (var bridge_poly in bridge_regions)
+							fill_bridge_region(bridge_poly, scheduler, layer_data);
+					}
 				}
 			}
 
