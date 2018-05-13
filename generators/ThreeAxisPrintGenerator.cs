@@ -1186,7 +1186,7 @@ namespace gs
 
                 LayerSupportAreas[i] = new List<GeneralPolygon2d>();
                 foreach (GeneralPolygon2d poly in combineSupport) {
-                    PolySimplification2.Simplify(poly, 0.5*Settings.Machine.NozzleDiamMM);
+                    PolySimplification2.Simplify(poly, 0.25*Settings.Machine.NozzleDiamMM);
                     LayerSupportAreas[i].Add(poly);
                 }
             }
