@@ -1013,7 +1013,7 @@ namespace gs
 			double fSupportOffset = Settings.SupportAreaOffsetX * Settings.Machine.NozzleDiamMM;
 
 			// we will throw away holes in support regions smaller than these thresholds
-			double DiscardHoleSizeMM = Settings.Machine.NozzleDiamMM;
+			double DiscardHoleSizeMM = 2*Settings.Machine.NozzleDiamMM;
 			double DiscardHoleArea = DiscardHoleSizeMM * DiscardHoleSizeMM;
 
 			// if support poly is further than this from model, we consider
@@ -1117,9 +1117,6 @@ namespace gs
             for (int i = nLayers - 2; i >= 0; --i) {
                 PlanarSlice slice = Slices[i];
 
-                // union down
-                List<GeneralPolygon2d> combineSupport = null;
-
                 // [RMS] smooth the support polygon from the previous layer. if we allow
                 // shrinking then they will shrink to nothing, though...need to bound this somehow
                 List<GeneralPolygon2d> support_above = new List<GeneralPolygon2d>();
@@ -1130,7 +1127,12 @@ namespace gs
                     if ( grow || shrink )
                         CurveUtils2.LaplacianSmoothConstrained(copy.Outer, 0.5, 5, fMergeDownDilate, shrink, grow);
 
-                    List<GeneralPolygon2d> outer_clip = (solid.Holes.Count == 0) ? null : ClipperUtil.ComputeOffsetPolygon(copy, -fPrintWidth, true);
+					// [RMS] he we are also smoothing interior holes. However (in theory) this 
+					// smoothing might expand the hole outside of the Outer polygon. So if we
+					// have holes we intersect with that poly, inset by a printwidth.
+					// [TODO] do we really need this? if hole expands, it will still be
+					// clipped against model.
+					List<GeneralPolygon2d> outer_clip = (solid.Holes.Count == 0) ? null : ClipperUtil.MiterOffset(copy, -fPrintWidth);
                     foreach (Polygon2d hole in solid.Holes) {
                         if (hole.Bounds.MaxDim < DiscardHoleSizeMM || Math.Abs(hole.SignedArea) < DiscardHoleArea)
                             continue;
@@ -1138,21 +1140,21 @@ namespace gs
                         if (grow || shrink)
                             CurveUtils2.LaplacianSmoothConstrained(new_hole, 0.5, 5, fMergeDownDilate, shrink, grow);
 
-                        List<GeneralPolygon2d> clipped_holes = 
-                            ClipperUtil.Difference(new GeneralPolygon2d(new_hole), outer_clip);
+						List<GeneralPolygon2d> clipped_holes =
+							ClipperUtil.Intersection(new GeneralPolygon2d(new_hole), outer_clip);
+						clipped_holes = CurveUtils2.FilterDegenerate(clipped_holes, DiscardHoleArea);
                         foreach (GeneralPolygon2d cliphole in clipped_holes) {
-                            new_hole = cliphole.Outer;
-                            if (new_hole.Bounds.MaxDim > DiscardHoleSizeMM && Math.Abs(new_hole.SignedArea) > DiscardHoleArea) {
-                                if (new_hole.IsClockwise == false )
-                                    new_hole.Reverse();
-                                copy.AddHole(new_hole, false);
-                            }
+							if (cliphole.Outer.IsClockwise == false)
+								cliphole.Outer.Reverse();
+							copy.AddHole(cliphole.Outer);   // ignore any new sub-holes that were created
                         }
                     }
 
                     support_above.Add(copy);
                 }
 
+				// union down
+				List<GeneralPolygon2d> combineSupport = null;
 
                 // [TODO] should discard small interior holes here if they don't intersect layer...
 
