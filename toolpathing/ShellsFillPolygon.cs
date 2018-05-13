@@ -65,6 +65,8 @@ namespace gs
         public double SelfOverlapTolerance = 0.3;
 
 
+		public bool OuterShellLast = false;				// if true, outer shell is scheduled last
+
         // Outputs
 
         /// <summary>
@@ -77,11 +79,14 @@ namespace gs
         /// here returned nesting order is [1...N,0]
         /// </summary>
         public List<FillCurveSet2d> GetFillCurves() {
-            List<FillCurveSet2d> result = new List<FillCurveSet2d>();
-            for (int k = 1; k < Shells.Count; ++k)
-                result.Add(Shells[k]);
-            result.Add(Shells[0]);
-            return result;
+			if (OuterShellLast) {
+				List<FillCurveSet2d> result = new List<FillCurveSet2d>();
+				for (int k = 1; k < Shells.Count; ++k)
+					result.Add(Shells[k]);
+				result.Add(Shells[0]);
+				return result;
+			} else
+				return Shells;
         }
 
         // remaining interior polygons (to fill w/ other strategy, etc)

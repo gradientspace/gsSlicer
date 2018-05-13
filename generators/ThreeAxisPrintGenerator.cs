@@ -326,7 +326,7 @@ namespace gs
                     // schedule shell paths that we pre-computed
                     List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillCurves();
                     FillCurveSet2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
-                    bool do_outer_last = (shells_gen_paths.Count > 1);
+					bool do_outer_last = Settings.OuterShellLast && (shells_gen_paths.Count > 1);
                     groupScheduler.BeginGroup();
                     if (do_outer_last == false) {
                         groupScheduler.AppendCurveSets(shells_gen_paths);
@@ -868,6 +868,7 @@ namespace gs
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
             shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
+			shells_gen.OuterShellLast = Settings.OuterShellLast;
 
             shells_gen.Compute();
             return shells_gen;
