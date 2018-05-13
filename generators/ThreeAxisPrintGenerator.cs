@@ -1002,7 +1002,7 @@ namespace gs
             // to ensure overlap. Using a larger value here has the effect of
             // smoothing out the support polygons. However it can also end up
             // merging disjoint regions...
-            double fMergeDownDilate = Settings.Machine.NozzleDiamMM * 2.0;
+			double fMergeDownDilate = Settings.Machine.NozzleDiamMM * Settings.SupportRegionJoinTolX;
 
             // space we leave between support polygons and solids
             // [TODO] do we need to include SupportAreaOffsetX here?
@@ -1162,15 +1162,20 @@ namespace gs
                 // [RMS] support polygons on successive layers they will not necessarily intersect, because
                 // they are offset inwards on each layer. But as we merge down, we want them to be combined.
                 // So, we do a dilate / boolean / contract. 
-                bool dilate = true;
-                if (dilate) {
-                    List<GeneralPolygon2d> a = ClipperUtil.MiterOffset(support_above, fMergeDownDilate);
-                    List<GeneralPolygon2d> b = ClipperUtil.MiterOffset(LayerSupportAreas[i], fMergeDownDilate);
-                    combineSupport = ClipperUtil.Union(a, b);
-                    combineSupport = ClipperUtil.MiterOffset(combineSupport, -fMergeDownDilate);
-                } else {
-                    combineSupport = ClipperUtil.Union(support_above, LayerSupportAreas[i]);
-                }
+				// *But*, doing this can cause undesirable effects on the support polygons in
+				// simpler cases, particularly "windy shells" type things. So, if the boolean-of-dilations
+				// has the same topology as the input (approximated by count!!), we will just stick
+				// with the original polygons
+				combineSupport = ClipperUtil.Union(support_above, LayerSupportAreas[i]);
+				if (fMergeDownDilate > 0) {
+					List<GeneralPolygon2d> dilateA = ClipperUtil.MiterOffset(support_above, fMergeDownDilate);
+					List<GeneralPolygon2d> dilateB = ClipperUtil.MiterOffset(LayerSupportAreas[i], fMergeDownDilate);
+					List<GeneralPolygon2d> dilatedUnion = ClipperUtil.Union(dilateA, dilateB);
+					// [RMS] this is not very sophisticated...
+					if (dilatedUnion.Count != combineSupport.Count) {
+						combineSupport = ClipperUtil.MiterOffset(dilatedUnion, -fMergeDownDilate);
+					}
+                } 
 
                 // support area we propagate down is combined area minus solid
                 prevSupport = ClipperUtil.Difference(combineSupport, slice.Solids);
