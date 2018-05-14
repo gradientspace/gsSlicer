@@ -41,10 +41,14 @@ namespace gs
 		// ToolWidth*Multiplier distance from previous shell
 		public double ToolWidthClipMultiplier = 0.8;
 
-
 		// if true, we inset half of tool-width from Polygon,
 		// otherwise first layer is polygon
 		public double InsetFromInputPolygonX = 0.5;
+
+		// if InsetFromInputPolygonX > 0, and this is true, we will do whatever
+		// we can to make sure that the inset does not have large shape/topology
+		// deviations, going as far as ignore the inset if necessary
+		public bool PreserveInputInsetTopology = false;
 
         // if true, inset InnerPolygons by a tool-width from last Shell,
         // otherwise InnerPolygons lies on that Shell
@@ -109,9 +113,12 @@ namespace gs
 			thin_check_thresh_sqr *= thin_check_thresh_sqr;
 
 			// first shell is either polygon, or inset from that polygon
-			List<GeneralPolygon2d> current = (InsetFromInputPolygonX != 0) ?
-				ClipperUtil.ComputeOffsetPolygon(Polygon, -ToolWidth*InsetFromInputPolygonX, true) :
-			   	new List<GeneralPolygon2d>() { Polygon };
+			List<GeneralPolygon2d> current = null;
+			if (InsetFromInputPolygonX != 0) {
+				current = ComputeInitialInsetPolygon(PreserveInputInsetTopology);
+			} else {
+				current = new List<GeneralPolygon2d>() { Polygon };
+			}
             List<GeneralPolygon2d> current_prev = null;
 
 			if (current.Count == 0) {
@@ -177,6 +184,62 @@ namespace gs
             }
             return true;
 		}
+
+
+		/// <summary>
+		/// Compute inset from input polygon. If requested, will check for
+		/// topological changes and try smaller insets, and if that fails,
+		/// will just return input polygon.
+		/// </summary>
+		protected virtual List<GeneralPolygon2d> ComputeInitialInsetPolygon(
+			bool bForcePreserveTopology)
+		{
+			double fInset = ToolWidth * InsetFromInputPolygonX;
+			List<GeneralPolygon2d> insetPolys = 
+				ClipperUtil.MiterOffset(Polygon, -fInset);
+			
+			if (bForcePreserveTopology == false)
+				return insetPolys;
+
+			if (check_large_topology_change(Polygon, insetPolys, fInset)) {
+				fInset /= 2;
+				insetPolys = ClipperUtil.MiterOffset(Polygon, -fInset);
+				if (check_large_topology_change(Polygon, insetPolys, fInset))
+					insetPolys = new List<GeneralPolygon2d>() { Polygon };
+			}
+
+			return insetPolys;
+		}
+
+
+		/// <summary>
+		/// Check for significant topology/area changes in polygon inset.
+		/// Currently returns true if:
+		///   1) inset has diff # of polygons or holes in single poly
+		///   2) area change is significantly larger than what we expect
+		///      (inset-band area estimated as perimeter_len * k * inset_dist)
+		/// </summary>
+		protected virtual bool check_large_topology_change(
+			GeneralPolygon2d input, List<GeneralPolygon2d> inset, double fInsetDist)
+		{
+			if (inset.Count != 1 || inset[0].Holes.Count != input.Holes.Count)
+				return true;
+
+			double orig_area = Math.Abs(input.Area);
+			double perim = input.Perimeter;
+			double perim_band_area = perim * fInsetDist;
+			double est_inset_area = orig_area - 1.5 * perim_band_area;
+
+			double inset_area = 0;
+			foreach (var poly in inset)
+				inset_area += Math.Abs(poly.Area);
+
+			if (inset_area < est_inset_area )
+				return true;
+
+			return false;
+		}
+
 
 
 		/// <summary>

@@ -487,6 +487,7 @@ namespace gs
                 shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
 				shells_gen.Layers = nShells;
                 shells_gen.FilterSelfOverlaps = false;
+				shells_gen.PreserveInputInsetTopology = true;
                 //shells_gen.FilterSelfOverlaps = true;
                 //shells_gen.PreserveOuterShells = false;
                 //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
