@@ -445,7 +445,7 @@ namespace gs
         /// <summary>
         /// remove portions of polyline that are inside set of solids
         /// </summary>
-        public static List<PolyLine2d> ClipAgainstPolygon(List<GeneralPolygon2d> solids, PolyLine2d polyline)
+        public static List<PolyLine2d> ClipAgainstPolygon(List<GeneralPolygon2d> solids, PolyLine2d polyline, bool bIntersect = false)
         {
             double nIntScale = GetIntScale(solids);
             List<PolyLine2d> result = new List<PolyLine2d>();
@@ -462,7 +462,10 @@ namespace gs
                 CPolyPath path = ConvertToClipper(polyline, nIntScale);
                 clip.AddPath(path, PolyType.ptSubject, false);
 
-                clip.Execute(ClipType.ctDifference, tree);
+                if (bIntersect)
+                    clip.Execute(ClipType.ctIntersection, tree);
+                else
+                    clip.Execute(ClipType.ctDifference, tree);
 
                 for (int ci = 0; ci < tree.ChildCount; ++ci) {
                     if (tree.Childs[ci].IsOpen == false)

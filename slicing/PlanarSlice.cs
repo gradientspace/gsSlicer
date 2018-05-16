@@ -31,6 +31,7 @@ namespace gs
         public List<PolyLine2d> ClippedPaths = new List<PolyLine2d>();
         public List<GeneralPolygon2d> InputCavities = new List<GeneralPolygon2d>();
         public List<GeneralPolygon2d> InputSupportSolids = new List<GeneralPolygon2d>();
+        public List<GeneralPolygon2d> InputCropRegions = new List<GeneralPolygon2d>();
 
 		public List<Vector2d> InputSupportPoints = new List<Vector2d>();
 
@@ -113,6 +114,20 @@ namespace gs
             foreach (GeneralPolygon2d p in polys)
                 AddCavityPolygon(p);
         }
+
+
+
+        public void AddCropRegion(GeneralPolygon2d poly)
+        {
+            if (poly.Outer.IsClockwise)
+                poly.Reverse();
+            InputCropRegions.Add(poly);
+        }
+        public void AddCropRegions(IEnumerable<GeneralPolygon2d> polys) {
+            foreach (GeneralPolygon2d p in polys)
+                AddCropRegion(p);
+        }
+
 
 
         /// <summary>
@@ -207,6 +222,27 @@ namespace gs
 
                 filter_solids(SupportSolids);
             }
+
+
+            // apply crop regions
+            if ( InputCropRegions.Count > 0 ) {
+                // combine crop regions
+                var CropRegions = make_solid(InputCropRegions[0], false);
+                for (int k = 1; k < InputCropRegions.Count; ++k)
+                    CropRegions = combine_solids(CropRegions, make_solid(InputCropRegions[k], false));
+
+                Solids = ClipperUtil.Intersection(CropRegions, Solids);
+                filter_solids(Solids);
+                List<PolyLine2d> cropped_paths = new List<PolyLine2d>();
+                foreach ( var path in Paths ) 
+                    cropped_paths.AddRange(ClipperUtil.ClipAgainstPolygon(CropRegions, path, true));
+                // TODO: filter paths
+
+                SupportSolids = ClipperUtil.Intersection(CropRegions, SupportSolids);
+                filter_solids(SupportSolids);
+            }
+
+
         }
 
 
@@ -303,6 +339,9 @@ namespace gs
                     box.Contain(pline.Bounds);
                 foreach (GeneralPolygon2d poly in InputSupportSolids)
                     box.Contain(poly.Outer.Bounds);
+
+                // [TODO] should crop against crop regions...
+
                 return box;
 			}
 		}
@@ -389,7 +428,8 @@ namespace gs
                 gSerialization.Store(InputSupportSolids[k], writer);
             for (int k = 0; k < InputCavities.Count; ++k)
                 gSerialization.Store(InputCavities[k], writer);
-
+            for (int k = 0; k < InputCropRegions.Count; ++k)
+                gSerialization.Store(InputCropRegions[k], writer);
 
             writer.Write(Solids.Count);
             for (int k = 0; k < Solids.Count; ++k)
@@ -427,6 +467,10 @@ namespace gs
             InputCavities = new List<GeneralPolygon2d>();
             for (int k = 0; k < nInputCavities; ++k)
                 gSerialization.Restore(InputCavities[k], reader);
+            int nInputCropRegions = reader.ReadInt32();
+            InputCropRegions = new List<GeneralPolygon2d>();
+            for (int k = 0; k < nInputCropRegions; ++k)
+                gSerialization.Restore(InputCropRegions[k], reader);
 
             int nSolids = reader.ReadInt32();
             Solids = new List<GeneralPolygon2d>();

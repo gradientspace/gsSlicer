@@ -181,6 +181,7 @@ namespace gs
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
                 bool is_cavity = mesh_options.IsCavity;
+                bool is_crop = mesh_options.IsCropRegion;
                 bool is_support = mesh_options.IsSupport;
                 bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
                 var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
@@ -223,6 +224,8 @@ namespace gs
                             add_support_polygons(slices[i], solids.Polygons, mesh_options);
                         else if (is_cavity)
                             add_cavity_polygons(slices[i], solids.Polygons, mesh_options);
+                        else if (is_crop)
+                            add_crop_region_polygons(slices[i], solids.Polygons, mesh_options);
                         else
                             add_solid_polygons(slices[i], solids.Polygons, mesh_options);
 
@@ -287,6 +290,11 @@ namespace gs
         protected virtual void add_cavity_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddCavityPolygons(polygons);
+        }
+
+        protected virtual void add_crop_region_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddCropRegions(polygons);
         }
 
         protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
