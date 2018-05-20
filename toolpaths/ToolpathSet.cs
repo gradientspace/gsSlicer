@@ -103,7 +103,10 @@ namespace gs
 		}
 		public IEnumerable<Vector3d> AllPositionsItr()
 		{
-			return Enumerable.Empty<Vector3d>();
+            foreach ( var path in Paths ) {
+                foreach (Vector3d v in path.AllPositionsItr())
+                    yield return v;
+            }
 		}
 
 
