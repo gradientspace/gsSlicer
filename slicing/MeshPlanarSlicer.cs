@@ -98,6 +98,10 @@ namespace gs
         public int Progress = 0;
 
 
+        public Func<bool> CancelF = () => { return false; };
+        public bool WasCancelled = false;
+
+
 		public MeshPlanarSlicer()
 		{
 		}
@@ -173,6 +177,9 @@ namespace gs
 
             // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
+                if (Cancelled())
+                    break;
+
 				DMesh3 mesh = Meshes[mi].mesh;
                 PrintMeshOptions mesh_options = Meshes[mi].options;
 
@@ -189,6 +196,9 @@ namespace gs
 
                 // each layer is independent so we can do in parallel
                 gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                    if (Cancelled())
+                        return;
+
 					double z = heights[i];
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
@@ -256,6 +266,8 @@ namespace gs
 
             // resolve planar intersections, etc
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                if (Cancelled())
+                    return;
                 slices[i].Resolve();
                 Interlocked.Add(ref Progress, 2);
             });
@@ -279,6 +291,20 @@ namespace gs
 
 			return stack;
 		}
+
+
+        protected virtual bool Cancelled()
+        {
+            if (WasCancelled)
+                return true;
+            bool cancel = CancelF();
+            if (cancel) {
+                WasCancelled = true;
+                return true;
+            }
+            return false;
+        }
+
 
 
 

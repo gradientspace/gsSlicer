@@ -71,9 +71,15 @@ namespace gs
             System.Console.WriteLine("[EXCEPTION] ThreeAxisPrintGenerator: " + message + "\nSTACK TRACE: " + stack_trace);
         };
 
+        // use this to cancel slicer
+        public Func<bool> CancelF = () => { return false; };
 
-		// Replace this if you want to customize PrintLayerData type
-		public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
+        // will be set to true if CancelF() ever returns true
+        public bool WasCancelled = false;
+
+
+        // Replace this if you want to customize PrintLayerData type
+        public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
 
 		// Replace this to use a different path builder
 		public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
@@ -241,15 +247,19 @@ namespace gs
 				Slices.BuildSliceSpatialCaches(true);
 			}
 
+            if (Cancelled()) return;
+
             // initialize compiler and get start nozzle position
             Compiler.Begin();
 
             // We need N above/below shell paths to do roof/floors, and *all* shells to do support.
             // Also we can compute shells in parallel. So we just precompute them all here.
             precompute_shells();
+            if (Cancelled()) return;
             int nLayers = Slices.Count;
 
             precompute_support_areas();
+            if (Cancelled()) return;
 
 			PrintLayerData prevLayerData = null;
 
@@ -259,6 +269,7 @@ namespace gs
             CurStartLayer = Math.Max(0, Settings.LayerRangeFilter.a);
             CurEndLayer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
             for ( int layer_i = CurStartLayer; layer_i <= CurEndLayer; ++layer_i ) {
+                if (Cancelled()) return;
 
 				// allocate new layer data structure
 				PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], this.Settings);
@@ -302,6 +313,7 @@ namespace gs
                         floor_cover = find_floor_areas_for_layer(layer_i+1);   // will return "our" layer
                     }
                 }
+                if (Cancelled()) return;
                 count_progress_step();
 
                 // do support first
@@ -314,6 +326,7 @@ namespace gs
                     groupScheduler.EndGroup();
                     layerdata.SupportAreas = support_areas;
                 }
+                if (Cancelled()) return;
                 count_progress_step();
 
                 // selector determines what order we process shells in
@@ -334,6 +347,7 @@ namespace gs
                         groupScheduler.AppendCurveSets(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
                     }
                     groupScheduler.EndGroup();
+                    if (Cancelled()) return;
                     count_progress_step();
 
                     // allow client to do configuration (eg change settings for example)
@@ -359,6 +373,7 @@ namespace gs
                     groupScheduler.BeginGroup();
                     fill_infill_regions(infill_regions, groupScheduler, layerdata);
                     groupScheduler.EndGroup();
+                    if (Cancelled()) return;
                     count_progress_step();
 
                     groupScheduler.BeginGroup();
@@ -369,6 +384,7 @@ namespace gs
 
                     shells_gen = shellSelector.Next(groupScheduler.CurrentPosition);
                 }
+                if (Cancelled()) return;
 
                 // append open paths
                 groupScheduler.BeginGroup();
@@ -379,6 +395,7 @@ namespace gs
                 layerdata.Scheduler = groupScheduler.TargetScheduler;
 
 				// last chance to post-process paths for this layer before they are baked in
+                if (Cancelled()) return;
                 if ( LayerPostProcessor != null )
                     LayerPostProcessor.Process(layerdata, pathAccum.Paths);
 
@@ -390,6 +407,7 @@ namespace gs
 
                 // compile this layer 
                 // [TODO] we could do this in a separate thread, in a queue of jobs?
+                if (Cancelled()) return;
                 Compiler.AppendPaths(pathAccum.Paths);
 
                 // add this layer to running pathset
@@ -399,6 +417,7 @@ namespace gs
                 // we might want to consider this layer while we process next one
                 prevLayerData = layerdata;
 
+                if (Cancelled()) return;
                 count_progress_step();
             }
 
@@ -831,6 +850,7 @@ namespace gs
 
             Interval1i solve_shells = new Interval1i(start_layer, end_layer);
             gParallel.ForEach(solve_shells, (layeri) => {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[layeri];
                 LayerShells[layeri] = compute_shells_for_slice(slice);
                 count_progress_step();
@@ -938,7 +958,8 @@ namespace gs
 			min_area *= min_area;
 
 			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
-				PlanarSlice slice = Slices[layeri];
+                if (Cancelled()) return;
+                PlanarSlice slice = Slices[layeri];
 				PlanarSlice next_slice = Slices[layeri + 1];
 
 				// To find bridgeable regions, we compute all floating regions in next layer. 
@@ -1033,7 +1054,8 @@ namespace gs
 			// For layer i, compute support region needed to support layer (i+1)
 			// This is the *absolute* support area - no inset for filament width or spacing from model
 			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
-				PlanarSlice slice = Slices[layeri];
+                if (Cancelled()) return;
+                PlanarSlice slice = Slices[layeri];
 				PlanarSlice next_slice = Slices[layeri + 1];
 
 				// expand this layer and subtract from next layer. leftovers are
@@ -1114,6 +1136,7 @@ namespace gs
 			// that layers solids. 
 			List<GeneralPolygon2d> prevSupport = LayerSupportAreas[nLayers - 1];
             for (int i = nLayers - 2; i >= 0; --i) {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[i];
 
                 // union down
@@ -1208,6 +1231,7 @@ namespace gs
                 return;
 
             gParallel.ForEach(Interval1i.Range(Slices.Count), (i) => {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[i];
                 if (slice.SupportSolids.Count == 0)
                     return;
@@ -1335,6 +1359,18 @@ namespace gs
             Interlocked.Increment(ref CurProgress);
         }
 
+
+        protected virtual bool Cancelled()
+        {
+            if (WasCancelled)
+                return true;
+            bool cancel = CancelF();
+            if (cancel) {
+                WasCancelled = true;
+                return true;
+            }
+            return false;
+        }
 
 
     }
