@@ -12,10 +12,11 @@ namespace gs
 
     public static class ClipperUtil
     {
-        // [RMS] enable/disable filtering of problematic goemetry (currently, tiny holes).
-        // Probably this should be handled by caller passing in some kind of filter, but that
-        // requires changing a lot of interfaces...
-        public static bool ENABLE_FILTERING_HACKS = true;
+        /// <summary>
+        /// Polygons with area smaller than this value are discarded internally in offset and boolean functions.
+        /// This is a default, if a function takes a minArea parameter, it overrides this value.
+        /// </summary>
+        public static double DiscardMinArea = MathUtil.ZeroTolerancef;
 
 
         // Clipper uses integer coordinates, so we need to scale our doubles.
@@ -120,9 +121,8 @@ namespace gs
                 int N = clipper_polys.Count;
                 for (int i = 0; i < N; ++i) {
                     Polygon2d poly = ConvertFromClipper(clipper_polys[i], nIntScale);
-                    if (poly == null)
-                        System.Console.WriteLine("hrm?");
-                    polys.Add(poly);
+                    if ( poly != null ) 
+                        polys.Add(poly);
                 }
 
                 // sort polygons into outer/holes
@@ -172,8 +172,8 @@ namespace gs
                         System.Diagnostics.Debug.WriteLine("ClipperUtil.ConvertFromClipper: could not find parent for polygon " + i.ToString());
                 }
 
-            }catch ( Exception e ) {
-                System.Diagnostics.Debug.WriteLine("ClipperUtil.ConvertFromClipper: caught exception: " + e.Message);
+            } catch /*( Exception e )*/ {
+                //System.Diagnostics.Debug.WriteLine("ClipperUtil.ConvertFromClipper: caught exception: " + e.Message);
             }
             return result;
         }
@@ -196,8 +196,8 @@ namespace gs
                 else
                     co.AddPaths(clipper_polys, JoinType.jtRound, EndType.etClosedPolygon);
                 co.Execute(ref dilate_solution, fOffset * nIntScale);
-            } catch ( Exception e ) {
-                System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
+            } catch /*( Exception e )*/ {
+                //System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
                 return new List<GeneralPolygon2d>();
             }
 
@@ -229,9 +229,9 @@ namespace gs
                 else
                     co.AddPaths(clipper_polys, JoinType.jtRound, EndType.etClosedPolygon);
                 co.Execute(ref dilate_solution, fOffset * nIntScale);
-            } catch ( Exception e ) {
-                System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
-                return null;
+            } catch /*( Exception e )*/ {
+                //System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
+                return new List<GeneralPolygon2d>();
             }
 
             List<GeneralPolygon2d> polys = ClipperUtil.ConvertFromClipper(dilate_solution, nIntScale);
@@ -243,9 +243,12 @@ namespace gs
 		/// <summary>
 		/// Compute offset polygon from all input polys (ie separate islands may merge)
 		/// </summary>
-		public static List<GeneralPolygon2d> ComputeOffsetPolygon(List<GeneralPolygon2d> polys, double fOffset, bool bMiter = false)
+		public static List<GeneralPolygon2d> ComputeOffsetPolygon(List<GeneralPolygon2d> polys, 
+            double fOffset, bool bMiter = false, double minArea = -1)
 		{
 			double nIntScale = GetIntScale(polys);
+            if (minArea < 0)
+                minArea = DiscardMinArea;
 
 			ClipperOffset co = new ClipperOffset();
 			PolyTree tree = new PolyTree();
@@ -261,45 +264,47 @@ namespace gs
 
 				List<GeneralPolygon2d> result = new List<GeneralPolygon2d>();
 				for (int ci = 0; ci < tree.ChildCount; ++ci)
-					Convert(tree.Childs[ci], result, nIntScale);
+					Convert(tree.Childs[ci], result, nIntScale, minArea);
 				return result;
 
-			} catch (Exception e) {
-				System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
-				return null;
+			} catch /*(Exception e)*/ {
+                //System.Diagnostics.Debug.WriteLine("ClipperUtil.ComputeOffsetPolygon: Clipper threw exception: " + e.Message);
+                return new List<GeneralPolygon2d>();
 			}
 		}
-		public static List<GeneralPolygon2d> MiterOffset(List<GeneralPolygon2d> polys, double fOffset) {
-			return ComputeOffsetPolygon(polys, fOffset, true);
+		public static List<GeneralPolygon2d> MiterOffset(List<GeneralPolygon2d> polys, double fOffset, double minArea = -1) {
+			return ComputeOffsetPolygon(polys, fOffset, true, minArea);
 		}
-		public static List<GeneralPolygon2d> MiterOffset(GeneralPolygon2d poly, double fOffset) {
-			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, true);
+		public static List<GeneralPolygon2d> MiterOffset(GeneralPolygon2d poly, double fOffset, double minArea = -1) {
+			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, true, minArea);
 		}
-		public static List<GeneralPolygon2d> RoundOffset(List<GeneralPolygon2d> polys, double fOffset) {
-			return ComputeOffsetPolygon(polys, fOffset, false);
+		public static List<GeneralPolygon2d> RoundOffset(List<GeneralPolygon2d> polys, double fOffset, double minArea = -1) {
+			return ComputeOffsetPolygon(polys, fOffset, false, minArea);
 		}
-		public static List<GeneralPolygon2d> RoundOffset(GeneralPolygon2d poly, double fOffset) {
-			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, false);
+		public static List<GeneralPolygon2d> RoundOffset(GeneralPolygon2d poly, double fOffset, double minArea = -1) {
+			return ComputeOffsetPolygon(new List<GeneralPolygon2d>() { poly }, fOffset, false, minArea);
 		}
 
 
 		public enum BooleanOp {
 			Union, Difference, Intersection, Xor
 		}
-		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, GeneralPolygon2d poly2, BooleanOp opType)
+		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, GeneralPolygon2d poly2, BooleanOp opType, double minArea = -1)
 		{
 			return PolygonBoolean(new List<GeneralPolygon2d>() { poly1 }, 
-			                      new List<GeneralPolygon2d>() { poly2 }, opType);
+			                      new List<GeneralPolygon2d>() { poly2 }, opType, minArea);
 		}
-		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, BooleanOp opType)
+		public static List<GeneralPolygon2d> PolygonBoolean(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, BooleanOp opType, double minArea = -1)
 		{
-			return PolygonBoolean(new List<GeneralPolygon2d>() { poly1 }, poly2, opType);
+			return PolygonBoolean(new List<GeneralPolygon2d>() { poly1 }, poly2, opType, minArea);
 		}
-		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, BooleanOp opType)
+		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, BooleanOp opType, double minArea = -1)
 		{
-			return PolygonBoolean(poly1, new List<GeneralPolygon2d>() { poly2 }, opType);
+			return PolygonBoolean(poly1, new List<GeneralPolygon2d>() { poly2 }, opType, minArea);
 		}
-		public static List<GeneralPolygon2d> PolygonBoolean(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, BooleanOp opType ) 
+		public static List<GeneralPolygon2d> PolygonBoolean(
+            List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, 
+            BooleanOp opType, double minArea = -1 ) 
 		{
 			// handle cases where one list is empty
 			if ( poly1.Count == 0 ) {
@@ -316,8 +321,10 @@ namespace gs
 
 
 			double nIntScale = Math.Max(GetIntScale(poly1), GetIntScale(poly2));
-		
-			try {
+            if (minArea < 0)
+                minArea = DiscardMinArea;
+
+            try {
 				Clipper clipper = new Clipper(Clipper.ioStrictlySimple);
 
 				foreach (GeneralPolygon2d sub in poly1) {
@@ -340,18 +347,18 @@ namespace gs
 				PolyTree tree = new PolyTree();
 				bool bOK = clipper.Execute(cType, tree);
 				if (bOK == false) {
-					System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper failed");
-					return null;					
+					//System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper failed");
+					return new List<GeneralPolygon2d>();					
 				}
 
 				List<GeneralPolygon2d> result = new List<GeneralPolygon2d>();
 				for (int ci = 0; ci < tree.ChildCount; ++ci)
-					Convert(tree.Childs[ci], result, nIntScale);
+					Convert(tree.Childs[ci], result, nIntScale, minArea);
 				return result;
 
-			} catch (Exception e) {
-				System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper threw exception: " + e.Message);
-				return null;
+			} catch /*(Exception e)*/ {
+				//System.Diagnostics.Debug.WriteLine("ClipperUtil.PolygonBoolean: Clipper threw exception: " + e.Message);
+				return new List<GeneralPolygon2d>();
 			}
 
 		}
@@ -359,46 +366,46 @@ namespace gs
 
 
 
-		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union, minArea);
 		}
-		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		public static List<GeneralPolygon2d> Union(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union, minArea);
 		}
-		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
+		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union, minArea);
 		}
-		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Union);
-		}
-
-
-
-		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
-		}
-		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
-		}
-		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
-		}
-		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection);
+		public static List<GeneralPolygon2d> Union(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Union, minArea);
 		}
 
 
-		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+
+		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection, minArea);
 		}
-		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		public static List<GeneralPolygon2d> Intersection(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection, minArea);
 		}
-		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection, minArea);
 		}
-		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2) {
-			return PolygonBoolean(poly1, poly2, BooleanOp.Difference);
+		public static List<GeneralPolygon2d> Intersection(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Intersection, minArea);
+		}
+
+
+		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference, minArea);
+		}
+		public static List<GeneralPolygon2d> Difference(GeneralPolygon2d poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference, minArea);
+		}
+		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, GeneralPolygon2d poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference, minArea);
+		}
+		public static List<GeneralPolygon2d> Difference(List<GeneralPolygon2d> poly1, List<GeneralPolygon2d> poly2, double minArea = -1) {
+			return PolygonBoolean(poly1, poly2, BooleanOp.Difference, minArea);
 		}
 
 
@@ -406,16 +413,19 @@ namespace gs
 		/// <summary>
 		/// Extract set of nested solids (ie polygon-with-holes) from treeNode
 		/// </summary>
-		public static void Convert(PolyNode treeNode, List<GeneralPolygon2d> polys, double nIntScale) {
+		public static void Convert(PolyNode treeNode, List<GeneralPolygon2d> polys, double nIntScale, double minArea) {
 			if (treeNode.IsHole)
 				throw new Exception("ClipperUtil.Convert: should not have a hole here");
 			if (treeNode.IsOpen)
 				throw new Exception("ClipperUtil.Convert: found open contour??");
 
 			GeneralPolygon2d poly = new GeneralPolygon2d();
-			polys.Add(poly);
+            poly.Outer = ConvertFromClipper(treeNode.Contour, nIntScale);
+            if (Math.Abs(poly.Outer.SignedArea) < minArea)
+                return;
 
-			poly.Outer = ConvertFromClipper(treeNode.Contour, nIntScale);
+            polys.Add(poly);
+
 			for (int ci = 0; ci < treeNode.ChildCount; ++ci) {
 				PolyNode holeNode = treeNode.Childs[ci];
 				if (holeNode.IsHole == false)
@@ -427,16 +437,14 @@ namespace gs
 
                 // [RMS] discard extremely tiny holes, for which we cannot reliably
                 //   determine orientation, which causes AddHole() to assert
-                if (ENABLE_FILTERING_HACKS) {
-                    if (Math.Abs(hole.SignedArea) < MathUtil.ZeroTolerance)
-                        continue;
-                }
+                if (Math.Abs(hole.SignedArea) < minArea)
+                    continue;
 
 				poly.AddHole(hole, false);
 
 				// recurse for new top-level children
 				for (int ti = 0; ti < holeNode.ChildCount; ti++ )
-					Convert(holeNode.Childs[ti], polys, nIntScale);
+					Convert(holeNode.Childs[ti], polys, nIntScale, minArea);
 			}
 		}
 
@@ -488,9 +496,10 @@ namespace gs
                         result.Add(clippedPath);
                 }
 
-            } catch (Exception e) {
+            } catch /*(Exception e)*/ {
                 // [TODO] what to do here?
-                System.Diagnostics.Debug.WriteLine("ClipperUtil.ClipAgainstPolygon: Clipper threw exception: " + e.Message);
+                //System.Diagnostics.Debug.WriteLine("ClipperUtil.ClipAgainstPolygon: Clipper threw exception: " + e.Message);
+                return new List<PolyLine2d>();
             }
 
             return result;
