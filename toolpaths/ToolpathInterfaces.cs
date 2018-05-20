@@ -17,6 +17,7 @@ namespace gs
 		Custom
 	};
 
+
     /// <summary>
     /// PathVertex.Flags field is 3 ints that can be used for whatever purpose.
     /// First int we assume is one of these values, or a client-defined value.
@@ -26,7 +27,9 @@ namespace gs
     {
         None            = 0,
         IsConnector     = 1,            // connects spans of a linear fill. also currently not used (!)
-        IsSupport       = 1 << 1        // unused currently?
+        IsSupport       = 1 << 1,        // unused currently?
+        IsPathStart     = 1 << 2,
+        IsPathEnd       = 1 << 3
     }
 
 
@@ -106,7 +109,7 @@ namespace gs
 	public interface IBuildLinearToolpath<T> : ILinearToolpath<T>
 	{
 		void ChangeType(ToolpathTypes type);
-		void AppendVertex(T v);	
+		void AppendVertex(T v, TPVertexFlags flags);	
 		void UpdateVertex(int i, T v);
 		
 		int VertexCount { get; }
