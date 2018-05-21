@@ -19,24 +19,52 @@ namespace gs
         public static double DiscardMinArea = MathUtil.ZeroTolerancef;
 
 
+        /// <summary>
+        /// If enabled, we scale polygons to maximum possible integer size, instead
+        /// of using fixed precision. Default false.
+        /// </summary>
+        public static bool ComputeToMaxAccuracy {
+            get { return max_accuracy; }
+            set { max_accuracy = value;  }
+        }
+        static bool max_accuracy = false;
+         
+
+        /// <summary>
+        /// Precision of integer solution, relative to input units.
+        /// EG to solve with 0.001mm precision, input values in mm, set DefaultPrecision=0.001
+        /// Ignored if ComputeToMaxAccuracy=true. Default = 0.0001;
+        /// </summary>
+        public static double DefaultPrecision {
+            get { return 1.0 / inv_default_precision; }
+            set { inv_default_precision = 1.0 / DefaultPrecision; }
+        }
+        static double inv_default_precision = 10000;
+
+
         // Clipper uses integer coordinates, so we need to scale our doubles.
-        // This value determines # of integers per mm.
-        // 8 feet ~= 2500mm, so values could range up to 2500*nScale
-        // Clipper docs say for 32-bit ints the max is 46340, so for 64=bit we should be fine with 2500,000
+        // This value determines # of integers per mm. 8 feet ~= 2500mm
+        // Clipper docs say for 32-bit ints the max is 46340, so for 64=bit... ?
         public static double GetIntScale(Polygon2d poly)
         {
             // details: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Types/CInt.htm
             // const max_int = 9.2e18 / 2        // 9.2e18 is max int, give ourselves room to breathe
-            // const int max_int = Int64.MaxValue / 10;    // too big!
-            const long max_int = int.MaxValue/2;  // is fine??
-            const double max_scale = (double)max_int;
+            const long max_int = int.MaxValue/2;  // int.MaxValue=2,147,483,647
 
+            // find maximum distance to origin. not ideal, efficiency-wise...
             Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly.Vertices);
             double max_origin_dist = Math.Max(maxDist.x, maxDist.y);
-            if (max_origin_dist < 1)
-                return max_scale;
-            else
-                return (double)(int)(max_scale / max_origin_dist);
+
+            if (max_accuracy == false) {
+                // if max int coord is within our max-int range, we are safe
+                int max_dist_int = (int)(max_origin_dist * inv_default_precision);
+                if (max_dist_int < max_int)
+                    return inv_default_precision;
+                // get as close to max_int as we can
+                return (double)max_int / max_origin_dist;
+            } else {
+                return (max_origin_dist < 1) ? (double)max_int : ((double)max_int / max_origin_dist);
+            }
         }
         public static double GetIntScale(GeneralPolygon2d poly)
         {
@@ -44,10 +72,10 @@ namespace gs
         }
 		public static double GetIntScale(List<GeneralPolygon2d> poly)
 		{
-			double max = 100;
-			foreach (var v in poly)
-				max = Math.Max(max, GetIntScale(v.Outer));
-			return max;
+            double max = 0;
+            foreach (var v in poly)
+                max = Math.Max(max, GetIntScale(v.Outer));
+            return (max <= 0) ? 1.0 : max;
 		}
 
         public static CPolygon ConvertToClipper(Polygon2d poly, double nIntScale)
