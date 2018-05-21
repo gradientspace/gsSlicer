@@ -258,6 +258,12 @@ namespace gs
             if (Cancelled()) return;
             int nLayers = Slices.Count;
 
+            // compute roofs/floors in parallel based on shells
+            precompute_roofs_floors();
+            if (Cancelled()) return;
+
+            // [TODO] use floor areas to determine support now?
+
             precompute_support_areas();
             if (Cancelled()) return;
 
@@ -298,23 +304,9 @@ namespace gs
                 // layer-up (ie z-change)
                 pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
-                // generate roof and floor regions. This could be done in parallel, or even pre-computed
-                List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
-                List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
-                if (is_infill) {
-                    if (Settings.RoofLayers > 0) {
-                        roof_cover = find_roof_areas_for_layer(layer_i);
-                    } else {
-                        roof_cover = find_roof_areas_for_layer(layer_i-1);     // will return "our" layer
-                    }
-                    if (Settings.FloorLayers > 0) {
-                        floor_cover = find_floor_areas_for_layer(layer_i);
-                    } else {
-                        floor_cover = find_floor_areas_for_layer(layer_i+1);   // will return "our" layer
-                    }
-                }
-                if (Cancelled()) return;
-                count_progress_step();
+                // get roof and floor regions.
+                List<GeneralPolygon2d> roof_cover = get_layer_roof_area(layer_i);
+                List<GeneralPolygon2d> floor_cover = get_layer_floor_area(layer_i);
 
                 // do support first
                 // this could be done in parallel w/ roof/floor...
@@ -725,6 +717,8 @@ namespace gs
         /// </summary>
         protected virtual List<GeneralPolygon2d> find_roof_areas_for_layer(int layer_i)
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
 
             foreach (IShellsFillPolygon shells in get_layer_shells(layer_i+1))
@@ -740,14 +734,14 @@ namespace gs
                     foreach (IShellsFillPolygon shells in get_layer_shells(ri))
                         infillN.AddRange(shells.GetInnerPolygons());
 
-                    roof_cover = ClipperUtil.Intersection(roof_cover, infillN);
+                    roof_cover = ClipperUtil.Intersection(roof_cover, infillN, min_area);
                 }
             }
 
             // add overhang allowance. Technically any non-vertical surface will result in
             // non-empty roof regions. However we do not need to explicitly support roofs
             // until they are "too horizontal". 
-            var result = ClipperUtil.MiterOffset(roof_cover, OverhangAllowanceMM);
+            var result = ClipperUtil.MiterOffset(roof_cover, OverhangAllowanceMM, min_area);
             return result;
         }
 
@@ -759,6 +753,8 @@ namespace gs
         /// </summary>
         protected virtual List<GeneralPolygon2d> find_floor_areas_for_layer(int layer_i)
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
 
             foreach (IShellsFillPolygon shells in get_layer_shells(layer_i - 1))
@@ -772,12 +768,12 @@ namespace gs
                     foreach (IShellsFillPolygon shells in get_layer_shells(ri))
                         infillN.AddRange(shells.GetInnerPolygons());
 
-                    floor_cover = ClipperUtil.Intersection(floor_cover, infillN);
+                    floor_cover = ClipperUtil.Intersection(floor_cover, infillN, min_area);
                 }
             }
 
             // add overhang allowance. 
-            var result = ClipperUtil.MiterOffset(floor_cover, OverhangAllowanceMM);
+            var result = ClipperUtil.MiterOffset(floor_cover, OverhangAllowanceMM, min_area);
             return result;
         }
 
@@ -898,6 +894,65 @@ namespace gs
         }
 
 
+
+
+
+
+        protected List<GeneralPolygon2d>[] LayerRoofAreas;
+        protected List<GeneralPolygon2d>[] LayerFloorAreas;
+
+
+        /// <summary>
+        /// return the set of roof polygons for a layer
+        /// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_roof_area(int layer_i)
+        {
+            return LayerRoofAreas[layer_i];
+        }
+
+        /// <summary>
+        /// return the set of floor polygons for a layer
+        /// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_floor_area(int layer_i)
+        {
+            return LayerFloorAreas[layer_i];
+        }
+
+        /// <summary>
+        /// compute all the roof and floor areas for the entire stack, in parallel
+        /// </summary>
+        protected virtual void precompute_roofs_floors()
+        {
+            int nLayers = Slices.Count;
+            LayerRoofAreas = new List<GeneralPolygon2d>[nLayers];
+            LayerFloorAreas = new List<GeneralPolygon2d>[nLayers];
+
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a);
+            int end_layer = Math.Min(nLayers - 1, Settings.LayerRangeFilter.b);
+            Interval1i solve_roofs_floors = new Interval1i(start_layer, end_layer);
+            gParallel.ForEach(solve_roofs_floors, (layer_i) => {
+                if (Cancelled()) return;
+                bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
+
+                if (is_infill) {
+                    if (Settings.RoofLayers > 0) {
+                        LayerRoofAreas[layer_i] = find_roof_areas_for_layer(layer_i);
+                    } else {
+                        LayerRoofAreas[layer_i] = find_roof_areas_for_layer(layer_i - 1);     // will return "our" layer
+                    }
+                    if (Settings.FloorLayers > 0) {
+                        LayerFloorAreas[layer_i] = find_floor_areas_for_layer(layer_i);
+                    } else {
+                        LayerFloorAreas[layer_i] = find_floor_areas_for_layer(layer_i + 1);   // will return "our" layer
+                    }
+                } else {
+                    LayerRoofAreas[layer_i] = new List<GeneralPolygon2d>();
+                    LayerFloorAreas[layer_i] = new List<GeneralPolygon2d>();
+                }
+
+                count_progress_step();
+            });
+        }
 
 
 
