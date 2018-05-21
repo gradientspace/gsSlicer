@@ -548,9 +548,11 @@ namespace gs
         protected virtual void fill_solid_regions(List<GeneralPolygon2d> solid_regions,
             IFillPathScheduler2d scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
         {
-			// if we have bridge regions on this layer, we subtract them from solid regions
-			// and fill them using bridge strategy
-			if (layer_data.layer_i > 0 && Settings.EnableBridging) {
+            double filter_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
+            // if we have bridge regions on this layer, we subtract them from solid regions
+            // and fill them using bridge strategy
+            if (layer_data.layer_i > 0 && Settings.EnableBridging) {
 				// bridge regions for layer i were computed at layer i-1...
 				List<GeneralPolygon2d> bridge_regions = get_layer_bridge_area(layer_data.layer_i - 1);
 
@@ -562,17 +564,19 @@ namespace gs
 
 					double path_width = Settings.Machine.NozzleDiamMM;
 					double shells_width = Settings.Shells * path_width;
-					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width);
-					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions);
+					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width, filter_area);
+					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions, filter_area);
+                    bridge_regions = CurveUtils2.FilterDegenerate(bridge_regions, filter_area);     // [RMS] do we need to do this?
 
-					if (bridge_regions.Count > 0) {
+                    if (bridge_regions.Count > 0) {
 						// now have to subtract bridge region from solid region, in case there is leftover.
 						// We are not going to inset bridge region or solid fill,  
 						// so we need to add *two* half-width tolerances
-						var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM);
-						solid_regions = ClipperUtil.Difference(solid_regions, offset_regions);
+						var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
+						solid_regions = ClipperUtil.Difference(solid_regions, offset_regions, filter_area);
+                        solid_regions = CurveUtils2.FilterDegenerate(solid_regions, filter_area);     // [RMS] do we need to do this?
 
-						foreach (var bridge_poly in bridge_regions)
+                        foreach (var bridge_poly in bridge_regions)
 							fill_bridge_region(bridge_poly, scheduler, layer_data);
 					}
 				}
@@ -954,6 +958,8 @@ namespace gs
 
 			// [RMS] does this make sense? maybe should be using 0 here?
 			double bridge_tol = Settings.Machine.NozzleDiamMM * 0.5;
+            double expand_delta = bridge_tol * 0.1;     // see usage below
+            bridge_tol += expand_delta;
 			double min_area = Settings.Machine.NozzleDiamMM;
 			min_area *= min_area;
 
@@ -966,11 +972,17 @@ namespace gs
 				// Then we look for polys that are bridgeable, ie thing enough and fully anchored.
 				List<GeneralPolygon2d> bridgePolys = null;
 				if (Settings.EnableBridging) {
-					bridgePolys = ClipperUtil.Difference(next_slice.Solids, slice.Solids);
-					bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
+                    // [RMS] bridge area is (next_solids - solids). However, for meshes with slight variations
+                    // in identical stacked polygons (eg like created from mesh extrusions), there will be thousands
+                    // of tiny polygons. We can filter them, but just computing them can take an enormous amount of time.
+                    // So, we slightly offset the slice here. This means the bridge poly will be slightly under-sized,
+                    // the assumption is we will be adding extra overlap anyway
+                    List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, expand_delta, min_area);
+                    bridgePolys = ClipperUtil.Difference(next_slice.Solids, expandPolys, min_area);
+                    bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
+                    bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
 						return layeri > 0 && is_bridgeable(p, layeri, bridge_tol);
 					});
-					bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
 				}
 
 				LayerBridgeAreas[layeri] = (bridgePolys != null)
