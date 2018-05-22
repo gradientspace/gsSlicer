@@ -350,6 +350,7 @@ namespace gs
 
                     // if this is an infill layer, compute infill regions, and remaining solid regions
                     // (ie roof/floor regions, and maybe others)
+                    // [TODO] this can be precomputed now...
                     List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
                     if (is_infill)
 						infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
@@ -358,6 +359,7 @@ namespace gs
                     // fill solid regions
                     groupScheduler.BeginGroup();
 					// [RMS] always call this for now because we may have bridge regions
+                    // [TODO] we can precompute the bridge region calc we are doing here that is quite expensive...
                     fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
                     groupScheduler.EndGroup();
 
@@ -556,16 +558,18 @@ namespace gs
 
 					double path_width = Settings.Machine.NozzleDiamMM;
 					double shells_width = Settings.Shells * path_width;
-					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width, filter_area);
-					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions, filter_area);
+                    //bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width, filter_area);
+                    bridge_regions = ClipperUtil.SeparateMiterOffsets(bridge_regions, shells_width, filter_area);
+                    bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions, filter_area);
                     bridge_regions = CurveUtils2.FilterDegenerate(bridge_regions, filter_area);     // [RMS] do we need to do this?
 
                     if (bridge_regions.Count > 0) {
 						// now have to subtract bridge region from solid region, in case there is leftover.
 						// We are not going to inset bridge region or solid fill,  
 						// so we need to add *two* half-width tolerances
-						var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
-						solid_regions = ClipperUtil.Difference(solid_regions, offset_regions, filter_area);
+						//var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
+                        var offset_regions = ClipperUtil.SeparateMiterOffsets(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
+                        solid_regions = ClipperUtil.Difference(solid_regions, offset_regions, filter_area);
                         solid_regions = CurveUtils2.FilterDegenerate(solid_regions, filter_area);     // [RMS] do we need to do this?
 
                         foreach (var bridge_poly in bridge_regions)
@@ -684,11 +688,13 @@ namespace gs
                                                              out List<GeneralPolygon2d> solid_regions)
                                                             
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> infillPolys = fillRegions;
 
-            List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(fillRegions, roof_cover);
-            List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(fillRegions, floor_cover);
-            solid_regions = ClipperUtil.Union(roofPolys, floorPolys);
+            List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(fillRegions, roof_cover, min_area);
+            List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(fillRegions, floor_cover, min_area);
+            solid_regions = ClipperUtil.Union(roofPolys, floorPolys, min_area);
             if (solid_regions == null)
                 solid_regions = new List<GeneralPolygon2d>();
 
@@ -701,8 +707,8 @@ namespace gs
             // infill won't overlap solid region
             if (solid_regions.Count > 0) {
                 List<GeneralPolygon2d> solidWithBorder =
-                    ClipperUtil.MiterOffset(solid_regions, Settings.Machine.NozzleDiamMM);
-                infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder);
+                    ClipperUtil.MiterOffset(solid_regions, Settings.Machine.NozzleDiamMM, min_area);
+                infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder, min_area);
             }
 
             return infillPolys;
