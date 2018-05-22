@@ -314,6 +314,19 @@ namespace gs
 		}
 
 
+        /// <summary>
+        /// Utility function that does a separate miter offset for each poly. The results may overlap.
+        /// Not safe to use unless you are passing polys into another function.
+        /// </summary>
+		public static List<GeneralPolygon2d> SeparateMiterOffsets(List<GeneralPolygon2d> polys, double fOffset, double minArea = -1) {
+            List<GeneralPolygon2d> offsets = new List<GeneralPolygon2d>();
+            foreach (var p in polys)
+                offsets.AddRange(MiterOffset(p, fOffset, minArea));
+            return offsets;
+		}
+
+
+
 		public enum BooleanOp {
 			Union, Difference, Intersection, Xor
 		}
