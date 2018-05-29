@@ -71,9 +71,15 @@ namespace gs
             System.Console.WriteLine("[EXCEPTION] ThreeAxisPrintGenerator: " + message + "\nSTACK TRACE: " + stack_trace);
         };
 
+        // use this to cancel slicer
+        public Func<bool> CancelF = () => { return false; };
 
-		// Replace this if you want to customize PrintLayerData type
-		public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
+        // will be set to true if CancelF() ever returns true
+        public bool WasCancelled = false;
+
+
+        // Replace this if you want to customize PrintLayerData type
+        public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
 
 		// Replace this to use a different path builder
 		public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
@@ -241,15 +247,25 @@ namespace gs
 				Slices.BuildSliceSpatialCaches(true);
 			}
 
+            if (Cancelled()) return;
+
             // initialize compiler and get start nozzle position
             Compiler.Begin();
 
             // We need N above/below shell paths to do roof/floors, and *all* shells to do support.
             // Also we can compute shells in parallel. So we just precompute them all here.
             precompute_shells();
+            if (Cancelled()) return;
             int nLayers = Slices.Count;
 
+            // compute roofs/floors in parallel based on shells
+            precompute_roofs_floors();
+            if (Cancelled()) return;
+
+            // [TODO] use floor areas to determine support now?
+
             precompute_support_areas();
+            if (Cancelled()) return;
 
 			PrintLayerData prevLayerData = null;
 
@@ -259,6 +275,7 @@ namespace gs
             CurStartLayer = Math.Max(0, Settings.LayerRangeFilter.a);
             CurEndLayer = Math.Min(nLayers-1, Settings.LayerRangeFilter.b);
             for ( int layer_i = CurStartLayer; layer_i <= CurEndLayer; ++layer_i ) {
+                if (Cancelled()) return;
 
 				// allocate new layer data structure
 				PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], this.Settings);
@@ -287,22 +304,9 @@ namespace gs
                 // layer-up (ie z-change)
                 pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
 
-                // generate roof and floor regions. This could be done in parallel, or even pre-computed
-                List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
-                List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
-                if (is_infill) {
-                    if (Settings.RoofLayers > 0) {
-                        roof_cover = find_roof_areas_for_layer(layer_i);
-                    } else {
-                        roof_cover = find_roof_areas_for_layer(layer_i-1);     // will return "our" layer
-                    }
-                    if (Settings.FloorLayers > 0) {
-                        floor_cover = find_floor_areas_for_layer(layer_i);
-                    } else {
-                        floor_cover = find_floor_areas_for_layer(layer_i+1);   // will return "our" layer
-                    }
-                }
-                count_progress_step();
+                // get roof and floor regions.
+                List<GeneralPolygon2d> roof_cover = get_layer_roof_area(layer_i);
+                List<GeneralPolygon2d> floor_cover = get_layer_floor_area(layer_i);
 
                 // do support first
                 // this could be done in parallel w/ roof/floor...
@@ -314,6 +318,7 @@ namespace gs
                     groupScheduler.EndGroup();
                     layerdata.SupportAreas = support_areas;
                 }
+                if (Cancelled()) return;
                 count_progress_step();
 
                 // selector determines what order we process shells in
@@ -334,6 +339,7 @@ namespace gs
                         groupScheduler.AppendCurveSets(shells_gen_paths.GetRange(0, shells_gen_paths.Count - 1));
                     }
                     groupScheduler.EndGroup();
+                    if (Cancelled()) return;
                     count_progress_step();
 
                     // allow client to do configuration (eg change settings for example)
@@ -344,6 +350,7 @@ namespace gs
 
                     // if this is an infill layer, compute infill regions, and remaining solid regions
                     // (ie roof/floor regions, and maybe others)
+                    // [TODO] this can be precomputed now...
                     List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
                     if (is_infill)
 						infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
@@ -352,6 +359,7 @@ namespace gs
                     // fill solid regions
                     groupScheduler.BeginGroup();
 					// [RMS] always call this for now because we may have bridge regions
+                    // [TODO] we can precompute the bridge region calc we are doing here that is quite expensive...
                     fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
                     groupScheduler.EndGroup();
 
@@ -359,6 +367,7 @@ namespace gs
                     groupScheduler.BeginGroup();
                     fill_infill_regions(infill_regions, groupScheduler, layerdata);
                     groupScheduler.EndGroup();
+                    if (Cancelled()) return;
                     count_progress_step();
 
                     groupScheduler.BeginGroup();
@@ -369,6 +378,7 @@ namespace gs
 
                     shells_gen = shellSelector.Next(groupScheduler.CurrentPosition);
                 }
+                if (Cancelled()) return;
 
                 // append open paths
                 groupScheduler.BeginGroup();
@@ -379,6 +389,7 @@ namespace gs
                 layerdata.Scheduler = groupScheduler.TargetScheduler;
 
 				// last chance to post-process paths for this layer before they are baked in
+                if (Cancelled()) return;
                 if ( LayerPostProcessor != null )
                     LayerPostProcessor.Process(layerdata, pathAccum.Paths);
 
@@ -390,6 +401,7 @@ namespace gs
 
                 // compile this layer 
                 // [TODO] we could do this in a separate thread, in a queue of jobs?
+                if (Cancelled()) return;
                 Compiler.AppendPaths(pathAccum.Paths);
 
                 // add this layer to running pathset
@@ -399,6 +411,7 @@ namespace gs
                 // we might want to consider this layer while we process next one
                 prevLayerData = layerdata;
 
+                if (Cancelled()) return;
                 count_progress_step();
             }
 
@@ -530,9 +543,11 @@ namespace gs
         protected virtual void fill_solid_regions(List<GeneralPolygon2d> solid_regions,
             IFillPathScheduler2d scheduler, PrintLayerData layer_data, bool bIsInfillAdjacent)
         {
-			// if we have bridge regions on this layer, we subtract them from solid regions
-			// and fill them using bridge strategy
-			if (layer_data.layer_i > 0 && Settings.EnableBridging) {
+            double filter_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
+            // if we have bridge regions on this layer, we subtract them from solid regions
+            // and fill them using bridge strategy
+            if (layer_data.layer_i > 0 && Settings.EnableBridging) {
 				// bridge regions for layer i were computed at layer i-1...
 				List<GeneralPolygon2d> bridge_regions = get_layer_bridge_area(layer_data.layer_i - 1);
 
@@ -544,17 +559,21 @@ namespace gs
 
 					double path_width = Settings.Machine.NozzleDiamMM;
 					double shells_width = Settings.Shells * path_width;
-					bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width);
-					bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions);
+                    //bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width, filter_area);
+                    bridge_regions = ClipperUtil.SeparateMiterOffsets(bridge_regions, shells_width, filter_area);
+                    bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions, filter_area);
+                    bridge_regions = CurveUtils2.FilterDegenerate(bridge_regions, filter_area);     // [RMS] do we need to do this?
 
-					if (bridge_regions.Count > 0) {
+                    if (bridge_regions.Count > 0) {
 						// now have to subtract bridge region from solid region, in case there is leftover.
 						// We are not going to inset bridge region or solid fill,  
 						// so we need to add *two* half-width tolerances
-						var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM);
-						solid_regions = ClipperUtil.Difference(solid_regions, offset_regions);
+						//var offset_regions = ClipperUtil.MiterOffset(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
+                        var offset_regions = ClipperUtil.SeparateMiterOffsets(bridge_regions, Settings.Machine.NozzleDiamMM, filter_area);
+                        solid_regions = ClipperUtil.Difference(solid_regions, offset_regions, filter_area);
+                        solid_regions = CurveUtils2.FilterDegenerate(solid_regions, filter_area);     // [RMS] do we need to do this?
 
-						foreach (var bridge_poly in bridge_regions)
+                        foreach (var bridge_poly in bridge_regions)
 							fill_bridge_region(bridge_poly, scheduler, layer_data);
 					}
 				}
@@ -670,11 +689,13 @@ namespace gs
                                                              out List<GeneralPolygon2d> solid_regions)
                                                             
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> infillPolys = fillRegions;
 
-            List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(fillRegions, roof_cover);
-            List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(fillRegions, floor_cover);
-            solid_regions = ClipperUtil.Union(roofPolys, floorPolys);
+            List<GeneralPolygon2d> roofPolys = ClipperUtil.Difference(fillRegions, roof_cover, min_area);
+            List<GeneralPolygon2d> floorPolys = ClipperUtil.Difference(fillRegions, floor_cover, min_area);
+            solid_regions = ClipperUtil.Union(roofPolys, floorPolys, min_area);
             if (solid_regions == null)
                 solid_regions = new List<GeneralPolygon2d>();
 
@@ -687,8 +708,8 @@ namespace gs
             // infill won't overlap solid region
             if (solid_regions.Count > 0) {
                 List<GeneralPolygon2d> solidWithBorder =
-                    ClipperUtil.MiterOffset(solid_regions, Settings.Machine.NozzleDiamMM);
-                infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder);
+                    ClipperUtil.MiterOffset(solid_regions, Settings.Machine.NozzleDiamMM, min_area);
+                infillPolys = ClipperUtil.Difference(infillPolys, solidWithBorder, min_area);
             }
 
             return infillPolys;
@@ -703,6 +724,8 @@ namespace gs
         /// </summary>
         protected virtual List<GeneralPolygon2d> find_roof_areas_for_layer(int layer_i)
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> roof_cover = new List<GeneralPolygon2d>();
 
             foreach (IShellsFillPolygon shells in get_layer_shells(layer_i+1))
@@ -718,14 +741,14 @@ namespace gs
                     foreach (IShellsFillPolygon shells in get_layer_shells(ri))
                         infillN.AddRange(shells.GetInnerPolygons());
 
-                    roof_cover = ClipperUtil.Intersection(roof_cover, infillN);
+                    roof_cover = ClipperUtil.Intersection(roof_cover, infillN, min_area);
                 }
             }
 
             // add overhang allowance. Technically any non-vertical surface will result in
             // non-empty roof regions. However we do not need to explicitly support roofs
             // until they are "too horizontal". 
-            var result = ClipperUtil.MiterOffset(roof_cover, OverhangAllowanceMM);
+            var result = ClipperUtil.MiterOffset(roof_cover, OverhangAllowanceMM, min_area);
             return result;
         }
 
@@ -737,6 +760,8 @@ namespace gs
         /// </summary>
         protected virtual List<GeneralPolygon2d> find_floor_areas_for_layer(int layer_i)
         {
+            double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
+
             List<GeneralPolygon2d> floor_cover = new List<GeneralPolygon2d>();
 
             foreach (IShellsFillPolygon shells in get_layer_shells(layer_i - 1))
@@ -750,12 +775,12 @@ namespace gs
                     foreach (IShellsFillPolygon shells in get_layer_shells(ri))
                         infillN.AddRange(shells.GetInnerPolygons());
 
-                    floor_cover = ClipperUtil.Intersection(floor_cover, infillN);
+                    floor_cover = ClipperUtil.Intersection(floor_cover, infillN, min_area);
                 }
             }
 
             // add overhang allowance. 
-            var result = ClipperUtil.MiterOffset(floor_cover, OverhangAllowanceMM);
+            var result = ClipperUtil.MiterOffset(floor_cover, OverhangAllowanceMM, min_area);
             return result;
         }
 
@@ -832,6 +857,7 @@ namespace gs
 
             Interval1i solve_shells = new Interval1i(start_layer, end_layer);
             gParallel.ForEach(solve_shells, (layeri) => {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[layeri];
                 LayerShells[layeri] = compute_shells_for_slice(slice);
                 count_progress_step();
@@ -876,6 +902,65 @@ namespace gs
         }
 
 
+
+
+
+
+        protected List<GeneralPolygon2d>[] LayerRoofAreas;
+        protected List<GeneralPolygon2d>[] LayerFloorAreas;
+
+
+        /// <summary>
+        /// return the set of roof polygons for a layer
+        /// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_roof_area(int layer_i)
+        {
+            return LayerRoofAreas[layer_i];
+        }
+
+        /// <summary>
+        /// return the set of floor polygons for a layer
+        /// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_floor_area(int layer_i)
+        {
+            return LayerFloorAreas[layer_i];
+        }
+
+        /// <summary>
+        /// compute all the roof and floor areas for the entire stack, in parallel
+        /// </summary>
+        protected virtual void precompute_roofs_floors()
+        {
+            int nLayers = Slices.Count;
+            LayerRoofAreas = new List<GeneralPolygon2d>[nLayers];
+            LayerFloorAreas = new List<GeneralPolygon2d>[nLayers];
+
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a);
+            int end_layer = Math.Min(nLayers - 1, Settings.LayerRangeFilter.b);
+            Interval1i solve_roofs_floors = new Interval1i(start_layer, end_layer);
+            gParallel.ForEach(solve_roofs_floors, (layer_i) => {
+                if (Cancelled()) return;
+                bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
+
+                if (is_infill) {
+                    if (Settings.RoofLayers > 0) {
+                        LayerRoofAreas[layer_i] = find_roof_areas_for_layer(layer_i);
+                    } else {
+                        LayerRoofAreas[layer_i] = find_roof_areas_for_layer(layer_i - 1);     // will return "our" layer
+                    }
+                    if (Settings.FloorLayers > 0) {
+                        LayerFloorAreas[layer_i] = find_floor_areas_for_layer(layer_i);
+                    } else {
+                        LayerFloorAreas[layer_i] = find_floor_areas_for_layer(layer_i + 1);   // will return "our" layer
+                    }
+                } else {
+                    LayerRoofAreas[layer_i] = new List<GeneralPolygon2d>();
+                    LayerFloorAreas[layer_i] = new List<GeneralPolygon2d>();
+                }
+
+                count_progress_step();
+            });
+        }
 
 
 
@@ -936,22 +1021,31 @@ namespace gs
 
 			// [RMS] does this make sense? maybe should be using 0 here?
 			double bridge_tol = Settings.Machine.NozzleDiamMM * 0.5;
+            double expand_delta = bridge_tol * 0.1;     // see usage below
+            bridge_tol += expand_delta;
 			double min_area = Settings.Machine.NozzleDiamMM;
 			min_area *= min_area;
 
 			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
-				PlanarSlice slice = Slices[layeri];
+                if (Cancelled()) return;
+                PlanarSlice slice = Slices[layeri];
 				PlanarSlice next_slice = Slices[layeri + 1];
 
 				// To find bridgeable regions, we compute all floating regions in next layer. 
 				// Then we look for polys that are bridgeable, ie thing enough and fully anchored.
 				List<GeneralPolygon2d> bridgePolys = null;
 				if (Settings.EnableBridging) {
-					bridgePolys = ClipperUtil.Difference(next_slice.Solids, slice.Solids);
-					bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
+                    // [RMS] bridge area is (next_solids - solids). However, for meshes with slight variations
+                    // in identical stacked polygons (eg like created from mesh extrusions), there will be thousands
+                    // of tiny polygons. We can filter them, but just computing them can take an enormous amount of time.
+                    // So, we slightly offset the slice here. This means the bridge poly will be slightly under-sized,
+                    // the assumption is we will be adding extra overlap anyway
+                    List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, expand_delta, min_area);
+                    bridgePolys = ClipperUtil.Difference(next_slice.Solids, expandPolys, min_area);
+                    bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
+                    bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
 						return layeri > 0 && is_bridgeable(p, layeri, bridge_tol);
 					});
-					bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
 				}
 
 				LayerBridgeAreas[layeri] = (bridgePolys != null)
@@ -1035,7 +1129,8 @@ namespace gs
 			// For layer i, compute support region needed to support layer (i+1)
 			// This is the *absolute* support area - no inset for filament width or spacing from model
 			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
-				PlanarSlice slice = Slices[layeri];
+                if (Cancelled()) return;
+                PlanarSlice slice = Slices[layeri];
 				PlanarSlice next_slice = Slices[layeri + 1];
 
 				// expand this layer and subtract from next layer. leftovers are
@@ -1116,6 +1211,7 @@ namespace gs
 			// that layers solids. 
 			List<GeneralPolygon2d> prevSupport = LayerSupportAreas[nLayers - 1];
             for (int i = nLayers - 2; i >= 0; --i) {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[i];
 
                 // [RMS] smooth the support polygon from the previous layer. if we allow
@@ -1217,6 +1313,7 @@ namespace gs
                 return;
 
             gParallel.ForEach(Interval1i.Range(Slices.Count), (i) => {
+                if (Cancelled()) return;
                 PlanarSlice slice = Slices[i];
                 if (slice.SupportSolids.Count == 0)
                     return;
@@ -1344,6 +1441,18 @@ namespace gs
             Interlocked.Increment(ref CurProgress);
         }
 
+
+        protected virtual bool Cancelled()
+        {
+            if (WasCancelled)
+                return true;
+            bool cancel = CancelF();
+            if (cancel) {
+                WasCancelled = true;
+                return true;
+            }
+            return false;
+        }
 
 
     }

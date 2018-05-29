@@ -51,10 +51,10 @@ namespace gs
 
 		public virtual Vector3d AppendZChange(double ZChange, double fSpeed) {
 			LinearToolpath zup = new LinearToolpath(ToolpathTypes.PlaneChange);
-			zup.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions));
+			zup.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathStart);
 			Vector3d toPos = new Vector3d(currentPos); 
 			toPos.z += ZChange;
-			zup.AppendVertex(new PrintVertex(toPos, fSpeed, GCodeUtil.UnspecifiedDimensions));
+			zup.AppendVertex(new PrintVertex(toPos, fSpeed, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathEnd);
 			AppendPath(zup);
 			return currentPos;
 		}
@@ -67,8 +67,8 @@ namespace gs
 		public virtual Vector3d AppendTravel(Vector3d toPos, double fSpeed)
 		{
 			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
-			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions));
-			travel.AppendVertex(new PrintVertex(toPos, fSpeed, GCodeUtil.UnspecifiedDimensions));
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathStart);
+			travel.AppendVertex(new PrintVertex(toPos, fSpeed, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathEnd);
 			if ( travel.Length > MathUtil.Epsilonf )		// discard tiny travels
 				AppendPath(travel);
 			return currentPos;
@@ -76,10 +76,12 @@ namespace gs
 		public virtual Vector3d AppendTravel(List<Vector2d> toPoints, double fSpeed)
         {
 			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
-			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions));
-			foreach (Vector2d pos2 in toPoints) {
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathStart);
+            for ( int k = 0; k < toPoints.Count; ++k ) {
+                Vector2d pos2 = toPoints[k];
 				Vector3d pos = new Vector3d(pos2.x, pos2.y, currentPos.z);
-				travel.AppendVertex(new PrintVertex(pos, fSpeed, GCodeUtil.UnspecifiedDimensions));
+                TPVertexFlags flag = (k == toPoints.Count - 1) ? TPVertexFlags.IsPathEnd : TPVertexFlags.None;
+				travel.AppendVertex(new PrintVertex(pos, fSpeed, GCodeUtil.UnspecifiedDimensions), flag);
 			}
 			if (travel.Length > MathUtil.Epsilonf)
 				AppendPath(travel);
@@ -88,9 +90,11 @@ namespace gs
 		public virtual Vector3d AppendTravel(List<Vector3d> toPoints, double fSpeed)
         {
 			LinearToolpath travel = new LinearToolpath(ToolpathTypes.Travel);
-			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions));
-			foreach (Vector3d pos in toPoints) {
-				travel.AppendVertex(new PrintVertex(pos, fSpeed, GCodeUtil.UnspecifiedDimensions));
+			travel.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedDimensions), TPVertexFlags.IsPathStart);
+            for ( int k = 0; k < toPoints.Count; ++k ) {
+                Vector3d pos = toPoints[k];
+                TPVertexFlags flag = (k == toPoints.Count - 1) ? TPVertexFlags.IsPathEnd : TPVertexFlags.None;
+                travel.AppendVertex(new PrintVertex(pos, fSpeed, GCodeUtil.UnspecifiedDimensions), flag);
 			}
 			if (travel.Length > MathUtil.Epsilonf)
 				AppendPath(travel);
@@ -109,8 +113,8 @@ namespace gs
         {
             LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;
-			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, currentDims));
-			extrusion.AppendVertex(new PrintVertex(toPos, fSpeed, currentDims));
+			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, currentDims), TPVertexFlags.IsPathStart);
+			extrusion.AppendVertex(new PrintVertex(toPos, fSpeed, currentDims), TPVertexFlags.IsPathEnd);
             AppendPath(extrusion);
             return currentPos;
         }
@@ -135,16 +139,18 @@ namespace gs
 				useDims.y = dimensions.y;
 
 			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
-			extrusion.TypeModifiers = pathTypeFlags;
-			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, useDims));
 
-			for (int i = 0; i < toPoints.Count; ++i) {
-				Vector3d pos = new Vector3d(toPoints[i].x, toPoints[i].y, currentPos.z);
-				extrusion.AppendVertex(new PrintVertex(pos, fSpeed, useDims));
-			}
-			if (perVertexFlags != null)
-				ToolpathUtil.AddPerVertexFlags(extrusion, perVertexFlags);
-			AppendPath(extrusion);
+            extrusion.TypeModifiers = pathTypeFlags;
+			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, useDims), TPVertexFlags.IsPathStart);
+
+            for (int k = 0; k < toPoints.Count; ++k) {
+                Vector3d pos = new Vector3d(toPoints[k].x, toPoints[k].y, currentPos.z);
+                TPVertexFlags flag = (k == toPoints.Count - 1) ? TPVertexFlags.IsPathEnd : TPVertexFlags.None;
+				extrusion.AppendVertex(new PrintVertex(pos, fSpeed, useDims), flag);
+            }
+            if (perVertexFlags != null)
+                ToolpathUtil.AddPerVertexFlags(extrusion, perVertexFlags);
+            AppendPath(extrusion);
 			return currentPos;
 		}
 
@@ -159,9 +165,11 @@ namespace gs
         {
 			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
             extrusion.TypeModifiers = pathTypeFlags;
-			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, currentDims));
-            for (int i = 0; i < toPoints.Count; ++i)
-				extrusion.AppendVertex(new PrintVertex(toPoints[i], fSpeed, currentDims));
+			extrusion.AppendVertex(new PrintVertex(currentPos, GCodeUtil.UnspecifiedValue, currentDims), TPVertexFlags.IsPathStart);
+			for (int k = 0; k < toPoints.Count; ++k) {
+                TPVertexFlags flag = (k == toPoints.Count - 1) ? TPVertexFlags.IsPathEnd : TPVertexFlags.None;
+				extrusion.AppendVertex(new PrintVertex(toPoints[k], fSpeed, currentDims), flag);
+            }
             if (perVertexFlags != null)
                 ToolpathUtil.AddPerVertexFlags(extrusion, perVertexFlags);
 			AppendPath(extrusion);

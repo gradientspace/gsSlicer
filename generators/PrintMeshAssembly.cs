@@ -11,6 +11,7 @@ namespace gs
     {
         public bool IsSupport = false;      // treat as support volume
         public bool IsCavity = false;       // treat as cavity
+        public bool IsCropRegion = false;   // treat as crop region
         public bool IsOpen = false;         // treat as open mesh (ie do not fill)
 
         public enum OpenPathsModes
@@ -26,6 +27,7 @@ namespace gs
             return new PrintMeshOptions() {
                 IsSupport = this.IsSupport,
                 IsCavity = this.IsCavity,
+                IsCropRegion = this.IsCropRegion,
                 IsOpen = this.IsOpen,
                 OpenPathMode = this.OpenPathMode
             };
@@ -35,6 +37,7 @@ namespace gs
             return new PrintMeshOptions() {
                 IsSupport = false,
                 IsCavity = false,
+                IsCropRegion = false,
                 IsOpen = false,
                 OpenPathMode = OpenPathsModes.Default
             };
@@ -42,21 +45,28 @@ namespace gs
 
         public static PrintMeshOptions Support() {
             return new PrintMeshOptions() {
+                IsCavity = false, IsCropRegion = false, IsOpen = false,
                 IsSupport = true,
-                IsCavity = false,
-                IsOpen = false,
                 OpenPathMode = OpenPathsModes.Default
             };
         }
 
         public static PrintMeshOptions Cavity() {
             return new PrintMeshOptions() {
-                IsSupport = false,
+                IsSupport = false, IsCropRegion = false, IsOpen = false,
                 IsCavity = true,
-                IsOpen = false,
                 OpenPathMode = OpenPathsModes.Default
             };
         }
+
+        public static PrintMeshOptions CropRegion() {
+            return new PrintMeshOptions() {
+                IsSupport = false, IsCavity = false, IsOpen = false,
+                IsCropRegion = true,
+                OpenPathMode = OpenPathsModes.Default
+            };
+        }
+
     }
 
 

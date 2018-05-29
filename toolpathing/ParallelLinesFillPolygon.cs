@@ -275,6 +275,11 @@ namespace gs
                             throw new Exception("build_min_graph: invalid walk!");
 
                         int c = path[path.Count - 1];
+
+                        // it is somehow possible to get loops...
+                        if (c == a)
+                            goto skip_this_edge;
+
                         if (MapV[c] == -1)
                             MapV[c] = MinGraph.AppendVertex(input.GetVertex(c));
 
@@ -287,6 +292,7 @@ namespace gs
                         }
                     }
 
+                    skip_this_edge:
                     done_edge[eid] = true;
                 }
             }

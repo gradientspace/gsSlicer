@@ -48,7 +48,7 @@ namespace gs
 			newPath.Type = ToolpathTypes.Travel;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
 				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, PathDimensions, GCodeUtil.UnspecifiedValue);
-				newPath.AppendVertex(curp);
+				newPath.AppendVertex(curp, TPVertexFlags.IsPathStart);
 			}
 
 			push_active_path();
@@ -60,7 +60,7 @@ namespace gs
 			newPath.Type = ToolpathTypes.Deposition;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
 				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, PathDimensions, GCodeUtil.UnspecifiedValue);
-				newPath.AppendVertex(curp);
+				newPath.AppendVertex(curp, TPVertexFlags.IsPathStart);
 			}
 
 			push_active_path();
@@ -84,7 +84,7 @@ namespace gs
 			if ( move.source != null )
 				vtx.Source = move.source;
 
-			ActivePath.AppendVertex(vtx);
+			ActivePath.AppendVertex(vtx, TPVertexFlags.None);
 		}
 
 

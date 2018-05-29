@@ -98,6 +98,10 @@ namespace gs
         public int Progress = 0;
 
 
+        public Func<bool> CancelF = () => { return false; };
+        public bool WasCancelled = false;
+
+
 		public MeshPlanarSlicer()
 		{
 		}
@@ -173,6 +177,9 @@ namespace gs
 
             // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
+                if (Cancelled())
+                    break;
+
 				DMesh3 mesh = Meshes[mi].mesh;
                 PrintMeshOptions mesh_options = Meshes[mi].options;
 
@@ -181,6 +188,7 @@ namespace gs
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
                 bool is_cavity = mesh_options.IsCavity;
+                bool is_crop = mesh_options.IsCropRegion;
                 bool is_support = mesh_options.IsSupport;
                 bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
                 var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
@@ -188,6 +196,9 @@ namespace gs
 
                 // each layer is independent so we can do in parallel
                 gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                    if (Cancelled())
+                        return;
+
 					double z = heights[i];
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
@@ -223,6 +234,8 @@ namespace gs
                             add_support_polygons(slices[i], solids.Polygons, mesh_options);
                         else if (is_cavity)
                             add_cavity_polygons(slices[i], solids.Polygons, mesh_options);
+                        else if (is_crop)
+                            add_crop_region_polygons(slices[i], solids.Polygons, mesh_options);
                         else
                             add_solid_polygons(slices[i], solids.Polygons, mesh_options);
 
@@ -253,6 +266,8 @@ namespace gs
 
             // resolve planar intersections, etc
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
+                if (Cancelled())
+                    return;
                 slices[i].Resolve();
                 Interlocked.Add(ref Progress, 2);
             });
@@ -278,6 +293,20 @@ namespace gs
 		}
 
 
+        protected virtual bool Cancelled()
+        {
+            if (WasCancelled)
+                return true;
+            bool cancel = CancelF();
+            if (cancel) {
+                WasCancelled = true;
+                return true;
+            }
+            return false;
+        }
+
+
+
 
         protected virtual void add_support_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
@@ -287,6 +316,11 @@ namespace gs
         protected virtual void add_cavity_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddCavityPolygons(polygons);
+        }
+
+        protected virtual void add_crop_region_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddCropRegions(polygons);
         }
 
         protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
