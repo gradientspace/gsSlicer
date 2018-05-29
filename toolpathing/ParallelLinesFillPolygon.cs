@@ -21,6 +21,9 @@ namespace gs
 		// we don't leave pathwidth-gap at end of span
 		public bool AdjustSpacingToMaximizeFill = true;
 
+		// TODO: implement support for this
+		public double MaxOverfillRatio = 0.0;
+
         // paths shorter than this are discarded
         public double MinPathLengthMM = 2.0;
 
@@ -165,6 +168,31 @@ namespace gs
 
                 paths.Append(path);
             }
+
+
+			// Check to make sure that we are not putting way too much material in the
+			// available volume. Computes extrusion volume from path length and if the
+			// ratio is too high, scales down the path thickness
+			// TODO: do we need to compute volume? If we just divide everything by
+			// height we get the same scaling, no? Then we don't need layer height.
+			if (MaxOverfillRatio > 0) {
+				throw new NotImplementedException("this is not finished yet");
+				double LayerHeight = 0.2;		// AAAHHH hardcoded nonono
+
+				double len = paths.TotalLength();
+				double extrude_vol = ExtrusionMath.PathLengthToVolume(LayerHeight, ToolWidth, len);
+				double polygon_vol = LayerHeight * Math.Abs(poly.Area);
+				double ratio = extrude_vol / polygon_vol;
+
+				if (ratio > MaxOverfillRatio && PathSpacing == ToolWidth) {
+					double use_width = ExtrusionMath.WidthFromTargetVolume(LayerHeight, len, polygon_vol);
+					//System.Console.WriteLine("Extrusion volume: {0}   PolyVolume: {1}   % {2}   ScaledWidth: {3}",
+											 //extrude_vol, polygon_vol, extrude_vol / polygon_vol, use_width);
+
+					foreach (var path in paths.Curves)
+						path.CustomThickness = use_width;
+				}
+			}
 
             return paths;
         }
