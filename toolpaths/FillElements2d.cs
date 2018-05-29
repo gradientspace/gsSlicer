@@ -32,6 +32,8 @@ namespace gs
     public interface FillCurve2d
     {
         bool HasTypeFlag(FillTypeFlags f);
+
+		double CustomThickness { get; }
     }
 
 
@@ -47,16 +49,21 @@ namespace gs
 			return (TypeFlags & f) != 0;
 		}
 
+		public double CustomThickness { get; set; }
+
 		public FillPolygon2d() : base()
 		{
+			CustomThickness = 0;
 		}
 
 		public FillPolygon2d(Vector2d[] v) : base(v)
 		{
+			CustomThickness = 0;
 		}
 
 		public FillPolygon2d(Polygon2d p) : base(p)
 		{
+			CustomThickness = 0;
 		}	
 	}
 
@@ -79,16 +86,23 @@ namespace gs
 		List<TPVertexFlags> flags;
 		bool has_flags = false;
 
+
+		public double CustomThickness { get; set; }
+
+
 		public FillPolyline2d() : base()
 		{
+			CustomThickness = 0;
 		}
 
 		public FillPolyline2d(Vector2d[] v) : base(v)
 		{
+			CustomThickness = 0;
 		}
 
 		public FillPolyline2d(PolyLine2d p) : base(p)
 		{
+			CustomThickness = 0;
 		}
 
 		void alloc_flags()

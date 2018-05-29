@@ -57,21 +57,27 @@ namespace gs
         public double FeedRate { get; set; }
         public TPVertexData ExtendedData { get; set; }
 
+		/// <summary> Dimensions of extrusion at this vertex. width=x, height=y. </summary>
+		public Vector2d Dimensions { get; set; }
+
+		/// <summary> Position of up to three extruders at this vertex. </summary>
         public Vector3d Extrusion { get; set; }
 
         public object Source { get; set; }
 
-		public PrintVertex(Vector3d pos, double rate) {
+		public PrintVertex(Vector3d pos, double rate, Vector2d dimensions) {
 			Position = pos;
 			FeedRate = rate;
+			Dimensions = dimensions;
 			Extrusion = Vector3d.Zero;
             ExtendedData = null;
             Source = null;
 		}
 
-		public PrintVertex(Vector3d pos, double rate, double ExtruderA) {
+		public PrintVertex(Vector3d pos, double rate, Vector2d dimensions, double ExtruderA) {
 			Position = pos;
 			FeedRate = rate;
+			Dimensions = dimensions;
 			Extrusion = new Vector3d(ExtruderA, 0, 0);
             ExtendedData = null;
             Source = null;

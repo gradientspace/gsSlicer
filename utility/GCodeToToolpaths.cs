@@ -20,6 +20,8 @@ namespace gs
 		public ToolpathSet PathSet;
 		public IBuildLinearToolpath<PrintVertex> ActivePath;
 
+		public Vector2d PathDimensions = GCodeUtil.UnspecifiedDimensions;
+
 		public GCodeToToolpaths() 
 		{
 		}
@@ -45,7 +47,7 @@ namespace gs
 			var newPath = new LinearToolpath();
 			newPath.Type = ToolpathTypes.Travel;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
-				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, PathDimensions, GCodeUtil.UnspecifiedValue);
 				newPath.AppendVertex(curp);
 			}
 
@@ -57,7 +59,7 @@ namespace gs
 			var newPath = new LinearToolpath();
 			newPath.Type = ToolpathTypes.Deposition;
 			if (ActivePath != null && ActivePath.VertexCount > 0) {
-				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, GCodeUtil.UnspecifiedValue);
+				PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, PathDimensions, GCodeUtil.UnspecifiedValue);
 				newPath.AppendVertex(curp);
 			}
 
@@ -77,7 +79,7 @@ namespace gs
 				ActivePath.ChangeType( ToolpathTypes.PlaneChange );
 
 			PrintVertex vtx = new PrintVertex(
-				move.position, move.rate, move.extrude.x );
+				move.position, move.rate, PathDimensions, move.extrude.x );
 			
 			if ( move.source != null )
 				vtx.Source = move.source;

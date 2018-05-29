@@ -98,11 +98,29 @@ namespace gs
                 if (EnableRetraction == false)
                     skip_retract = true;
 
+				// figure out volume scaling based on path type
+				double vol_scale = 1.0;
+				if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
+					vol_scale *= SupportExtrudeScale;
+				else if ((path.TypeModifiers & FillTypeFlags.BridgeSupport) != 0)
+					vol_scale *= Settings.BridgeVolumeScale;
+
                 for ( int i = 0; i < path.VertexCount; ++i ) {
 					bool last_vtx = (i == path.VertexCount-1);
 
 					Vector3d newPos = path[i].Position;
 					double newRate = path[i].FeedRate;
+
+					// default line thickness and height
+					double path_width = Settings.Machine.NozzleDiamMM;
+					double path_height = Settings.LayerHeightMM;
+
+					// override with custom dimensions if provided
+					Vector2d vtx_dims = path[i].Dimensions;
+					if (vtx_dims.x > 0 && vtx_dims.x < 1000.0)
+						path_width = vtx_dims.x;
+					if (vtx_dims.y > 0 && vtx_dims.y < 1000.0)
+						path_height = vtx_dims.y;
 
 					if ( path.Type != ToolpathTypes.Deposition ) {
 
@@ -132,14 +150,8 @@ namespace gs
                             curPos = newPos;
                             curRate = newRate;
 
-                            double vol_scale = 1;
-							if ((path.TypeModifiers & FillTypeFlags.SupportMaterial) != 0)
-								vol_scale *= SupportExtrudeScale;
-							else if ((path.TypeModifiers & FillTypeFlags.BridgeSupport) != 0)
-								vol_scale *= Settings.BridgeVolumeScale;
-
                             double feed = ExtrusionMath.PathLengthToFilamentLength(
-                                Settings.LayerHeightMM, Settings.Machine.NozzleDiamMM, Settings.Machine.FilamentDiamMM,
+								path_height, path_width, Settings.Machine.FilamentDiamMM,
                                 dist, vol_scale);
                             curA += feed;
                         }
