@@ -205,12 +205,12 @@ namespace gs
 
                     // compute cut
                     Polygon2d[] polys; PolyLine2d[] paths;
-                    compute_plane_curves(mesh, spatial, z, out polys, out paths);
+                    compute_plane_curves(mesh, spatial, z, is_closed, out polys, out paths);
 
                     // if we didn't hit anything, try again with jittered plane
                     // [TODO] this could be better...
                     if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
-                        compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, out polys, out paths);
+                        compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, is_closed, out polys, out paths);
                     }
 
                     if (is_closed) {
@@ -330,7 +330,9 @@ namespace gs
 
 
 
-        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, double z, out Polygon2d[] loops, out PolyLine2d[] curves )
+        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, 
+            double z, bool is_solid,
+            out Polygon2d[] loops, out PolyLine2d[] curves )
         {
             Func<Vector3d, double> planeF = (v) => {
                 return v.z - z;
@@ -350,6 +352,27 @@ namespace gs
                 curves = new PolyLine2d[0];
                 return false;
             }
+
+            // if this is a closed solid, any open spurs in the graph are errors
+            if (is_solid)
+                DGraph3Util.ErodeOpenSpurs(graph);
+
+            // [RMS] debug visualization
+            //DGraph2 graph2 = new DGraph2();
+            //Dictionary<int, int> mapV = new Dictionary<int, int>();
+            //foreach (int vid in graph.VertexIndices())
+            //    mapV[vid] = graph2.AppendVertex(graph.GetVertex(vid).xy);
+            //foreach (int eid in graph.EdgeIndices())
+            //    graph2.AppendEdge(mapV[graph.GetEdge(eid).a], mapV[graph.GetEdge(eid).b]);
+            //SVGWriter svg = new SVGWriter();
+            //svg.AddGraph(graph2, SVGWriter.Style.Outline("black", 0.05f));
+            //foreach (int vid in graph2.VertexIndices()) {
+            //    if (graph2.IsJunctionVertex(vid))
+            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("red", 0.1f));
+            //    else if (graph2.IsBoundaryVertex(vid))
+            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("blue", 0.1f));
+            //}
+            //svg.Write(string.Format("c:\\meshes\\EXPORT_SLICE_{0}.svg", z));
 
             // extract loops and open curves from graph
             DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge);
