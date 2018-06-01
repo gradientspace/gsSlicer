@@ -1243,7 +1243,7 @@ namespace gs
                         foreach (GeneralPolygon2d cliphole in clipped_holes) {
 							if (cliphole.Outer.IsClockwise == false)
 								cliphole.Outer.Reverse();
-							copy.AddHole(cliphole.Outer);   // ignore any new sub-holes that were created
+							copy.AddHole(cliphole.Outer, false);   // ignore any new sub-holes that were created
                         }
                     }
 
