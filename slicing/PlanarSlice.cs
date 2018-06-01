@@ -267,15 +267,19 @@ namespace gs
 
         protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d poly, bool bIsSupportSolid)
         {
+            // always do a self-union of outer polygon. This allows Clipper to clean up many
+            // problems in input polygons, eg self-intersections and other junk
+            GeneralPolygon2d gouter = new GeneralPolygon2d(poly.Outer);
+            List<GeneralPolygon2d> resolvedSolid =
+                ClipperUtil.Union(gouter, gouter, MIN_AREA);
+
             // solid may contain overlapping holes. We need to resolve these before continuing,
             // otherwise those overlapping regions will be filled by Clipper even/odd rules
-            // [TODO] can we configure clipper to not do this?
-            List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
-            resolvedSolid.Add(new GeneralPolygon2d(poly.Outer));
             foreach (Polygon2d hole in poly.Holes) {
                 GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
                 resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference, MIN_AREA);
             }
+
             return filter_solids(resolvedSolid);
             //return resolvedSolid;
         }
