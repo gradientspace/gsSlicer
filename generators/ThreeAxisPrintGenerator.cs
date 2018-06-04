@@ -1173,22 +1173,24 @@ namespace gs
 				// need to spatial query in a ring and make sure it is 
 				// connected on multiple sides...
 				List<GeneralPolygon2d> filteredPolys = new List<GeneralPolygon2d>();
-				foreach ( var poly in supportPolys ) {
-					var bounds = poly.Bounds;
-					// big enough to keep
-					if (bounds.MaxDim > 4*fPrintWidth) {
-						filteredPolys.Add(poly);
-						continue;
-					}
-					// check distance. if we are not close to any solids, this 
-					// is a min-z-tip, and gets a larger support poly.
-					double dist_sqr = slice.DistanceSquared(bounds.Center, 3*fSupportMinDist);
-					if (dist_sqr < fSupportMinDist * fSupportMinDist) {
-						filteredPolys.Add(poly);
-					} else {
-						filteredPolys.Add(make_support_point_poly(bounds.Center));
-					}
-				}
+                if ( Settings.SupportMinZTips ) { 
+				    foreach ( var poly in supportPolys ) {
+					    var bounds = poly.Bounds;
+					    // big enough to keep
+					    if (bounds.MaxDim > 4*fPrintWidth) {
+						    filteredPolys.Add(poly);
+						    continue;
+					    }
+					    // check distance. if we are not close to any solids, this 
+					    // is a min-z-tip, and gets a larger support poly.
+					    double dist_sqr = slice.DistanceSquared(bounds.Center, 3*fSupportMinDist);
+					    if (dist_sqr < fSupportMinDist * fSupportMinDist) {
+						    filteredPolys.Add(poly);
+					    } else {
+						    filteredPolys.Add(make_support_point_poly(bounds.Center));
+					    }
+				    }
+                }
 				supportPolys.Clear();
 				supportPolys.AddRange(filteredPolys);
 
