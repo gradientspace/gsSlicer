@@ -100,7 +100,7 @@ namespace gs
 
 				int i = 0;
 				if ((p.Type == ToolpathTypes.Travel || p.Type == ToolpathTypes.PlaneChange) && Assembler.InTravel == false) {
-					Assembler.DisableFan();
+					//Assembler.DisableFan();
 
 					// do retract cycle
 					if (p[0].Extrusion.x < Assembler.ExtruderA) {
@@ -118,7 +118,7 @@ namespace gs
 							Assembler.EndRetract(p[0].Position, Settings.RetractSpeed, p[0].Extrusion.x);
 						}
 						Assembler.EndTravel();
-						Assembler.EnableFan();
+						//Assembler.EnableFan();
 					}
 
 				}
