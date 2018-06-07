@@ -1172,9 +1172,9 @@ namespace gs
 				// sufficiently supported, but the test is kind of expensive, 
 				// need to spatial query in a ring and make sure it is 
 				// connected on multiple sides...
-				List<GeneralPolygon2d> filteredPolys = new List<GeneralPolygon2d>();
-                if ( Settings.SupportMinZTips ) { 
-				    foreach ( var poly in supportPolys ) {
+                if ( Settings.SupportMinZTips ) {
+                    List<GeneralPolygon2d> filteredPolys = new List<GeneralPolygon2d>();
+                    foreach ( var poly in supportPolys ) {
 					    var bounds = poly.Bounds;
 					    // big enough to keep
 					    if (bounds.MaxDim > 4*fPrintWidth) {
@@ -1190,9 +1190,9 @@ namespace gs
 						    filteredPolys.Add(make_support_point_poly(bounds.Center));
 					    }
 				    }
-                }
-				supportPolys.Clear();
-				supportPolys.AddRange(filteredPolys);
+                    supportPolys.Clear();
+                    supportPolys.AddRange(filteredPolys);
+                } 
 
 				// add any explicit support points in this layer as circles
 				foreach (Vector2d v in slice.InputSupportPoints)
