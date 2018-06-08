@@ -163,8 +163,15 @@ namespace gs
 			}
 			int NH = heights.Count;
 
-			// process each *slice* in parallel
-			PlanarSlice[] slices = new PlanarSlice[NH];
+            // determine if we have crop objects
+            bool have_crop_objects = false;
+            foreach (var mesh in Meshes) {
+                if (mesh.options.IsCropRegion)
+                    have_crop_objects = true;
+            }
+
+            // process each *slice* in parallel
+            PlanarSlice[] slices = new PlanarSlice[NH];
             for (int i = 0; i < NH; ++i) {
                 slices[i] = SliceFactoryF(heights[i], i);
                 slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
@@ -173,7 +180,6 @@ namespace gs
             // assume Resolve() takes 2x as long as meshes...
             TotalCompute = (Meshes.Count * NH) +  (2*NH);
             Progress = 0;
-
 
             // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
@@ -268,7 +274,13 @@ namespace gs
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
                 if (Cancelled())
                     return;
-                slices[i].Resolve();
+
+                if (have_crop_objects && slices[i].InputCropRegions.Count == 0) {
+                    // don't resolve, we have fully cropped this layer
+                } else {
+                    slices[i].Resolve();
+                }
+
                 Interlocked.Add(ref Progress, 2);
             });
 
@@ -277,7 +289,7 @@ namespace gs
             while (slices[last].IsEmpty && last > 0)
                 last--;
             int first = 0;
-            if (DiscardEmptyBaseSlices) {
+            if (DiscardEmptyBaseSlices || have_crop_objects) {
                 while (slices[first].IsEmpty && first < slices.Length)
                     first++;
             }
