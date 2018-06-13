@@ -277,8 +277,9 @@ namespace gs
             for ( int layer_i = CurStartLayer; layer_i <= CurEndLayer; ++layer_i ) {
                 if (Cancelled()) return;
 
-				// allocate new layer data structure
-				PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], this.Settings);
+                // allocate new layer data structure
+                SingleMaterialFFFSettings layerSettings = MakeLayerSettings(layer_i);
+                PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], layerSettings);
 				layerdata.PreviousLayer = prevLayerData;
 
 				// create path accumulator
@@ -302,7 +303,7 @@ namespace gs
                 // make path-accumulator for this layer
                 pathAccum.Initialize(Compiler.NozzlePosition);
                 // layer-up (ie z-change)
-                pathAccum.AppendZChange(Settings.LayerHeightMM, Settings.ZTravelSpeed);
+                pathAccum.AppendZChange(layerSettings.LayerHeightMM, Settings.ZTravelSpeed);
 
                 // get roof and floor regions.
                 List<GeneralPolygon2d> roof_cover = get_layer_roof_area(layer_i);
@@ -395,14 +396,14 @@ namespace gs
 
                 // change speeds if layer is going to finish too quickly
                 if (Settings.MinLayerTime > 0) {
-                    CalculatePrintTime layer_time_calc = new CalculatePrintTime(pathAccum.Paths, Settings);
+                    CalculatePrintTime layer_time_calc = new CalculatePrintTime(pathAccum.Paths, layerSettings);
                     layer_time_calc.EnforceMinLayerTime();
                 }
 
                 // compile this layer 
                 // [TODO] we could do this in a separate thread, in a queue of jobs?
                 if (Cancelled()) return;
-                Compiler.AppendPaths(pathAccum.Paths);
+                Compiler.AppendPaths(pathAccum.Paths, layerSettings);
 
                 // add this layer to running pathset
                 if (AccumulatedPaths != null)
@@ -417,6 +418,21 @@ namespace gs
 
             Compiler.End();
             CurProgress = TotalProgress;
+        }
+
+
+
+
+        /// <summary>
+        /// assemble Settings for a given layer.
+        /// </summary>
+        protected virtual SingleMaterialFFFSettings MakeLayerSettings(int layer_i)
+        {
+            var layerSettings = Settings.CloneAs<SingleMaterialFFFSettings>();
+            PlanarSlice slice = Slices[layer_i];
+            // override standard layer height with slice ZSpan
+            layerSettings.LayerHeightMM = slice.LayerZSpan.Length;
+            return layerSettings;
         }
 
 
