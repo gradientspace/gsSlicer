@@ -27,15 +27,20 @@ namespace gs
 
         // factory functions you can replace to customize objects/behavior
         public Func<PlanarSliceStack> SliceStackFactoryF = () => { return new PlanarSliceStack(); };
-        public Func<double, int, PlanarSlice> SliceFactoryF = (ZHeight, idx) => {
-            return new PlanarSlice() { Z = ZHeight, LayerIndex = idx };
+        public Func<Interval1d, double, int, PlanarSlice> SliceFactoryF = (ZSpan, ZHeight, idx) => {
+            return new PlanarSlice() {  LayerZSpan = ZSpan, Z = ZHeight, LayerIndex = idx };
         };
 
 
         /// <summary>
-        /// Slice height
+        /// Default Slice height
         /// </summary>
 		public double LayerHeightMM = 0.2;
+
+        /// <summary>
+        /// provide this function to override default LayerHeighMM
+        /// </summary>
+        public Func<int, double> LayerHeightF = null;
 
         /// <summary>
         /// Open-sheet meshes slice into open paths. For OpenPathsModes.Embedded mode, we need
@@ -147,21 +152,33 @@ namespace gs
             if (SetMinZValue != double.MinValue)
                 zrange.a = SetMinZValue;
 
-			int nLayers = (int)(zrange.Length / LayerHeightMM);
-			if (nLayers > MaxLayerCount)
-				throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
 
-            // make list of slice heights (could be irregular)
-            List<double> heights = new List<double>();
-			for (int i = 0; i < nLayers + 1; ++i) {
-				double t = zrange.a + (double)i * LayerHeightMM;
+            // construct layers
+            List<PlanarSlice> slice_list = new List<PlanarSlice>();
+
+            double cur_layer_z = zrange.a;
+            int layer_i = 0;
+            while ( cur_layer_z < zrange.b ) { 
+                double layer_height = get_layer_height(layer_i);
+                double z = cur_layer_z;
+                Interval1d zspan = new Interval1d(z, z + layer_height);
 				if (SliceLocation == SliceLocations.EpsilonBase)
-					t += 0.01 * LayerHeightMM;
+					z += 0.01 * layer_height;
 				else if (SliceLocation == SliceLocations.MidLine)
-					t += 0.5 * LayerHeightMM;
-				heights.Add(t);
+					z += 0.5 * layer_height;
+
+                PlanarSlice slice = SliceFactoryF(zspan, z, layer_i);
+                slice.EmbeddedPathWidth = OpenPathDefaultWidthMM;
+                slice_list.Add(slice);
+
+                layer_i++;
+                cur_layer_z += layer_height;
 			}
-			int NH = heights.Count;
+			int NH = slice_list.Count;
+            if (NH > MaxLayerCount)
+                throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
+
+            PlanarSlice[] slices = slice_list.ToArray();
 
             // determine if we have crop objects
             bool have_crop_objects = false;
@@ -170,12 +187,6 @@ namespace gs
                     have_crop_objects = true;
             }
 
-            // process each *slice* in parallel
-            PlanarSlice[] slices = new PlanarSlice[NH];
-            for (int i = 0; i < NH; ++i) {
-                slices[i] = SliceFactoryF(heights[i], i);
-                slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
-            }
 
             // assume Resolve() takes 2x as long as meshes...
             TotalCompute = (Meshes.Count * NH) +  (2*NH);
@@ -205,7 +216,7 @@ namespace gs
                     if (Cancelled())
                         return;
 
-					double z = heights[i];
+                    double z = slices[i].Z;
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
 
@@ -216,7 +227,8 @@ namespace gs
                     // if we didn't hit anything, try again with jittered plane
                     // [TODO] this could be better...
                     if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
-                        compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, is_closed, out polys, out paths);
+                        double jitterz = slices[i].LayerZSpan.Interpolate(0.75);
+                        compute_plane_curves(mesh, spatial, jitterz, is_closed, out polys, out paths);
                     }
 
                     if (is_closed) {
@@ -318,6 +330,11 @@ namespace gs
         }
 
 
+
+        protected virtual double get_layer_height(int layer_i)
+        {
+            return (LayerHeightF != null) ? LayerHeightF(layer_i) : LayerHeightMM;
+        }
 
 
         protected virtual void add_support_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)

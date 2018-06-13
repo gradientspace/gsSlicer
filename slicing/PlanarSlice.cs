@@ -15,6 +15,7 @@ namespace gs
 
         public int LayerIndex = 0;
 		public double Z = 0;
+        public Interval1d LayerZSpan;
 
         public double EmbeddedPathWidth = 0;
 
@@ -418,7 +419,10 @@ namespace gs
 
         public void Store(BinaryWriter writer)
         {
+            writer.Write(LayerIndex);
             writer.Write(Z);
+            writer.Write(LayerZSpan.a);
+            writer.Write(LayerZSpan.b);
 
             writer.Write(InputSolids.Count);
             for (int k = 0; k < InputSolids.Count; ++k)
@@ -432,8 +436,10 @@ namespace gs
             writer.Write(InputSupportSolids.Count);
             for (int k = 0; k < InputSupportSolids.Count; ++k)
                 gSerialization.Store(InputSupportSolids[k], writer);
+            writer.Write(InputCavities.Count);
             for (int k = 0; k < InputCavities.Count; ++k)
                 gSerialization.Store(InputCavities[k], writer);
+            writer.Write(InputCropRegions.Count);
             for (int k = 0; k < InputCropRegions.Count; ++k)
                 gSerialization.Store(InputCropRegions[k], writer);
 
@@ -451,7 +457,10 @@ namespace gs
 
         public void Restore(BinaryReader reader)
         {
+            LayerIndex = reader.ReadInt32();
             Z = reader.ReadDouble();
+            LayerZSpan.a = reader.ReadDouble();
+            LayerZSpan.b = reader.ReadDouble();
 
             int nInputSolids = reader.ReadInt32();
             InputSolids = new List<GeneralPolygon2d>();
