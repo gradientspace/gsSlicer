@@ -52,11 +52,11 @@ namespace gs
             }
         }
 
-		public virtual Vector3d AppendZChange(double ZChange, double fSpeed) {
+		public virtual Vector3d AppendZChange(double ZDelta, double fSpeed) {
 			LinearToolpath zup = new LinearToolpath(ToolpathTypes.PlaneChange);
 			zup.AppendVertex(new PrintVertex(currentPos, NO_RATE, NO_DIM), TPVertexFlags.IsPathStart);
 			Vector3d toPos = new Vector3d(currentPos); 
-			toPos.z += ZChange;
+			toPos.z += ZDelta;
 			zup.AppendVertex(new PrintVertex(toPos, fSpeed, NO_DIM), TPVertexFlags.IsPathEnd);
 			AppendPath(zup);
 			return currentPos;
