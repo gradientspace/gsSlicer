@@ -23,9 +23,12 @@ namespace gs
         public DGraph2 Graph;
 
         public double OverlapRadius = 0.4f;
+        public double CollisionRadius = 0.4f;
         public double FinalFlatCollapseAngleThreshDeg = 2.5;
 
         public Func<int, bool> PreserveEdgeFilterF = (eid) => { return false; };
+
+        DGraph2 CollisionGraph = new DGraph2();
 
 
         public PathOverlapRepair()
@@ -50,6 +53,21 @@ namespace gs
         {
             Graph.AppendPolyline(path, gid);
         }
+
+
+        /// <summary>
+        /// Collision paths are fixed thickened paths we need to clip against
+        /// </summary>
+        public void AddCollisionConstraint(PolyLine2d path) {
+            CollisionGraph.AppendPolyline(path);
+        }
+        /// <summary>
+        /// Collision polygons are fixed thickened paths we need to clip against
+        /// </summary>
+        public void AddCollisionConstraint(Polygon2d poly) {
+            CollisionGraph.AppendPolygon(poly);
+        }
+
 
 
         public void Compute()
@@ -81,6 +99,7 @@ namespace gs
 
 
         SegmentHashGrid2d<int> edge_hash;    // edge hash table used inside FilterSelfOverlaps
+        SegmentHashGrid2d<int> collision_edge_hash;
 
 
         void FilterSelfOverlaps(double overlapRadius, bool bResample = true)
@@ -146,6 +165,14 @@ namespace gs
                 edge_hash.InsertSegment(eid, seg.Center, seg.Extent);
             }
 
+            if ( CollisionGraph.EdgeCount > 0 ) {
+                collision_edge_hash = new SegmentHashGrid2d<int>(3 * CollisionRadius, -1);
+                foreach (int eid in CollisionGraph.EdgeIndices()) {
+                    Segment2d seg = CollisionGraph.GetEdgeSegment(eid);
+                    collision_edge_hash.InsertSegment(eid, seg.Center, seg.Extent);
+                }
+            }
+
             //Profiler.StopAndAccumulate("HashTable");
             //Profiler.Start("Erode1");
 
@@ -159,7 +186,8 @@ namespace gs
                 if (Graph.IsVertex(vid) == false)
                     continue;
                 double dist = MinSelfSegDistance(vid, 2 * dist_thresh);
-                if (dist < dist_thresh) {
+                double collision_dist = MinCollisionConstraintDistance(vid, CollisionRadius);
+                if (dist < dist_thresh || collision_dist < CollisionRadius) {
                     int eid = Graph.GetVtxEdges(vid)[0];
                     decimate_forward(vid, eid, dist_thresh);
                 }
@@ -243,7 +271,8 @@ namespace gs
                 cur_vid = nextinfo.b;
 
                 double dist = MinSelfSegDistance(cur_vid, 2 * dist_thresh);
-                if (dist > dist_thresh)
+                double collision_dist = MinCollisionConstraintDistance(cur_vid, dist_thresh);
+                if (dist > dist_thresh && collision_dist > CollisionRadius)
                     stop = true;
             }
 
@@ -269,9 +298,28 @@ namespace gs
             );
 
             return (result.Key == -1) ? double.MaxValue : Math.Sqrt(result.Value);
-
         }
 
+
+
+        /// <summary>
+        /// find nearest point to vertex in collision graph
+        /// </summary>
+        double MinCollisionConstraintDistance(int vid, double collision_radius)
+        {
+            if (collision_edge_hash == null)
+                return double.MaxValue;
+
+            Vector2d pos = Graph.GetVertex(vid);
+            Vector2d a = Vector2d.Zero, b = Vector2d.Zero;
+            var result = collision_edge_hash.FindNearestInSquaredRadius(pos, collision_radius*collision_radius,
+                (eid) => {
+                    CollisionGraph.GetEdgeV(eid, ref a, ref b);
+                    return Segment2d.FastDistanceSquared(ref a, ref b, ref pos);
+                }
+            );
+            return (result.Key == -1) ? double.MaxValue : Math.Sqrt(result.Value);
+        }
 
 
 
