@@ -27,6 +27,10 @@ namespace gs
 		// if true, we inset half of tool-width from Polygon
 		public bool InsetFromInputPolygon = true;
 
+        // if true, we clip fill lines so that we don't have any that are too close (not usually necessary?)
+        public bool FilterSelfOverlaps = false;
+        public double SelfOverlapToolWidthX = 0.25;
+
         public enum SimplificationLevel {
             None = 0,
             Minor = 1,              // eigth-tool-width
@@ -102,6 +106,17 @@ namespace gs
 
 
             DGraph2 pathGraph = BuildPathGraph(spanGraph);
+
+            // filter out self-overlaps from graph
+            if (FilterSelfOverlaps) {
+                PathOverlapRepair repair = new PathOverlapRepair(pathGraph);
+                repair.OverlapRadius = ToolWidth * SelfOverlapToolWidthX;
+                repair.PreserveEdgeFilterF = (eid) => {
+                    return repair.Graph.GetEdgeGroup(eid) > 0;
+                };
+                repair.Compute();
+                pathGraph = repair.GetResultGraph();
+            }
 
 
             HashSet<int> boundaries = new HashSet<int>();

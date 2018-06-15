@@ -613,7 +613,8 @@ namespace gs
                     InsetFromInputPolygon = false,
                     PathSpacing = Settings.SolidFillPathSpacingMM(),
                     ToolWidth = Settings.Machine.NozzleDiamMM,
-                    AngleDeg = LayerFillAngleF(layer_data.layer_i)
+                    AngleDeg = LayerFillAngleF(layer_data.layer_i),
+                    FilterSelfOverlaps = Settings.ClipSelfOverlaps
                 };
 
                 solid_gen.Compute();
