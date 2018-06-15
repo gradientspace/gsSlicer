@@ -61,7 +61,9 @@ namespace gs
 
 		public virtual void Begin() {
             Assembler = AssemblerF(Builder, Settings);
-			Assembler.AppendHeader();
+            Assembler.AppendComment("---BEGIN HEADER");
+            Assembler.AppendHeader();
+            Assembler.AppendComment("---END HEADER");
 		}
 
 

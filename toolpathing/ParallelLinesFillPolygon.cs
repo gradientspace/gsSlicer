@@ -192,7 +192,8 @@ namespace gs
 			// height we get the same scaling, no? Then we don't need layer height.
 			if (MaxOverfillRatio > 0) {
 				throw new NotImplementedException("this is not finished yet");
-				double LayerHeight = 0.2;		// AAAHHH hardcoded nonono
+#if false
+                double LayerHeight = 0.2;		// AAAHHH hardcoded nonono
 
 				double len = paths.TotalLength();
 				double extrude_vol = ExtrusionMath.PathLengthToVolume(LayerHeight, ToolWidth, len);
@@ -207,6 +208,7 @@ namespace gs
 					foreach (var path in paths.Curves)
 						path.CustomThickness = use_width;
 				}
+#endif
 			}
 
             return paths;
