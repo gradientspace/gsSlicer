@@ -15,6 +15,7 @@ namespace gs
 
         public int LayerIndex = 0;
 		public double Z = 0;
+        public Interval1d LayerZSpan;
 
         public double EmbeddedPathWidth = 0;
 
@@ -31,6 +32,7 @@ namespace gs
         public List<PolyLine2d> ClippedPaths = new List<PolyLine2d>();
         public List<GeneralPolygon2d> InputCavities = new List<GeneralPolygon2d>();
         public List<GeneralPolygon2d> InputSupportSolids = new List<GeneralPolygon2d>();
+        public List<GeneralPolygon2d> InputCropRegions = new List<GeneralPolygon2d>();
 
 		public List<Vector2d> InputSupportPoints = new List<Vector2d>();
 
@@ -115,6 +117,20 @@ namespace gs
         }
 
 
+
+        public void AddCropRegion(GeneralPolygon2d poly)
+        {
+            if (poly.Outer.IsClockwise)
+                poly.Reverse();
+            InputCropRegions.Add(poly);
+        }
+        public void AddCropRegions(IEnumerable<GeneralPolygon2d> polys) {
+            foreach (GeneralPolygon2d p in polys)
+                AddCropRegion(p);
+        }
+
+
+
         /// <summary>
         /// Convert assembly of polygons, polylines, etc, into a set of printable solids and paths
         /// </summary>
@@ -159,12 +175,12 @@ namespace gs
                 throw new Exception("PlanarSlice.Resolve: must set embedded path width!");
             foreach ( var path in EmbeddedPaths ) {
                 Polygon2d thick_path = make_thickened_path(path, EmbeddedPathWidth);
-                Solids = ClipperUtil.Difference(Solids, new GeneralPolygon2d(thick_path));
+                Solids = ClipperUtil.Difference(Solids, new GeneralPolygon2d(thick_path), MIN_AREA);
                 Paths.Add(path);
             }
 
             // cleanup
-            filter_solids(Solids);
+            Solids = filter_solids(Solids);
 
             // subtract solids from clipped paths
             foreach ( var path in ClippedPaths ) {
@@ -191,22 +207,43 @@ namespace gs
                     List<GeneralPolygon2d> resolved = make_solid(solid, true);
 
                     // now subtract print solids
-                    resolved = ClipperUtil.PolygonBoolean(resolved, Solids, ClipperUtil.BooleanOp.Difference);
+                    resolved = ClipperUtil.PolygonBoolean(resolved, Solids, ClipperUtil.BooleanOp.Difference, MIN_AREA);
 
                     // now subtract paths
                     if ( path_solids != null )
-                        resolved = ClipperUtil.PolygonBoolean(resolved, path_solids, ClipperUtil.BooleanOp.Difference);
+                        resolved = ClipperUtil.PolygonBoolean(resolved, path_solids, ClipperUtil.BooleanOp.Difference, MIN_AREA);
 
                     // now union in with accumulated support solids
                     if (SupportSolids.Count == 0) {
                         SupportSolids.AddRange(resolved);
                     } else {
-                        SupportSolids = ClipperUtil.PolygonBoolean(SupportSolids, resolved, ClipperUtil.BooleanOp.Union);
+                        SupportSolids = ClipperUtil.PolygonBoolean(SupportSolids, resolved, ClipperUtil.BooleanOp.Union, MIN_AREA);
                     }
                 }
 
-                filter_solids(SupportSolids);
+                SupportSolids = filter_solids(SupportSolids);
             }
+
+
+            // apply crop regions
+            if ( InputCropRegions.Count > 0 ) {
+                // combine crop regions
+                var CropRegions = make_solid(InputCropRegions[0], false);
+                for (int k = 1; k < InputCropRegions.Count; ++k)
+                    CropRegions = combine_solids(CropRegions, make_solid(InputCropRegions[k], false));
+
+                Solids = ClipperUtil.Intersection(CropRegions, Solids, MIN_AREA);
+                Solids = filter_solids(Solids);
+                List<PolyLine2d> cropped_paths = new List<PolyLine2d>();
+                foreach ( var path in Paths ) 
+                    cropped_paths.AddRange(ClipperUtil.ClipAgainstPolygon(CropRegions, path, true));
+                // TODO: filter paths
+
+                SupportSolids = ClipperUtil.Intersection(CropRegions, SupportSolids, MIN_AREA);
+                SupportSolids = filter_solids(SupportSolids);
+            }
+
+
         }
 
 
@@ -231,35 +268,41 @@ namespace gs
 
         protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d poly, bool bIsSupportSolid)
         {
+            // always do a self-union of outer polygon. This allows Clipper to clean up many
+            // problems in input polygons, eg self-intersections and other junk
+            GeneralPolygon2d gouter = new GeneralPolygon2d(poly.Outer);
+            List<GeneralPolygon2d> resolvedSolid =
+                ClipperUtil.Union(gouter, gouter, MIN_AREA);
+
             // solid may contain overlapping holes. We need to resolve these before continuing,
             // otherwise those overlapping regions will be filled by Clipper even/odd rules
-            // [TODO] can we configure clipper to not do this?
-            List<GeneralPolygon2d> resolvedSolid = new List<GeneralPolygon2d>();
-            resolvedSolid.Add(new GeneralPolygon2d(poly.Outer));
             foreach (Polygon2d hole in poly.Holes) {
                 GeneralPolygon2d holePoly = new GeneralPolygon2d(hole);
-                resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference);
+                resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference, MIN_AREA);
             }
-            return resolvedSolid;
+
+            return filter_solids(resolvedSolid);
+            //return resolvedSolid;
         }
 
         protected virtual List<GeneralPolygon2d> combine_solids(List<GeneralPolygon2d> all_solids, List<GeneralPolygon2d> new_solids)
         {
-            return ClipperUtil.PolygonBoolean(all_solids, new_solids, ClipperUtil.BooleanOp.Union);
+            return ClipperUtil.PolygonBoolean(all_solids, new_solids, ClipperUtil.BooleanOp.Union, MIN_AREA);
         }
 
 
         protected virtual List<GeneralPolygon2d> remove_cavity(List<GeneralPolygon2d> solids, GeneralPolygon2d cavity)
         {
-            return ClipperUtil.Difference(solids, cavity);
+            return ClipperUtil.Difference(solids, cavity, MIN_AREA);
         }
 
 
-        protected virtual void filter_solids(List<GeneralPolygon2d> solids)
+        protected virtual List<GeneralPolygon2d> filter_solids(List<GeneralPolygon2d> solids)
         {
             if (MIN_AREA > 0) {
-                CurveUtils2.FilterDegenerate(solids, MIN_AREA);
-            }
+                return CurveUtils2.FilterDegenerate(solids, MIN_AREA);
+            } else
+                return solids;
         }
 
 
@@ -303,6 +346,9 @@ namespace gs
                     box.Contain(pline.Bounds);
                 foreach (GeneralPolygon2d poly in InputSupportSolids)
                     box.Contain(poly.Outer.Bounds);
+
+                // [TODO] should crop against crop regions...
+
                 return box;
 			}
 		}
@@ -373,7 +419,10 @@ namespace gs
 
         public void Store(BinaryWriter writer)
         {
+            writer.Write(LayerIndex);
             writer.Write(Z);
+            writer.Write(LayerZSpan.a);
+            writer.Write(LayerZSpan.b);
 
             writer.Write(InputSolids.Count);
             for (int k = 0; k < InputSolids.Count; ++k)
@@ -387,9 +436,12 @@ namespace gs
             writer.Write(InputSupportSolids.Count);
             for (int k = 0; k < InputSupportSolids.Count; ++k)
                 gSerialization.Store(InputSupportSolids[k], writer);
+            writer.Write(InputCavities.Count);
             for (int k = 0; k < InputCavities.Count; ++k)
                 gSerialization.Store(InputCavities[k], writer);
-
+            writer.Write(InputCropRegions.Count);
+            for (int k = 0; k < InputCropRegions.Count; ++k)
+                gSerialization.Store(InputCropRegions[k], writer);
 
             writer.Write(Solids.Count);
             for (int k = 0; k < Solids.Count; ++k)
@@ -405,7 +457,10 @@ namespace gs
 
         public void Restore(BinaryReader reader)
         {
+            LayerIndex = reader.ReadInt32();
             Z = reader.ReadDouble();
+            LayerZSpan.a = reader.ReadDouble();
+            LayerZSpan.b = reader.ReadDouble();
 
             int nInputSolids = reader.ReadInt32();
             InputSolids = new List<GeneralPolygon2d>();
@@ -427,6 +482,10 @@ namespace gs
             InputCavities = new List<GeneralPolygon2d>();
             for (int k = 0; k < nInputCavities; ++k)
                 gSerialization.Restore(InputCavities[k], reader);
+            int nInputCropRegions = reader.ReadInt32();
+            InputCropRegions = new List<GeneralPolygon2d>();
+            for (int k = 0; k < nInputCropRegions; ++k)
+                gSerialization.Restore(InputCropRegions[k], reader);
 
             int nSolids = reader.ReadInt32();
             Solids = new List<GeneralPolygon2d>();

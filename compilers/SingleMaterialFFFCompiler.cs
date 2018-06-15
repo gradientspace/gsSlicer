@@ -17,7 +17,7 @@ namespace gs
         Action<string> EmitMessageF { get; set; }
 
         void Begin();
-        void AppendPaths(ToolpathSet paths);
+        void AppendPaths(ToolpathSet paths, SingleMaterialFFFSettings pathSettings);
         void AppendComment(string comment);
         void End();
     }
@@ -74,13 +74,16 @@ namespace gs
 
 
         /// <summary>
-        /// Compile this set of toolpaths and pass to assembler
+        /// Compile this set of toolpaths and pass to assembler.
+        /// Settings are optional, pass null to ignore
         /// </summary>
-		public virtual void AppendPaths(ToolpathSet paths)
+		public virtual void AppendPaths(ToolpathSet paths, SingleMaterialFFFSettings pathSettings)
         {
             Assembler.FlushQueues();
 
-            CalculateExtrusion calc = new CalculateExtrusion(paths, Settings);
+            SingleMaterialFFFSettings useSettings = (pathSettings == null) ? Settings : pathSettings;
+
+            CalculateExtrusion calc = new CalculateExtrusion(paths, useSettings);
 			calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA, Assembler.InRetract);
 
 
@@ -100,13 +103,13 @@ namespace gs
 
 				int i = 0;
 				if ((p.Type == ToolpathTypes.Travel || p.Type == ToolpathTypes.PlaneChange) && Assembler.InTravel == false) {
-					Assembler.DisableFan();
+					//Assembler.DisableFan();
 
 					// do retract cycle
 					if (p[0].Extrusion.x < Assembler.ExtruderA) {
                         if (Assembler.InRetract)
                             throw new Exception("SingleMaterialFFFCompiler.AppendPaths: path " + path_index + ": already in retract!");
-						Assembler.BeginRetract(p[0].Position, Settings.RetractSpeed, p[0].Extrusion.x);
+						Assembler.BeginRetract(p[0].Position, useSettings.RetractSpeed, p[0].Extrusion.x);
 					}
 					Assembler.BeginTravel();
 
@@ -115,10 +118,10 @@ namespace gs
 					// end travel / retract if we are in that state
 					if (Assembler.InTravel) {
 						if (Assembler.InRetract) {
-							Assembler.EndRetract(p[0].Position, Settings.RetractSpeed, p[0].Extrusion.x);
+							Assembler.EndRetract(p[0].Position, useSettings.RetractSpeed, p[0].Extrusion.x);
 						}
 						Assembler.EndTravel();
-						Assembler.EnableFan();
+						//Assembler.EnableFan();
 					}
 
 				}

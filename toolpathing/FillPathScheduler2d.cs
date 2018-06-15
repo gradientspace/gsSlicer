@@ -119,7 +119,11 @@ namespace gs
 
             double useSpeed = select_speed(curve);
 
-            Builder.AppendExtrude(loopV, useSpeed, curve.TypeFlags, flags);
+			Vector2d dimensions = GCodeUtil.UnspecifiedDimensions;
+			if (curve.CustomThickness > 0)
+				dimensions.x = curve.CustomThickness;
+
+            Builder.AppendExtrude(loopV, useSpeed, dimensions, curve.TypeFlags, flags);
 		}
 
 

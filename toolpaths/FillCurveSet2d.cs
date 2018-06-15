@@ -77,6 +77,16 @@ namespace gs
         }
 
 
+		public double TotalLength()
+		{
+			double len = 0;
+			foreach (var loop in Loops)
+				len += loop.Perimeter;
+			foreach (var curve in Curves)
+				len += curve.ArcLength;
+			return len;
+		}
+
 
         // DEPRECATED - remove?
         // this connects up the paths with small connectors? used in DenseLinesFillPolygon

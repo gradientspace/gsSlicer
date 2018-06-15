@@ -27,15 +27,20 @@ namespace gs
 
         // factory functions you can replace to customize objects/behavior
         public Func<PlanarSliceStack> SliceStackFactoryF = () => { return new PlanarSliceStack(); };
-        public Func<double, int, PlanarSlice> SliceFactoryF = (ZHeight, idx) => {
-            return new PlanarSlice() { Z = ZHeight, LayerIndex = idx };
+        public Func<Interval1d, double, int, PlanarSlice> SliceFactoryF = (ZSpan, ZHeight, idx) => {
+            return new PlanarSlice() {  LayerZSpan = ZSpan, Z = ZHeight, LayerIndex = idx };
         };
 
 
         /// <summary>
-        /// Slice height
+        /// Default Slice height
         /// </summary>
 		public double LayerHeightMM = 0.2;
+
+        /// <summary>
+        /// provide this function to override default LayerHeighMM
+        /// </summary>
+        public Func<int, double> LayerHeightF = null;
 
         /// <summary>
         /// Open-sheet meshes slice into open paths. For OpenPathsModes.Embedded mode, we need
@@ -98,6 +103,10 @@ namespace gs
         public int Progress = 0;
 
 
+        public Func<bool> CancelF = () => { return false; };
+        public bool WasCancelled = false;
+
+
 		public MeshPlanarSlicer()
 		{
 		}
@@ -143,36 +152,51 @@ namespace gs
             if (SetMinZValue != double.MinValue)
                 zrange.a = SetMinZValue;
 
-			int nLayers = (int)(zrange.Length / LayerHeightMM);
-			if (nLayers > MaxLayerCount)
-				throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
 
-            // make list of slice heights (could be irregular)
-            List<double> heights = new List<double>();
-			for (int i = 0; i < nLayers + 1; ++i) {
-				double t = zrange.a + (double)i * LayerHeightMM;
+            // construct layers
+            List<PlanarSlice> slice_list = new List<PlanarSlice>();
+
+            double cur_layer_z = zrange.a;
+            int layer_i = 0;
+            while ( cur_layer_z < zrange.b ) { 
+                double layer_height = get_layer_height(layer_i);
+                double z = cur_layer_z;
+                Interval1d zspan = new Interval1d(z, z + layer_height);
 				if (SliceLocation == SliceLocations.EpsilonBase)
-					t += 0.01 * LayerHeightMM;
+					z += 0.01 * layer_height;
 				else if (SliceLocation == SliceLocations.MidLine)
-					t += 0.5 * LayerHeightMM;
-				heights.Add(t);
-			}
-			int NH = heights.Count;
+					z += 0.5 * layer_height;
 
-			// process each *slice* in parallel
-			PlanarSlice[] slices = new PlanarSlice[NH];
-            for (int i = 0; i < NH; ++i) {
-                slices[i] = SliceFactoryF(heights[i], i);
-                slices[i].EmbeddedPathWidth = OpenPathDefaultWidthMM;
+                PlanarSlice slice = SliceFactoryF(zspan, z, layer_i);
+                slice.EmbeddedPathWidth = OpenPathDefaultWidthMM;
+                slice_list.Add(slice);
+
+                layer_i++;
+                cur_layer_z += layer_height;
+			}
+			int NH = slice_list.Count;
+            if (NH > MaxLayerCount)
+                throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
+
+            PlanarSlice[] slices = slice_list.ToArray();
+
+            // determine if we have crop objects
+            bool have_crop_objects = false;
+            foreach (var mesh in Meshes) {
+                if (mesh.options.IsCropRegion)
+                    have_crop_objects = true;
             }
+
 
             // assume Resolve() takes 2x as long as meshes...
             TotalCompute = (Meshes.Count * NH) +  (2*NH);
             Progress = 0;
 
-
             // compute slices separately for each mesh
             for (int mi = 0; mi < Meshes.Count; ++mi ) {
+                if (Cancelled())
+                    break;
+
 				DMesh3 mesh = Meshes[mi].mesh;
                 PrintMeshOptions mesh_options = Meshes[mi].options;
 
@@ -181,6 +205,7 @@ namespace gs
 				AxisAlignedBox3d bounds = Meshes[mi].bounds;
 
                 bool is_cavity = mesh_options.IsCavity;
+                bool is_crop = mesh_options.IsCropRegion;
                 bool is_support = mesh_options.IsSupport;
                 bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
                 var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
@@ -188,18 +213,22 @@ namespace gs
 
                 // each layer is independent so we can do in parallel
                 gParallel.ForEach(Interval1i.Range(NH), (i) => {
-					double z = heights[i];
+                    if (Cancelled())
+                        return;
+
+                    double z = slices[i].Z;
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
 
                     // compute cut
                     Polygon2d[] polys; PolyLine2d[] paths;
-                    compute_plane_curves(mesh, spatial, z, out polys, out paths);
+                    compute_plane_curves(mesh, spatial, z, is_closed, out polys, out paths);
 
                     // if we didn't hit anything, try again with jittered plane
                     // [TODO] this could be better...
                     if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
-                        compute_plane_curves(mesh, spatial, z+LayerHeightMM*0.25, out polys, out paths);
+                        double jitterz = slices[i].LayerZSpan.Interpolate(0.75);
+                        compute_plane_curves(mesh, spatial, jitterz, is_closed, out polys, out paths);
                     }
 
                     if (is_closed) {
@@ -223,6 +252,8 @@ namespace gs
                             add_support_polygons(slices[i], solids.Polygons, mesh_options);
                         else if (is_cavity)
                             add_cavity_polygons(slices[i], solids.Polygons, mesh_options);
+                        else if (is_crop)
+                            add_crop_region_polygons(slices[i], solids.Polygons, mesh_options);
                         else
                             add_solid_polygons(slices[i], solids.Polygons, mesh_options);
 
@@ -253,7 +284,15 @@ namespace gs
 
             // resolve planar intersections, etc
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
-                slices[i].Resolve();
+                if (Cancelled())
+                    return;
+
+                if (have_crop_objects && slices[i].InputCropRegions.Count == 0) {
+                    // don't resolve, we have fully cropped this layer
+                } else {
+                    slices[i].Resolve();
+                }
+
                 Interlocked.Add(ref Progress, 2);
             });
 
@@ -262,7 +301,7 @@ namespace gs
             while (slices[last].IsEmpty && last > 0)
                 last--;
             int first = 0;
-            if (DiscardEmptyBaseSlices) {
+            if (DiscardEmptyBaseSlices || have_crop_objects) {
                 while (slices[first].IsEmpty && first < slices.Length)
                     first++;
             }
@@ -278,6 +317,25 @@ namespace gs
 		}
 
 
+        protected virtual bool Cancelled()
+        {
+            if (WasCancelled)
+                return true;
+            bool cancel = CancelF();
+            if (cancel) {
+                WasCancelled = true;
+                return true;
+            }
+            return false;
+        }
+
+
+
+        protected virtual double get_layer_height(int layer_i)
+        {
+            return (LayerHeightF != null) ? LayerHeightF(layer_i) : LayerHeightMM;
+        }
+
 
         protected virtual void add_support_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
@@ -289,6 +347,11 @@ namespace gs
             slice.AddCavityPolygons(polygons);
         }
 
+        protected virtual void add_crop_region_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
+        {
+            slice.AddCropRegions(polygons);
+        }
+
         protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddPolygons(polygons);
@@ -296,7 +359,9 @@ namespace gs
 
 
 
-        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, double z, out Polygon2d[] loops, out PolyLine2d[] curves )
+        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, 
+            double z, bool is_solid,
+            out Polygon2d[] loops, out PolyLine2d[] curves )
         {
             Func<Vector3d, double> planeF = (v) => {
                 return v.z - z;
@@ -316,6 +381,27 @@ namespace gs
                 curves = new PolyLine2d[0];
                 return false;
             }
+
+            // if this is a closed solid, any open spurs in the graph are errors
+            if (is_solid)
+                DGraph3Util.ErodeOpenSpurs(graph);
+
+            // [RMS] debug visualization
+            //DGraph2 graph2 = new DGraph2();
+            //Dictionary<int, int> mapV = new Dictionary<int, int>();
+            //foreach (int vid in graph.VertexIndices())
+            //    mapV[vid] = graph2.AppendVertex(graph.GetVertex(vid).xy);
+            //foreach (int eid in graph.EdgeIndices())
+            //    graph2.AppendEdge(mapV[graph.GetEdge(eid).a], mapV[graph.GetEdge(eid).b]);
+            //SVGWriter svg = new SVGWriter();
+            //svg.AddGraph(graph2, SVGWriter.Style.Outline("black", 0.05f));
+            //foreach (int vid in graph2.VertexIndices()) {
+            //    if (graph2.IsJunctionVertex(vid))
+            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("red", 0.1f));
+            //    else if (graph2.IsBoundaryVertex(vid))
+            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("blue", 0.1f));
+            //}
+            //svg.Write(string.Format("c:\\meshes\\EXPORT_SLICE_{0}.svg", z));
 
             // extract loops and open curves from graph
             DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge);

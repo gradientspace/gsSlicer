@@ -105,9 +105,28 @@ namespace gs
 		public int VertexCount {
 			get { return Path.Count; }
 		}
-		public void AppendVertex(T v) {
-			if ( Path.Count == 0 || End.Position.DistanceSquared(v.Position) > MathUtil.Epsilon )	
-				Path.Add(v);
+        public void AppendVertex(T v, TPVertexFlags flags) {
+            if (Path.Count == 0 || ((flags & TPVertexFlags.IsPathStart) != 0)) { 
+                Path.Add(v);
+                return;
+            }
+            bool is_end = ((flags & TPVertexFlags.IsPathEnd) != 0);
+            if ( is_end && Path.Count == 1 ) {
+                Path.Add(v);
+                return;
+            }
+
+            double distSqr = End.Position.DistanceSquared(v.Position);
+            if ( distSqr < MathUtil.Epsilonf ) {
+                if ( is_end )
+                    Path[Path.Count - 1] = v;
+                // otherwise just discard
+            } else {
+                Path.Add(v);
+            }
+
+			//if ( Path.Count == 0 || End.Position.DistanceSquared(v.Position) > MathUtil.Epsilon )
+			//	Path.Add(v);
 		}
 		public void UpdateVertex(int i, T v)
 		{
