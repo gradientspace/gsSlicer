@@ -325,8 +325,8 @@ namespace gs
 
                     // schedule shell paths that we pre-computed
                     List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillCurves();
-                    FillCurveSet2d outer_shell = shells_gen_paths[shells_gen_paths.Count - 1];
                     bool do_outer_last = (shells_gen_paths.Count > 1);
+                    FillCurveSet2d outer_shell = (shells_gen_paths.Count > 0) ? shells_gen_paths[shells_gen_paths.Count - 1] : null;
                     groupScheduler.BeginGroup();
                     if (do_outer_last == false) {
                         groupScheduler.AppendCurveSets(shells_gen_paths);
@@ -577,6 +577,9 @@ namespace gs
                                                  IFillPathScheduler2d scheduler,
                                                  bool bIsInfillAdjacent = false )
         {
+            if (Settings.SolidFillPathSpacingMM() == 0)
+                return;
+
             List<GeneralPolygon2d> fillPolys = new List<GeneralPolygon2d>() { solid_poly };
 
             // if we are on an infill layer, and this shell has some infill region,
@@ -587,7 +590,7 @@ namespace gs
             //   came from where. Would need to do loop above per-polygon
             if (bIsInfillAdjacent && Settings.InteriorSolidRegionShells > 0) {
                 ShellsFillPolygon interior_shells = new ShellsFillPolygon(solid_poly);
-                interior_shells.PathSpacing = Settings.SolidFillPathSpacingMM();
+                interior_shells.PathSpacing = Settings.ShellsFillPathSpacingMM();
                 interior_shells.ToolWidth = Settings.Machine.NozzleDiamMM;
                 interior_shells.Layers = Settings.InteriorSolidRegionShells;
                 interior_shells.InsetFromInputPolygonX = 0;
@@ -863,7 +866,7 @@ namespace gs
         protected virtual IShellsFillPolygon compute_shells_for_shape(GeneralPolygon2d shape)
         {
             ShellsFillPolygon shells_gen = new ShellsFillPolygon(shape);
-            shells_gen.PathSpacing = Settings.SolidFillPathSpacingMM();
+            shells_gen.PathSpacing = Settings.ShellsFillPathSpacingMM();
             shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
