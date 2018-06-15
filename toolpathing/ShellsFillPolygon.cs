@@ -80,7 +80,8 @@ namespace gs
             List<FillCurveSet2d> result = new List<FillCurveSet2d>();
             for (int k = 1; k < Shells.Count; ++k)
                 result.Add(Shells[k]);
-            result.Add(Shells[0]);
+            if ( Shells.Count > 0 )
+                result.Add(Shells[0]);
             return result;
         }
 
