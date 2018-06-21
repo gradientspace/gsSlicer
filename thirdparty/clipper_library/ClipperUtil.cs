@@ -45,14 +45,14 @@ namespace gs
         // Clipper uses integer coordinates, so we need to scale our doubles.
         // This value determines # of integers per mm. 8 feet ~= 2500mm
         // Clipper docs say for 32-bit ints the max is 46340, so for 64=bit... ?
-        public static double GetIntScale(Polygon2d poly)
+        public static double GetIntScale(IEnumerable<Vector2d> vertices)
         {
             // details: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Types/CInt.htm
             // const max_int = 9.2e18 / 2        // 9.2e18 is max int, give ourselves room to breathe
             const long max_int = int.MaxValue/2;  // int.MaxValue=2,147,483,647
 
             // find maximum distance to origin. not ideal, efficiency-wise...
-            Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(poly.Vertices);
+            Vector2d maxDist = CurveUtils2.GetMaxOriginDistances(vertices);
             double max_origin_dist = Math.Max(maxDist.x, maxDist.y);
 
             if (max_accuracy == false) {
@@ -68,13 +68,13 @@ namespace gs
         }
         public static double GetIntScale(GeneralPolygon2d poly)
         {
-            return GetIntScale(poly.Outer);
+            return GetIntScale(poly.Outer.Vertices);
         }
 		public static double GetIntScale(List<GeneralPolygon2d> poly)
 		{
             double max = 0;
             foreach (var v in poly)
-                max = Math.Max(max, GetIntScale(v.Outer));
+                max = Math.Max(max, GetIntScale(v.Outer.Vertices));
             return (max <= 0) ? 1.0 : max;
 		}
 
@@ -210,7 +210,7 @@ namespace gs
 
 		public static List<GeneralPolygon2d> ComputeOffsetPolygon(Polygon2d poly, double fOffset, bool bSharp = false)
         {
-            double nIntScale = GetIntScale(poly);
+            double nIntScale = GetIntScale(poly.Vertices);
 
             List<IntPoint> clipper_poly = ClipperUtil.ConvertToClipper(poly, nIntScale);
             CPolygonList clipper_polys = new CPolygonList() { clipper_poly };
@@ -496,7 +496,7 @@ namespace gs
         /// </summary>
         public static List<PolyLine2d> ClipAgainstPolygon(List<GeneralPolygon2d> solids, PolyLine2d polyline, bool bIntersect = false)
         {
-            double nIntScale = GetIntScale(solids);
+            double nIntScale = Math.Max(GetIntScale(solids), GetIntScale(polyline.Vertices));
             List<PolyLine2d> result = new List<PolyLine2d>();
 
             Clipper clip = new Clipper();
