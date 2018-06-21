@@ -443,7 +443,14 @@ namespace gs
         protected virtual void fill_infill_regions(List<GeneralPolygon2d> infill_regions,
             IFillPathScheduler2d scheduler, PrintLayerData layer_data )
         {
+            if (Settings.SparseLinearInfillStepX < 0.1 || Settings.SparseLinearInfillStepX > 100 )
+                return;
+            double sparse_gap_width = Settings.SparseLinearInfillStepX * Settings.Machine.NozzleDiamMM;
+
             foreach (GeneralPolygon2d infill_poly in infill_regions) {
+                if (sparse_gap_width > infill_poly.Bounds.MaxDim * 2)
+                    continue;
+
                 List<GeneralPolygon2d> polys = new List<GeneralPolygon2d>() { infill_poly };
 
                 if (Settings.SparseFillBorderOverlapX > 0) {
@@ -451,8 +458,9 @@ namespace gs
                     polys = ClipperUtil.MiterOffset(polys, offset);
                 }
 
-                foreach (var poly in polys)
+                foreach (var poly in polys) {
                     fill_infill_region(poly, scheduler, layer_data);
+                }
             }
         }
 
