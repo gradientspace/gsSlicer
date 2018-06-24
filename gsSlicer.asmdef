@@ -1,0 +1,10 @@
+{
+    "name": "gsSlicer",
+    "references": [
+        "geometry3Sharp", "gsGCode"
+    ],
+    "optionalUnityReferences": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false
+}
