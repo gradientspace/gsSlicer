@@ -509,11 +509,11 @@ namespace gs
             // [TODO] we should only do this if we are directly below model. Otherwise this
             // branch is hit on any thin tube supports, that we could be printing empty
 			int nShells = (Settings.EnableSupportShell) ? 1 : 0;
-			double support_spacing = Settings.SupportSpacingStepX * Settings.SolidFillPathSpacingMM();
+            double support_spacing = Settings.SupportSpacingStepX * Settings.Machine.NozzleDiamMM;
 			double shell_spacing = Settings.Machine.NozzleDiamMM;
 			if (bounds.MaxDim < 2 * support_spacing) {
 				nShells = 3;
-				shell_spacing = Settings.Machine.NozzleDiamMM + 0.1;
+				shell_spacing = Settings.Machine.NozzleDiamMM * 1.25f;
 			}
 
             List<GeneralPolygon2d> infill_polys = new List<GeneralPolygon2d>() { support_poly };
@@ -1139,15 +1139,22 @@ namespace gs
 			double DiscardHoleSizeMM = 2*Settings.Machine.NozzleDiamMM;
 			double DiscardHoleArea = DiscardHoleSizeMM * DiscardHoleSizeMM;
 
+            // throw away support polygons smaller than this
+            double fMinDiameter = Settings.SupportMinDimension;
+
 			// if support poly is further than this from model, we consider
 			// it a min-z-tip and it gets special handling
 			double fSupportMinDist = Settings.Machine.NozzleDiamMM;
 
 
-			int nLayers = Slices.Count;
+
+            int nLayers = Slices.Count;
 			LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
 			if (nLayers <= 1)
 				return;
+
+
+            bool bEnableInterLayerSmoothing = true;
 
 
 			/*
@@ -1196,27 +1203,44 @@ namespace gs
 				// NOTE: we **cannot** discard tiny polys here, because a bunch of
 				// tiny per-layer polygons may merge into larger support regions
 				// after dilate/contract, eg on angled thin strips. 
-				// NOTE2: we could discard tiny polys if we are sure they are
-				// sufficiently supported, but the test is kind of expensive, 
-				// need to spatial query in a ring and make sure it is 
-				// connected on multiple sides...
-                if ( Settings.SupportMinZTips ) {
+                if ( true ) {
                     List<GeneralPolygon2d> filteredPolys = new List<GeneralPolygon2d>();
                     foreach ( var poly in supportPolys ) {
 					    var bounds = poly.Bounds;
 					    // big enough to keep
-					    if (bounds.MaxDim > 4*fPrintWidth) {
+					    if (bounds.MaxDim > fMinDiameter) {
 						    filteredPolys.Add(poly);
 						    continue;
 					    }
-					    // check distance. if we are not close to any solids, this 
-					    // is a min-z-tip, and gets a larger support poly.
-					    double dist_sqr = slice.DistanceSquared(bounds.Center, 3*fSupportMinDist);
-					    if (dist_sqr < fSupportMinDist * fSupportMinDist) {
-						    filteredPolys.Add(poly);
-					    } else {
-						    filteredPolys.Add(make_support_point_poly(bounds.Center));
-					    }
+
+                        // Find nearest point. If it is far from print volume, then this is a Min-Z "tip" region.
+                        // These will get larger polys if SupportMinZTips is enabled
+                        double dnear_sqr = slice.DistanceSquared(bounds.Center, 2*fSupportMinDist);
+                        if ( dnear_sqr > fSupportMinDist*fSupportMinDist) {
+                            if (Settings.SupportMinZTips)
+                                filteredPolys.Add(make_support_point_poly(bounds.Center, Settings.SupportPointDiam));
+                            else
+                                filteredPolys.Add(make_support_point_poly(bounds.Center, fMinDiameter));
+                            // else throw it away
+                            continue;
+                        }
+
+                        // If we are close the print volume, then maybe we do not need to support this tip.
+                        // The most conservative test is if this region is supported on two opposite sides.
+                        // If not, we add a minimal support polygon.
+                        double d = 1.25*fSupportMinDist; double dsqr = d*d;
+                        Vector2d dx = d*Vector2d.AxisX, dy = d*Vector2d.AxisY;
+                        int sleft = (slice.DistanceSquared(bounds.Center-dx, 2*d) < dsqr) ? 1 : 0;
+                        int sright = (slice.DistanceSquared(bounds.Center+dx, 2*d) < dsqr) ? 1 : 0;
+                        if (sleft + sright == 2)
+                            continue;
+                        int sfwd = (slice.DistanceSquared(bounds.Center+dy, 2*d) < dsqr) ? 1 : 0;
+                        int sback = (slice.DistanceSquared(bounds.Center-dy, 2*d) < dsqr) ? 1 : 0;
+                        if (sfwd + sback == 2)
+                            continue;
+
+                        // ok force support
+                        filteredPolys.Add(make_support_point_poly(bounds.Center, fMinDiameter));
 				    }
                     supportPolys.Clear();
                     supportPolys.AddRange(filteredPolys);
@@ -1247,14 +1271,15 @@ namespace gs
                 // [RMS] smooth the support polygon from the previous layer. if we allow
                 // shrinking then they will shrink to nothing, though...need to bound this somehow
                 List<GeneralPolygon2d> support_above = new List<GeneralPolygon2d>();
-                bool grow = true, shrink = false;
+                bool grow = bEnableInterLayerSmoothing && true;
+                bool shrink = bEnableInterLayerSmoothing && false;
                 foreach ( GeneralPolygon2d solid in prevSupport ) {
                     GeneralPolygon2d copy = new GeneralPolygon2d();
                     copy.Outer = new Polygon2d(solid.Outer);
                     if ( grow || shrink )
                         CurveUtils2.LaplacianSmoothConstrained(copy.Outer, 0.5, 5, fMergeDownDilate, shrink, grow);
 
-					// [RMS] he we are also smoothing interior holes. However (in theory) this 
+					// [RMS] here we are also smoothing interior holes. However (in theory) this 
 					// smoothing might expand the hole outside of the Outer polygon. So if we
 					// have holes we intersect with that poly, inset by a printwidth.
 					// [TODO] do we really need this? if hole expands, it will still be
