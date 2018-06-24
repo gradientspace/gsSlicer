@@ -511,7 +511,7 @@ namespace gs
 			int nShells = (Settings.EnableSupportShell) ? 1 : 0;
             double support_spacing = Settings.SupportSpacingStepX * Settings.Machine.NozzleDiamMM;
 			double shell_spacing = Settings.Machine.NozzleDiamMM;
-			if (bounds.MaxDim < 2 * support_spacing) {
+			if (bounds.MaxDim < support_spacing) {
 				nShells = 3;
 				shell_spacing = Settings.Machine.NozzleDiamMM * 1.25f;
 			}
