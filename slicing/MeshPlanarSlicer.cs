@@ -95,6 +95,12 @@ namespace gs
         public PrintMeshOptions.OpenPathsModes DefaultOpenPathMode = PrintMeshOptions.OpenPathsModes.Clipped;
 
 
+        /// <summary>
+        /// If this is set, all incoming polygons are clipped against it
+        /// </summary>
+        public List<GeneralPolygon2d> ValidRegions = null;
+
+
         public int MaxLayerCount = 10000;		// just for sanity-check
 
 
@@ -245,36 +251,34 @@ namespace gs
 						options.TrustOrientations = true;
 						options.AllowOverlappingHoles = true;
 
-						PlanarComplex.SolidRegionInfo solids =
-							complex.FindSolidRegions(options);
+						PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
+                        List<GeneralPolygon2d> solid_polygons = ApplyValidRegions(solids.Polygons);
 
                         if (is_support)
-                            add_support_polygons(slices[i], solids.Polygons, mesh_options);
+                            add_support_polygons(slices[i], solid_polygons, mesh_options);
                         else if (is_cavity)
-                            add_cavity_polygons(slices[i], solids.Polygons, mesh_options);
+                            add_cavity_polygons(slices[i], solid_polygons, mesh_options);
                         else if (is_crop)
-                            add_crop_region_polygons(slices[i], solids.Polygons, mesh_options);
+                            add_crop_region_polygons(slices[i], solid_polygons, mesh_options);
                         else
-                            add_solid_polygons(slices[i], solids.Polygons, mesh_options);
+                            add_solid_polygons(slices[i], solid_polygons, mesh_options);
 
                     } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
 
-                        foreach (PolyLine2d pline in paths) {
+                        // [TODO] 
+                        //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
+                        List<PolyLine2d> all_paths = new List<PolyLine2d>(paths);
+                        foreach (Polygon2d poly in polys)
+                            all_paths.Add(new PolyLine2d(poly, true));
+
+                        List<PolyLine2d> open_polylines = ApplyValidRegions(all_paths);
+                        foreach (PolyLine2d pline in open_polylines) {
                             if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded )
                                 slices[i].AddEmbeddedPath(pline);   
                             else
                                 slices[i].AddClippedPath(pline);
                         }
 
-                        // [TODO] 
-                        //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
-                        foreach (Polygon2d poly in polys) {
-                            PolyLine2d pline = new PolyLine2d(poly, true);
-                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded)
-                                slices[i].AddEmbeddedPath(pline);
-                            else
-                                slices[i].AddClippedPath(pline);
-                        }
                     }
 
                     Interlocked.Increment(ref Progress);
@@ -355,6 +359,25 @@ namespace gs
         protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddPolygons(polygons);
+        }
+
+
+
+        protected virtual List<GeneralPolygon2d> ApplyValidRegions(List<GeneralPolygon2d> polygonsIn)
+        {
+            if (ValidRegions == null || ValidRegions.Count == 0)
+                return polygonsIn;
+            return ClipperUtil.Intersection(polygonsIn, ValidRegions);
+        }
+
+        protected virtual List<PolyLine2d> ApplyValidRegions(List<PolyLine2d> plinesIn)
+        {
+            if (ValidRegions == null || ValidRegions.Count == 0)
+                return plinesIn;
+            List<PolyLine2d> clipped = new List<PolyLine2d>();
+            foreach (var pline in plinesIn)
+                clipped.AddRange(ClipperUtil.ClipAgainstPolygon(ValidRegions, pline, true));
+            return clipped;
         }
 
 
