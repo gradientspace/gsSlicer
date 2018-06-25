@@ -533,7 +533,7 @@ namespace gs
                             break;
                         }
                     }
-                    if (inside == false )
+                    if (inside == bIntersect)
                         result.Add(clippedPath);
                 }
 
