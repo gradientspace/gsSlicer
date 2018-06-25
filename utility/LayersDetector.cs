@@ -37,6 +37,8 @@ namespace gs
         }
 
 		public double GetLayerZ(int iLayer) {
+            if (Layers == 0)
+                return 0;
             iLayer = MathUtil.Clamp(iLayer, 0, Layers - 1);
             return LayerZ[iLayer];
 		}
