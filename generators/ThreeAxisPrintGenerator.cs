@@ -107,7 +107,11 @@ namespace gs
         public Func<FillPolyline2d, bool> PathFilterF = null;
 
 
-
+        /// <summary>
+        /// If this is set, we clip **generated** regions against it (ie generated support)
+        /// Currently assuming that input PlanarSliceStack has already been clipped at slicer level!
+        /// </summary>
+        public List<GeneralPolygon2d> PathClipRegions = null;
 
 
 
@@ -1250,6 +1254,9 @@ namespace gs
 				foreach (Vector2d v in slice.InputSupportPoints)
 					supportPolys.Add(make_support_point_poly(v));
 
+                if (PathClipRegions != null)
+                    supportPolys = ClipperUtil.Intersection(supportPolys, PathClipRegions);
+
                 LayerSupportAreas[layeri] = supportPolys;
                 count_progress_step();
             });
@@ -1342,6 +1349,9 @@ namespace gs
                 // make sure there is space between solid and support
                 List<GeneralPolygon2d> dilatedSolid = ClipperUtil.MiterOffset(slice.Solids, fSupportGapInLayer);
                 combineSupport = ClipperUtil.Difference(combineSupport, dilatedSolid);
+
+                if (PathClipRegions != null)
+                    combineSupport = ClipperUtil.Intersection(combineSupport, PathClipRegions, fMinDiameter * fMinDiameter);
 
                 LayerSupportAreas[i] = new List<GeneralPolygon2d>();
                 foreach (GeneralPolygon2d poly in combineSupport) {
