@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="compilers\ThreeAxisMillingCompiler.cs" />
     <Compile Include="generators\PrintMeshAssembly.cs" />
     <Compile Include="sls\GenericPathsAssembler.cs" />
     <Compile Include="sls\GenericSLSPrintGenerator.cs" />

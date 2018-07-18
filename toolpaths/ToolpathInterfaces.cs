@@ -8,6 +8,8 @@ namespace gs
 {
 	public enum ToolpathTypes {
 		Deposition,
+        Cut,
+
 		Travel,
 		PlaneChange,
 
@@ -185,7 +187,7 @@ namespace gs
             get { return ToolpathTypes.CustomAssemblerCommands; }
         }
 
-        public Action<IDepositionAssembler, ThreeAxisPrinterCompiler> AssemblerF;
+        public Action<IGCodeAssembler, ICNCCompiler> AssemblerF;
     }
 
 }

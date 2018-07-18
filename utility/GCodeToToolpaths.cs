@@ -66,9 +66,21 @@ namespace gs
 			push_active_path();
 			ActivePath = newPath;				
 		}
+        public void BeginCut()
+        {
+            var newPath = new LinearToolpath();
+            newPath.Type = ToolpathTypes.Cut;
+            if (ActivePath != null && ActivePath.VertexCount > 0) {
+                PrintVertex curp = new PrintVertex(ActivePath.End.Position, GCodeUtil.UnspecifiedValue, PathDimensions, GCodeUtil.UnspecifiedValue);
+                newPath.AppendVertex(curp, TPVertexFlags.IsPathStart);
+            }
+
+            push_active_path();
+            ActivePath = newPath;
+        }
 
 
-		public void LinearMoveToAbsolute3d(LinearMoveData move)
+        public void LinearMoveToAbsolute3d(LinearMoveData move)
 		{
 			if (ActivePath == null)
 				throw new Exception("GCodeToLayerPaths.LinearMoveToAbsolute3D: ActivePath is null!");

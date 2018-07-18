@@ -29,6 +29,8 @@ namespace gs
 			get { return currentDims; }
 		}
 
+        public ToolpathTypes MoveType = ToolpathTypes.Deposition;
+
 
 		public ToolpathSetBuilder(ToolpathSet paths = null)
 		{
@@ -114,7 +116,7 @@ namespace gs
         public virtual Vector3d AppendExtrude(Vector3d toPos, double fSpeed,
             FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown)
         {
-            LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
+            LinearToolpath extrusion = new LinearToolpath(MoveType);
             extrusion.TypeModifiers = pathTypeFlags;
 			extrusion.AppendVertex(new PrintVertex(currentPos, NO_RATE, currentDims), TPVertexFlags.IsPathStart);
 			extrusion.AppendVertex(new PrintVertex(toPos, fSpeed, currentDims), TPVertexFlags.IsPathEnd);
@@ -141,7 +143,7 @@ namespace gs
 			if (dimensions.y > 0 && dimensions.y != NO_DIM.y)
 				useDims.y = dimensions.y;
 
-			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
+			LinearToolpath extrusion = new LinearToolpath(MoveType);
 
             extrusion.TypeModifiers = pathTypeFlags;
 			extrusion.AppendVertex(new PrintVertex(currentPos, NO_RATE, useDims), TPVertexFlags.IsPathStart);
@@ -166,7 +168,7 @@ namespace gs
             FillTypeFlags pathTypeFlags = FillTypeFlags.Unknown,
             List<TPVertexFlags> perVertexFlags = null)
         {
-			LinearToolpath extrusion = new LinearToolpath(ToolpathTypes.Deposition);
+			LinearToolpath extrusion = new LinearToolpath(MoveType);
             extrusion.TypeModifiers = pathTypeFlags;
 			extrusion.AppendVertex(new PrintVertex(currentPos, NO_RATE, currentDims), TPVertexFlags.IsPathStart);
 			for (int k = 0; k < toPoints.Count; ++k) {

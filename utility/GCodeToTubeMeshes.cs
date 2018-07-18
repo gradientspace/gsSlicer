@@ -6,19 +6,24 @@ using g3;
 namespace gs 
 {
 	/// <summary>
-	/// Convert a GCodeFile to a single huge PathSet
+	/// Convert a GCodeFile to a set of per-layer 3D tubes
 	/// </summary>
-	public class GCodeToTubeMeshes : IGCodeListener
+	public class GCodeToLayerTubeMeshes : IGCodeListener
 	{
         public Polygon2d TubeProfile = Polygon2d.MakeCircle(0.1f, 8);
 
         public Dictionary<double, List<DMesh3>> LayerMeshes;
 
+        public HashSet<ToolpathTypes> WantTubeTypes = new HashSet<ToolpathTypes>();
+        public bool InterpretZChangeAsLayerChange = true;
+
         PolyLine3d ActivePath;
         ToolpathTypes ActivePathType;
 
-        public GCodeToTubeMeshes() 
+        public GCodeToLayerTubeMeshes() 
 		{
+            WantTubeTypes.Add(ToolpathTypes.Deposition);
+            WantTubeTypes.Add(ToolpathTypes.Cut);
         }
 
 
@@ -60,7 +65,7 @@ namespace gs
 
         void push_active_path() {
             if (ActivePath != null && ActivePath.VertexCount > 1 ) {
-                if (ActivePathType == ToolpathTypes.Deposition)
+                if (WantTubeTypes.Contains(ActivePathType))
                     append_path_mesh(ActivePath);
             }
             ActivePath = null;
@@ -100,7 +105,17 @@ namespace gs
 			push_active_path();
 			ActivePath = newPath;
             ActivePathType = ToolpathTypes.Deposition;
+        }
+        public void BeginCut()
+        {
+            var newPath = new PolyLine3d();
+            if (ActivePath != null && ActivePath.VertexCount > 0) {
+                newPath.AppendVertex(ActivePath.End);
+            }
 
+            push_active_path();
+            ActivePath = newPath;
+            ActivePathType = ToolpathTypes.Cut;
         }
 
 
@@ -109,10 +124,12 @@ namespace gs
 			if (ActivePath == null)
 				throw new Exception("GCodeToLayerPaths.LinearMoveToAbsolute3D: ActivePath is null!");
 
-			// if we are doing a Z-move, convert to 3D path
-			bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.z != move.position.z);
-            if (bZMove)
-                ActivePathType = ToolpathTypes.PlaneChange;
+            // if we are doing a Z-move, convert to 3D path
+            if (InterpretZChangeAsLayerChange) {
+                bool bZMove = (ActivePath.VertexCount > 0 && ActivePath.End.z != move.position.z);
+                if (bZMove)
+                    ActivePathType = ToolpathTypes.PlaneChange;
+            }
 
             ActivePath.AppendVertex(move.position);
 		}
