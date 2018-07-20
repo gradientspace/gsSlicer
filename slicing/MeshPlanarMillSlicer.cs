@@ -14,16 +14,9 @@ namespace gs
     /// 
     /// The input meshes are not modified in this process.
     /// </summary>
-	public class MeshPlanarMillSlicer
+	public class MeshPlanarMillSlicer : BaseSlicer
     {
-        class SliceMesh
-        {
-            public DMesh3 mesh;
-            public AxisAlignedBox3d bounds;
 
-            public PrintMeshOptions options;
-        }
-        List<SliceMesh> Meshes = new List<SliceMesh>();
 
 
         // factory functions you can replace to customize objects/behavior
@@ -43,6 +36,12 @@ namespace gs
         /// Min tool-size, we use this to ignore planar Z regions that are smaller than tool
         /// </summary>
 		public double ToolDiameter = 6.35;
+
+
+        /// <summary>
+        /// Amount we grow the stock volume at each layer
+        /// </summary>
+        public double ExpandStockAmount = 0;
 
         /// <summary>
         /// provide this function to override default LayerHeighMM
@@ -94,15 +93,6 @@ namespace gs
 
 
 
-        // these can be used for progress tracking
-        public int TotalCompute = 0;
-        public int Progress = 0;
-
-
-        public Func<bool> CancelF = () => { return false; };
-        public bool WasCancelled = false;
-
-
 		public MeshPlanarMillSlicer()
 		{
 		}
@@ -132,14 +122,34 @@ namespace gs
 
 
 
+
+        public class Result
+        {
+            public PlanarSliceStack Clearing;
+            public PlanarSliceStack HorizontalFinish;
+
+            public double TopZ;
+            public double BaseZ;
+
+            public Result()
+            {
+                Clearing = new PlanarSliceStack();
+                HorizontalFinish = new PlanarSliceStack();
+            }
+        }
+
+
+
         /// <summary>
         /// Slice the meshes and return the slice stack. 
         /// </summary>
-		public PlanarSliceStack Compute()
+		public Result Compute()
 		{
+            Result result = new Result();
             if (Meshes.Count == 0)
-                return new PlanarSliceStack();
+                return result;
 
+            // find Z interval we want to slice in
 			Interval1d zrange = Interval1d.Empty;
 			foreach ( var meshinfo in Meshes ) {
 				zrange.Contain(meshinfo.bounds.Min.z);
@@ -148,65 +158,53 @@ namespace gs
             if (SetMinZValue != double.MinValue)
                 zrange.a = SetMinZValue;
 
+            result.TopZ = Math.Round(zrange.b, PrecisionDigits);
+            result.BaseZ = Math.Round(zrange.a, PrecisionDigits);
 
-            // construct layers
-            List<PlanarSlice> slice_list = new List<PlanarSlice>();
+            // [TODO] might be able to make better decisions if we took flat regions
+            // into account when constructing initial Z-heights? if we have large flat
+            // region just below Zstep, might make sense to do two smaller Z-steps so we
+            // can exactly hit it??
 
-            List<double> sliceZ = new List<double>();
-            double cur_layer_z = zrange.a;
+            // construct list of clearing Z-heights
+            List<double> clearingZLayers = new List<double>();
+            double cur_layer_z = zrange.b;
             int layer_i = 0;
-            while (cur_layer_z < zrange.b) {
+            while (cur_layer_z > zrange.a) {
                 double layer_height = get_layer_height(layer_i);
-                double z = Math.Round(cur_layer_z, 4);
-                sliceZ.Add(z);
+                cur_layer_z -= layer_height;
+                double z = Math.Round(cur_layer_z, PrecisionDigits);
+                clearingZLayers.Add(z);
                 layer_i++;
-                cur_layer_z += layer_height;
             }
-            sliceZ.Add(Math.Round(zrange.b,4));
+            if ( clearingZLayers.Last() < result.BaseZ )
+                clearingZLayers[clearingZLayers.Count-1] = result.BaseZ;
+            if ( clearingZLayers.Last() == clearingZLayers[clearingZLayers.Count-2] )
+                clearingZLayers.RemoveAt(clearingZLayers.Count-1);
 
-            HashSet<double> flatZ = find_planar_region_Zs(ToolDiameter, 4);
-
-            HashSet<double> allZ = new HashSet<double>(flatZ);
-            //HashSet<double> allZ = new HashSet<double>();
-            foreach (var z in sliceZ)
-                allZ.Add(z);
-
-            sliceZ = new List<double>(allZ);
-            sliceZ.Sort();
-
+            // construct layer slices from Z-heights
+            List<PlanarSlice> clearing_slice_list = new List<PlanarSlice>();
             layer_i = 0;
-            for ( int i = 0; i < sliceZ.Count; ++i ) { 
-                double layer_height = (i == sliceZ.Count-1) ? 
-                    (zrange.b-sliceZ[i]) : (sliceZ[i+1] - sliceZ[i]);
-                double z = sliceZ[i];
+            for ( int i = 0; i < clearingZLayers.Count; ++i ) { 
+                double layer_height = (i == clearingZLayers.Count-1) ? 
+                    (result.TopZ-clearingZLayers[i]) : (clearingZLayers[i+1]-clearingZLayers[i]);
+                double z = clearingZLayers[i];
                 Interval1d zspan = new Interval1d(z, z+layer_height);
 
-                if (SliceLocation == SliceLocations.EpsilonBase) {
-                    //if (flatZ.Contains(z))
-                    //    z -= 0.1;
-                    //else
-                        z += 0.001;
-                }
+                if (SliceLocation == SliceLocations.EpsilonBase) 
+                    z += 0.001;
 
                 PlanarSlice slice = SliceFactoryF(zspan, z, layer_i);
-                slice.EmbeddedPathWidth = OpenPathDefaultWidthMM;
-                slice_list.Add(slice);
-
+                clearing_slice_list.Add(slice);
                 layer_i++;
 			}
-			int NH = slice_list.Count;
+
+
+			int NH = clearing_slice_list.Count;
             if (NH > MaxLayerCount)
                 throw new Exception("MeshPlanarSlicer.Compute: exceeded layer limit. Increase .MaxLayerCount.");
 
-            PlanarSlice[] slices = slice_list.ToArray();
-
-            // determine if we have crop objects
-            bool have_crop_objects = false;
-            foreach (var mesh in Meshes) {
-                if (mesh.options.IsCropRegion)
-                    have_crop_objects = true;
-            }
-
+            PlanarSlice[] clearing_slices = clearing_slice_list.ToArray();
 
             // assume Resolve() takes 2x as long as meshes...
             TotalCompute = (Meshes.Count * NH) +  (2*NH);
@@ -239,20 +237,13 @@ namespace gs
                     if (Cancelled())
                         return;
 
-                    double z = slices[i].Z;
+                    double z = clearing_slices[i].Z;
 					if (z < bounds.Min.z || z > bounds.Max.z)
 						return;
 
                     // compute cut
                     Polygon2d[] polys; PolyLine2d[] paths;
-                    compute_plane_curves(mesh, spatial, z, is_closed, out polys, out paths);
-
-                    // if we didn't hit anything, try again with jittered plane
-                    // [TODO] this could be better...
-                    if ( (is_closed && polys.Length == 0) || (is_closed == false &&  polys.Length == 0 && paths.Length == 0)) {
-                        double jitterz = slices[i].LayerZSpan.Interpolate(0.75);
-                        compute_plane_curves(mesh, spatial, jitterz, is_closed, out polys, out paths);
-                    }
+                    ComputeSlicePlaneCurves(mesh, spatial, z, is_closed, out polys, out paths);
 
                     if (is_closed) {
 						// construct planar complex and "solids"
@@ -271,28 +262,14 @@ namespace gs
 						PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
                         List<GeneralPolygon2d> solid_polygons = ApplyValidRegions(solids.Polygons);
 
-                        if (is_cavity)
-                            add_cavity_polygons(slices[i], solid_polygons, mesh_options);
-                        else
-                            add_solid_polygons(slices[i], solid_polygons, mesh_options);
-
-                    } else if (useOpenMode != PrintMeshOptions.OpenPathsModes.Ignored) {
-
-                        // [TODO] 
-                        //   - does not really handle clipped polygons properly, there will be an extra break somewhere...
-                        List<PolyLine2d> all_paths = new List<PolyLine2d>(paths);
-                        foreach (Polygon2d poly in polys)
-                            all_paths.Add(new PolyLine2d(poly, true));
-
-                        List<PolyLine2d> open_polylines = ApplyValidRegions(all_paths);
-                        foreach (PolyLine2d pline in open_polylines) {
-                            if (useOpenMode == PrintMeshOptions.OpenPathsModes.Embedded )
-                                slices[i].AddEmbeddedPath(pline);   
-                            else
-                                slices[i].AddClippedPath(pline);
+                        if (is_cavity) {
+                            add_cavity_polygons(clearing_slices[i], solid_polygons, mesh_options);
+                        } else {
+                            if (ExpandStockAmount > 0)
+                                solid_polygons = ClipperUtil.MiterOffset(solid_polygons, ExpandStockAmount);
+                            add_solid_polygons(clearing_slices[i], solid_polygons, mesh_options);
                         }
-
-                    }
+                    } 
 
                     Interlocked.Increment(ref Progress);
 				});  // end of parallel.foreach
@@ -303,86 +280,200 @@ namespace gs
             gParallel.ForEach(Interval1i.Range(NH), (i) => {
                 if (Cancelled())
                     return;
-
-                if (have_crop_objects && slices[i].InputCropRegions.Count == 0) {
-                    // don't resolve, we have fully cropped this layer
-                } else {
-                    slices[i].Resolve();
-                }
-
+                clearing_slices[i].Resolve();
                 Interlocked.Add(ref Progress, 2);
             });
+            // add to clearing stack
+            result.Clearing = SliceStackFactoryF();
+            for (int k = 0; k < clearing_slices.Length; ++k)
+                result.Clearing.Add(clearing_slices[k]);
 
-            // discard spurious empty slices
 
-            int last = slices.Length-1;
 
-            // [RMS] don't do this because we are using Z of topmost slice to invert Z later... (HACK!)
-            //while (slices[last].IsEmpty && last > 0)
-            //    last--;
+            /*
+             * Horizontal planar regions finishing pass. 
+             * First we find all planar horizontal Z-regions big enough to mill.
+             * Then we add slices at the Z's we haven't touched yet.
+             * 
+             * Cannot just 'fill' planar regions because we will miss edges that might
+             * be millable. So we grow region and then intersect with full-slice millable area.
+             */
 
-            int first = 0;
-            if (DiscardEmptyBaseSlices || have_crop_objects) {
-                while (slices[first].IsEmpty && first < slices.Length)
-                    first++;
+            // find set of horizontal flat regions
+            Dictionary<double, List<PlanarRegion>> flat_regions = FindPlanarZRegions(ToolDiameter);
+            if (flat_regions.Count == 0)
+                goto done_slicing;
+
+            // if we have already milled this exact Z-height in clearing pass, then we can skip it
+            List<double> doneZ = new List<double>();
+            foreach (double z in flat_regions.Keys) {
+                if (clearingZLayers.Contains(z))
+                    doneZ.Add(z);
+            }
+            foreach (var z in doneZ)
+                flat_regions.Remove(z);
+
+            // create slice for each layer
+            PlanarSlice[] horz_slices = new PlanarSlice[flat_regions.Count];
+            List<double> flatZ = new List<double>(flat_regions.Keys);
+            flatZ.Sort();
+            for ( int k = 0; k < horz_slices.Length; ++k) {
+                double z = flatZ[k];
+                Interval1d zspan = new Interval1d(z, z + LayerHeightMM);
+                horz_slices[k] = SliceFactoryF(zspan, z, k);
+
+                // compute full millable region slightly above this slice.
+                PlanarSlice clip_slice = ComputeSolidSliceAtZ(z + 0.0001, false);
+                clip_slice.Resolve();
+
+                // extract planar polys
+                List<Polygon2d> polys = GetPlanarPolys(flat_regions[z]);
+                PlanarComplex complex = new PlanarComplex();
+                foreach (Polygon2d poly in polys)
+                    complex.Add(poly);
+
+                // convert to planar solids
+                PlanarComplex.FindSolidsOptions options
+                             = PlanarComplex.FindSolidsOptions.SortPolygons;
+                options.SimplifyDeviationTolerance = 0.001;
+                options.TrustOrientations = true;
+                options.AllowOverlappingHoles = true;
+                PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
+                List<GeneralPolygon2d> solid_polygons = ApplyValidRegions(solids.Polygons);
+
+                // If planar solid has holes, then when we do inset later, we might lose
+                // too-thin parts. Shrink the holes to avoid this case. 
+                //FilterHoles(solid_polygons, 0.55 * ToolDiameter);
+
+                // ok now we need to expand region and intersect with full region.
+                solid_polygons = ClipperUtil.MiterOffset(solid_polygons, ToolDiameter*0.5, 0.0001);
+                solid_polygons = ClipperUtil.Intersection(solid_polygons, clip_slice.Solids, 0.0001);
+
+                // Same idea as above, but if we do after, we keep more of the hole and
+                // hence do less extra clearing. 
+                // Also this could then be done at the slicer level instead of here...
+                // (possibly this entire thing should be done at slicer level, except we need clip_slice!)
+                FilterHoles(solid_polygons, 1.1 * ToolDiameter);
+
+                add_solid_polygons(horz_slices[k], solid_polygons, PrintMeshOptions.Default());
             }
 
-            PlanarSliceStack stack = SliceStackFactoryF();
-            for (int k = first; k <= last; ++k)
-                stack.Add(slices[k]);
+            // resolve planar intersections, etc
+            int NF = horz_slices.Length;
+            gParallel.ForEach(Interval1i.Range(NF), (i) => {
+                if (Cancelled())
+                    return;
+                horz_slices[i].Resolve();
+                Interlocked.Add(ref Progress, 2);
+            });
+            // add to clearing stack
+            result.HorizontalFinish = SliceStackFactoryF();
+            for (int k = 0; k < horz_slices.Length; ++k)
+                result.HorizontalFinish.Add(horz_slices[k]);
 
-			return stack;
+            done_slicing:
+            return result;
 		}
 
 
-        protected virtual bool Cancelled()
+
+        /// <summary>
+        /// Shrink holes inside polys such that if we do offset/2, the hole and
+        /// outer offsets will (probably) not collide. Two options:
+        ///   1) contract and then dilate each hole. This doesn't handle long skinny holes?
+        ///   2) shrink outer by offset and then intersect with holes
+        /// Currently using (2). This is better, right?
+        /// </summary>
+        protected void FilterHoles(List<GeneralPolygon2d> polys, double offset)
         {
-            if (WasCancelled)
-                return true;
-            bool cancel = CancelF();
-            if (cancel) {
-                WasCancelled = true;
-                return true;
-            }
-            return false;
-        }
-
-
-
-
-
-
-
-        HashSet<double> find_planar_region_Zs(double min_diam, int precision_digits = 4)
-        {
-            HashSet<double> Zs = new HashSet<double>();
-
-            foreach ( SliceMesh sliceMesh in Meshes ) {
-                if (sliceMesh.options.IsCavity == false)
+            foreach ( var poly in polys ) {
+                if (poly.Holes.Count == 0)
                     continue;
-                DMesh3 mesh = sliceMesh.mesh;
 
-                HashSet<int> planar_tris = new HashSet<int>();
-                foreach( int tid in mesh.TriangleIndices() ) {
-                    Vector3d n = mesh.GetTriNormal(tid);
-                    if (n.Dot(Vector3d.AxisZ) > 0.999)
-                        planar_tris.Add(tid);
+                List<GeneralPolygon2d> outer_inset = ClipperUtil.MiterOffset(
+                    new GeneralPolygon2d(poly.Outer), -offset);
+
+                List<GeneralPolygon2d> hole_polys = new List<GeneralPolygon2d>();
+                foreach (var hole in poly.Holes) {
+                    hole.Reverse();
+                    hole_polys.Add(new GeneralPolygon2d(hole));
                 }
 
-                MeshConnectedComponents regions = new MeshConnectedComponents(mesh);
-                regions.FilterF = planar_tris.Contains;
-                regions.FindConnectedT();
-                foreach ( var c in regions ) {
-                    AxisAlignedBox3d bounds = MeshMeasurements.BoundsT(mesh, c.Indices);
-                    if ( bounds.Width > min_diam && bounds.Height > min_diam ) {
-                        double z = Math.Round(bounds.Center.z, precision_digits);
-                        Zs.Add(z);
-                    }
+                //List<GeneralPolygon2d> contracted = ClipperUtil.MiterOffset(hole_polys, -offset, 0.01);
+                //List<GeneralPolygon2d> dilated = ClipperUtil.MiterOffset(hole_polys, offset, 0.01);
+
+                List<GeneralPolygon2d> dilated = ClipperUtil.Intersection(hole_polys, outer_inset, 0.01);
+
+                poly.ClearHoles();
+
+                List<Polygon2d> new_holes = new List<Polygon2d>();
+                foreach (var dpoly in dilated) {
+                    dpoly.Outer.Reverse();
+                    poly.AddHole(dpoly.Outer, false, false);
+                }
+            }
+        }
+
+
+
+
+        protected PlanarSlice ComputeSolidSliceAtZ(double z, bool bCavitySolids)
+        {
+            PlanarSlice temp = new PlanarSlice();
+
+            for (int mi = 0; mi < Meshes.Count; ++mi) {
+                if (Cancelled())
+                    break;
+
+                DMesh3 mesh = Meshes[mi].mesh;
+                PrintMeshOptions mesh_options = Meshes[mi].options;
+
+                // [TODO] should we hang on to this spatial? or should it be part of assembly?
+                DMeshAABBTree3 spatial = new DMeshAABBTree3(mesh, true);
+                AxisAlignedBox3d bounds = Meshes[mi].bounds;
+
+                bool is_cavity = mesh_options.IsCavity;
+                bool is_crop = mesh_options.IsCropRegion;
+                bool is_support = mesh_options.IsSupport;
+                bool is_closed = (mesh_options.IsOpen) ? false : mesh.IsClosed();
+                var useOpenMode = (mesh_options.OpenPathMode == PrintMeshOptions.OpenPathsModes.Default) ?
+                    DefaultOpenPathMode : mesh_options.OpenPathMode;
+                if (is_crop || is_support)
+                    throw new Exception("Not supported!");
+                if (bCavitySolids && is_cavity == false)
+                    continue;
+
+                // compute cut
+                Polygon2d[] polys; PolyLine2d[] paths;
+                ComputeSlicePlaneCurves(mesh, spatial, z, is_closed, out polys, out paths);
+
+                if (is_closed) {
+                    // construct planar complex and "solids"
+                    // (ie outer polys and nested holes)
+                    PlanarComplex complex = new PlanarComplex();
+                    foreach (Polygon2d poly in polys)
+                        complex.Add(poly);
+
+                    PlanarComplex.FindSolidsOptions options
+                                    = PlanarComplex.FindSolidsOptions.Default;
+                    options.WantCurveSolids = false;
+                    options.SimplifyDeviationTolerance = 0.001;
+                    options.TrustOrientations = true;
+                    options.AllowOverlappingHoles = true;
+
+                    PlanarComplex.SolidRegionInfo solids = complex.FindSolidRegions(options);
+                    List<GeneralPolygon2d> solid_polygons = ApplyValidRegions(solids.Polygons);
+
+                    if (is_cavity && bCavitySolids == false)
+                        add_cavity_polygons(temp, solid_polygons, mesh_options);
+                    else
+                        add_solid_polygons(temp, solid_polygons, mesh_options);
                 }
             }
 
-            return Zs;
+            return temp;
         }
+
 
 
 
@@ -423,92 +514,6 @@ namespace gs
 
 
 
-        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial, 
-            double z, bool is_solid,
-            out Polygon2d[] loops, out PolyLine2d[] curves )
-        {
-            Func<Vector3d, double> planeF = (v) => {
-                return v.z - z;
-            };
-
-            // find list of triangles that intersect this z-value
-            PlaneIntersectionTraversal planeIntr = new PlaneIntersectionTraversal(mesh, z);
-            spatial.DoTraversal(planeIntr);
-            List<int> triangles = planeIntr.triangles;
-
-            // compute intersection iso-curves, which produces a 3D graph of undirected edges
-            MeshIsoCurves iso = new MeshIsoCurves(mesh, planeF) { WantGraphEdgeInfo = true };
-            iso.Compute(triangles);
-            DGraph3 graph = iso.Graph;
-            if ( graph.EdgeCount == 0 ) {
-                loops = new Polygon2d[0];
-                curves = new PolyLine2d[0];
-                return false;
-            }
-
-            // if this is a closed solid, any open spurs in the graph are errors
-            if (is_solid)
-                DGraph3Util.ErodeOpenSpurs(graph);
-
-            // [RMS] debug visualization
-            //DGraph2 graph2 = new DGraph2();
-            //Dictionary<int, int> mapV = new Dictionary<int, int>();
-            //foreach (int vid in graph.VertexIndices())
-            //    mapV[vid] = graph2.AppendVertex(graph.GetVertex(vid).xy);
-            //foreach (int eid in graph.EdgeIndices())
-            //    graph2.AppendEdge(mapV[graph.GetEdge(eid).a], mapV[graph.GetEdge(eid).b]);
-            //SVGWriter svg = new SVGWriter();
-            //svg.AddGraph(graph2, SVGWriter.Style.Outline("black", 0.05f));
-            //foreach (int vid in graph2.VertexIndices()) {
-            //    if (graph2.IsJunctionVertex(vid))
-            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("red", 0.1f));
-            //    else if (graph2.IsBoundaryVertex(vid))
-            //        svg.AddCircle(new Circle2d(graph2.GetVertex(vid), 0.25f), SVGWriter.Style.Outline("blue", 0.1f));
-            //}
-            //svg.Write(string.Format("c:\\meshes\\EXPORT_SLICE_{0}.svg", z));
-
-            // extract loops and open curves from graph
-            DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge);
-            loops = new Polygon2d[c.Loops.Count];
-            for (int li = 0; li < loops.Length; ++li) {
-                DCurve3 loop = c.Loops[li];
-                loops[li] = new Polygon2d();
-                foreach (Vector3d v in loop.Vertices) 
-                    loops[li].AppendVertex(v.xy);
-            }
-
-            curves = new PolyLine2d[c.Paths.Count];
-            for (int pi = 0; pi < curves.Length; ++pi) {
-                DCurve3 span = c.Paths[pi];
-                curves[pi] = new PolyLine2d();
-                foreach (Vector3d v in span.Vertices) 
-                    curves[pi].AppendVertex(v.xy);
-            }
-
-            return true;
-        }
-
-
-
-        class PlaneIntersectionTraversal : DMeshAABBTree3.TreeTraversal
-        {
-            public DMesh3 Mesh;
-            public double Z;
-            public List<int> triangles = new List<int>();
-            public PlaneIntersectionTraversal(DMesh3 mesh, double z)
-            {
-                this.Mesh = mesh;
-                this.Z = z;
-                this.NextBoxF = (box, depth) => {
-                    return (Z >= box.Min.z && Z <= box.Max.z);
-                };
-                this.NextTriangleF = (tID) => {
-                    AxisAlignedBox3d box = Mesh.GetTriBounds(tID);
-                    if (Z >= box.Min.z && z <= box.Max.z)
-                        triangles.Add(tID);
-                };
-            }
-        }
 
 
 	}
