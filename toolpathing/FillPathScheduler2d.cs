@@ -27,8 +27,11 @@ namespace gs
         public bool ExtrudeOnShortTravels = false;
         public double ShortTravelDistance = 0;
 
+        // optional function we will call when curve sets are appended
+        public Action<List<FillCurveSet2d>, SequentialScheduler2d> OnAppendCurveSetsF = null;
 
-		public SequentialScheduler2d(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
+
+        public SequentialScheduler2d(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
 		{
 			Builder = builder;
 			Settings = settings;
@@ -44,7 +47,10 @@ namespace gs
 
 
         public virtual void AppendCurveSets(List<FillCurveSet2d> paths) {
-			foreach (FillCurveSet2d polySet in paths) {
+            if (OnAppendCurveSetsF != null)
+                OnAppendCurveSetsF(paths, this);
+
+            foreach (FillCurveSet2d polySet in paths) {
 				foreach (FillPolygon2d loop in polySet.Loops) {
 					AppendPolygon2d(loop);	
 				}
