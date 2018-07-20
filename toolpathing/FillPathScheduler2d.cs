@@ -24,6 +24,9 @@ namespace gs
 		public ToolpathSetBuilder Builder;
 		public SingleMaterialFFFSettings Settings;
 
+        public bool ExtrudeOnShortTravels = false;
+        public double ShortTravelDistance = 0;
+
 
 		public SequentialScheduler2d(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
 		{
@@ -64,7 +67,12 @@ namespace gs
 			int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly.Vertices);
 
 			Vector2d startPt = poly[iNearest];
-			Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
+
+            // a travel may require a retract, which we might want to skip
+            if (ExtrudeOnShortTravels && currentPos2.Distance(startPt) < ShortTravelDistance )
+                Builder.AppendExtrude(startPt, Settings.RapidTravelSpeed);
+            else
+			    Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
 
 			List<Vector2d> loopV = new List<Vector2d>(N + 1);
 			for (int i = 0; i <= N; i++ ) {
