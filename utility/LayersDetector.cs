@@ -43,7 +43,7 @@ namespace gs
             return LayerZ[iLayer];
 		}
 
-		public Interval1d GetLayerZInterval(int iLayer) {
+		public Interval1d GetLayerZInterval(int iLayer, bool bUseEstimatedHeight = true) {
 			if (Layers == 0)
 				return Interval1d.Zero;
 
@@ -51,13 +51,14 @@ namespace gs
 
 			double low = LayerZ[iLayer] - EstimatedLayerHeight * 0.45f;
 			double high = LayerZ[iLayer] + EstimatedLayerHeight * 0.45f;
+            if (bUseEstimatedHeight == false) {
+                low = (iLayer <= 0) ? LayerZ[iLayer] :
+                    (LayerZ[iLayer] + LayerZ[iLayer - 1]) * 0.5;
+                high = (iLayer == Layers - 1) ? LayerZ[iLayer] :
+                    (LayerZ[iLayer] + LayerZ[iLayer + 1]) * 0.5;
+            }
 
-			//double low = (iLayer <= 0) ? LayerZ[iLayer] :
-			//	(LayerZ[iLayer] + LayerZ[iLayer - 1]) * 0.5;
-			//double high = (iLayer == Layers-1) ? LayerZ[iLayer] :
-				//(LayerZ[iLayer] + LayerZ[iLayer + 1]) * 0.5;
-			
-			return new Interval1d(low, high);
+            return new Interval1d(low, high);
 		}
 
         /// <summary>
