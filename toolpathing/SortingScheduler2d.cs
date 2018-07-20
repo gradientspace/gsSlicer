@@ -153,6 +153,7 @@ namespace gs
                     break;
                 order.Add(next);
                 remaining.Remove(new Index2i(next.a, next.b));
+                prev = next;
             }
 
             // handle fails
