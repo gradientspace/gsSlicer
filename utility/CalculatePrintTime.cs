@@ -17,7 +17,7 @@ namespace gs
 	public class CalculatePrintTime
     {
         public ToolpathSet Paths;
-        public SingleMaterialFFFSettings Settings;
+        public ISingleMaterialFFFSettings Settings;
 
         // output statistics
         public double LayerTimeS = 0;
@@ -25,7 +25,7 @@ namespace gs
         public double TravelTimeS = 0;
 
 
-        public CalculatePrintTime(ToolpathSet paths, SingleMaterialFFFSettings settings)
+        public CalculatePrintTime(ToolpathSet paths, ISingleMaterialFFFSettings settings)
         {
             Paths = paths;
             Settings = settings;

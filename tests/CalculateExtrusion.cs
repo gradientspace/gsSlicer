@@ -16,7 +16,7 @@ namespace gs
 	public class CalculateExtrusion 
 	{
 		public ToolpathSet Paths;
-		public SingleMaterialFFFSettings Settings;
+		public ISingleMaterialFFFSettings Settings;
 
         public bool EnableRetraction = true;
 
@@ -34,7 +34,7 @@ namespace gs
 		public double ExtrusionLength = 0;
 
 
-		public CalculateExtrusion(ToolpathSet paths, SingleMaterialFFFSettings settings) 
+		public CalculateExtrusion(ToolpathSet paths, ISingleMaterialFFFSettings settings) 
 		{
 			Paths = paths;
 			Settings = settings;

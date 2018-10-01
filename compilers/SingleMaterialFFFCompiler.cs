@@ -21,7 +21,7 @@ namespace gs
         Action<string> EmitMessageF { get; set; }
 
         void Begin();
-        void AppendPaths(ToolpathSet paths, SingleMaterialFFFSettings pathSettings);
+        void AppendPaths(ToolpathSet paths, ISingleMaterialFFFSettings pathSettings);
         void AppendComment(string comment);
         void End();
     }
@@ -83,11 +83,11 @@ namespace gs
         /// Compile this set of toolpaths and pass to assembler.
         /// Settings are optional, pass null to ignore
         /// </summary>
-		public virtual void AppendPaths(ToolpathSet paths, SingleMaterialFFFSettings pathSettings)
+		public virtual void AppendPaths(ToolpathSet paths, ISingleMaterialFFFSettings pathSettings)
         {
             Assembler.FlushQueues();
 
-            SingleMaterialFFFSettings useSettings = (pathSettings == null) ? Settings : pathSettings;
+            ISingleMaterialFFFSettings useSettings = (pathSettings == null) ? Settings : pathSettings;
 
             CalculateExtrusion calc = new CalculateExtrusion(paths, useSettings);
 			calc.Calculate(Assembler.NozzlePosition, Assembler.ExtruderA, Assembler.InRetract);

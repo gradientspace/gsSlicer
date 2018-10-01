@@ -22,7 +22,7 @@ namespace gs
     public class SequentialScheduler2d : IFillPathScheduler2d
 	{
 		public ToolpathSetBuilder Builder;
-		public SingleMaterialFFFSettings Settings;
+		public ISingleMaterialFFFSettings Settings;
 
         public bool ExtrudeOnShortTravels = false;
         public double ShortTravelDistance = 0;
@@ -31,7 +31,7 @@ namespace gs
         public Action<List<FillCurveSet2d>, SequentialScheduler2d> OnAppendCurveSetsF = null;
 
 
-        public SequentialScheduler2d(ToolpathSetBuilder builder, SingleMaterialFFFSettings settings)
+        public SequentialScheduler2d(ToolpathSetBuilder builder, ISingleMaterialFFFSettings settings)
 		{
 			Builder = builder;
 			Settings = settings;
