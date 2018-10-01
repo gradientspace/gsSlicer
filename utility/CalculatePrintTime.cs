@@ -55,13 +55,13 @@ namespace gs
     public class CalculatePrintTime
     {
         public ToolpathSet Paths;
-        public SingleMaterialFFFSettings Settings;
+        public ISingleMaterialFFFSettings Settings;
 
         // output statistics
         public PrintTimeStatistics TimeStatistics { get; private set; }
 
 
-        public CalculatePrintTime(ToolpathSet paths, SingleMaterialFFFSettings settings)
+        public CalculatePrintTime(ToolpathSet paths, ISingleMaterialFFFSettings settings)
         {
             Paths = paths;
             Settings = settings;
