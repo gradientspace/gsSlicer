@@ -14,15 +14,51 @@ namespace gs
     /// EnforceMinLayerTime() is a utility that automatically re-times layers
     /// so they take at least Settings.MinLayerTime.
     /// </summary>
-	public class CalculatePrintTime
+
+    public class PrintTimeStatistics
+    {
+        public double ExtrudeTimeS = 0;
+        public double TravelTimeS = 0;
+
+        public double TotalTimeS
+        {
+            get
+            {
+                return ExtrudeTimeS + TravelTimeS;
+            }
+        }
+
+        public void Add(PrintTimeStatistics other)
+        {
+            ExtrudeTimeS += other.ExtrudeTimeS;
+            TravelTimeS += other.TravelTimeS;
+        }
+
+        public List<string> ToStringList()
+        {
+            List<string> result = new List<string>()
+            {
+                "Total Print Time Estiate",
+                string.Format("        Total: {0:c}", 
+                        new TimeSpan(0,0,(int)TotalTimeS)),
+                string.Format("    Extrusion: {0:c}    ({1,4:##.0}%)", 
+                        new TimeSpan(0,0,(int)ExtrudeTimeS), ExtrudeTimeS/TotalTimeS*100),
+                string.Format("       Travel: {0:c}    ({1,4:##.0}%)", 
+                        new TimeSpan(0,0,(int)TravelTimeS), TravelTimeS/TotalTimeS*100),
+            };
+            return result;
+        }
+
+    }
+
+
+    public class CalculatePrintTime
     {
         public ToolpathSet Paths;
         public SingleMaterialFFFSettings Settings;
 
         // output statistics
-        public double LayerTimeS = 0;
-        public double ExtrudeTimeS = 0;
-        public double TravelTimeS = 0;
+        public PrintTimeStatistics TimeStatistics { get; private set; }
 
 
         public CalculatePrintTime(ToolpathSet paths, SingleMaterialFFFSettings settings)
@@ -50,9 +86,7 @@ namespace gs
             }
             int N = allPaths.Count;
 
-            LayerTimeS = 0;
-            ExtrudeTimeS = 0;
-            TravelTimeS = 0;
+            TimeStatistics = new PrintTimeStatistics();
 
             for (int pi = 0; pi < N; ++pi) {
                 LinearToolpath3<PrintVertex> path = allPaths[pi] as LinearToolpath3<PrintVertex>;
@@ -73,11 +107,10 @@ namespace gs
                     path_time += dist / rate_mm_per_s;
                     curPos = newPos;
                 }
-                LayerTimeS += path_time;
                 if (path.Type == ToolpathTypes.Deposition)
-                    ExtrudeTimeS += path_time;
+                    TimeStatistics.ExtrudeTimeS += path_time;
                 else
-                    TravelTimeS += path_time;
+                    TimeStatistics.TravelTimeS += path_time;
             }
 
         } // Calculate()
@@ -114,16 +147,20 @@ namespace gs
 
         /// <summary>
         /// Enforce Settings.MinLayerTime on this path set
+        /// Returns true if modification was required
         /// </summary>
-        public void EnforceMinLayerTime()
+        public bool EnforceMinLayerTime()
         {
             Calculate();
-            if (ExtrudeTimeS < Settings.MinLayerTime) {
-                double scaleF = ExtrudeTimeS / Settings.MinLayerTime;
+            // TODO: Check if this should compare total time or just extrusion time
+            if (TimeStatistics.ExtrudeTimeS < Settings.MinLayerTime) {
+                double scaleF = TimeStatistics.ExtrudeTimeS / Settings.MinLayerTime;
                 if (scaleF < 0.05)
                     scaleF = 0.05;      // sanity check
                 ScaleExtrudeTimes(scaleF);
+                return true;
             }
+            return false;
         }
 
 

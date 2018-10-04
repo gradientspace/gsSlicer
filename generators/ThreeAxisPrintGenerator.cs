@@ -62,6 +62,8 @@ namespace gs
         public bool AccumulatePathSet = false;
         public ToolpathSet AccumulatedPaths = null;
 
+        public PrintTimeStatistics TotalPrintTimeStatistics { get; private set; } = new PrintTimeStatistics();
+
 		/*
 		 * Customizable functions you can use to configure/modify slicer behavior
 		 */
@@ -401,7 +403,14 @@ namespace gs
                 // change speeds if layer is going to finish too quickly
                 if (Settings.MinLayerTime > 0) {
                     CalculatePrintTime layer_time_calc = new CalculatePrintTime(pathAccum.Paths, layerSettings);
-                    layer_time_calc.EnforceMinLayerTime();
+                    bool layerModified = layer_time_calc.EnforceMinLayerTime();
+                    if (layerModified)
+                    {
+                        layer_time_calc.Calculate();
+                    }
+
+                    TotalPrintTimeStatistics.Add(layer_time_calc.TimeStatistics);
+
                 }
 
                 // compile this layer 
@@ -432,7 +441,7 @@ namespace gs
         /// </summary>
         protected virtual SingleMaterialFFFSettings MakeLayerSettings(int layer_i)
         {
-            var layerSettings = Settings.CloneAs<SingleMaterialFFFSettings>();
+            SingleMaterialFFFSettings layerSettings = Settings.CloneAs<SingleMaterialFFFSettings>();
             PlanarSlice slice = Slices[layer_i];
             // override standard layer height with slice ZSpan
             layerSettings.LayerHeightMM = slice.LayerZSpan.Length;
