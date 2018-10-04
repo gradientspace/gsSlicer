@@ -430,7 +430,14 @@ namespace gs
             }
 
             Compiler.End();
-            CurProgress = TotalProgress;
+
+            Compiler.AppendComment("".PadRight(79, '-'));
+            foreach (string line in TotalPrintTimeStatistics.ToStringList())
+            {
+                Compiler.AppendComment(" " + line);
+            }
+            Compiler.AppendComment("".PadRight(79, '-'));
+            // TODO: May need to force Build.EndLine() somehow if losing the end
         }
 
 

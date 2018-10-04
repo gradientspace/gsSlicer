@@ -38,7 +38,7 @@ namespace gs
         {
             List<string> result = new List<string>()
             {
-                "Total Print Time Estiate",
+                "TOTAL PRINT TIME ESTIMATE:",
                 string.Format("        Total: {0:c}", 
                         new TimeSpan(0,0,(int)TotalTimeS)),
                 string.Format("    Extrusion: {0:c}    ({1,4:##.0}%)", 
