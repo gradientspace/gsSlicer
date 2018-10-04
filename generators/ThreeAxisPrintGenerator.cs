@@ -8,33 +8,32 @@ using g3;
 namespace gs
 {
 
-    /// <summary>
-    /// PrintLayerData is set of information for a single print layer
-    /// </summary>
-    public class PrintLayerData
-    {
-        public int layer_i;
-        public PlanarSlice Slice;
-        public ISingleMaterialFFFSettings Settings;
+	/// <summary>
+	/// PrintLayerData is set of information for a single print layer
+	/// </summary>
+	public class PrintLayerData
+	{
+		public int layer_i;
+		public PlanarSlice Slice;
+		public SingleMaterialFFFSettings Settings;
 
-        public PrintLayerData PreviousLayer;
+		public PrintLayerData PreviousLayer;
 
-        public ToolpathSetBuilder PathAccum;
-        public IFillPathScheduler2d Scheduler;
+		public ToolpathSetBuilder PathAccum;
+		public IFillPathScheduler2d Scheduler;
 
-        public List<IShellsFillPolygon> ShellFills;
+		public List<IShellsFillPolygon> ShellFills;
         public List<GeneralPolygon2d> SupportAreas;
 
-        public TemporalPathHash Spatial;
+		public TemporalPathHash Spatial;
 
-        public PrintLayerData(int layer_i, PlanarSlice slice, ISingleMaterialFFFSettings settings)
-        {
-            this.layer_i = layer_i;
-            Slice = slice;
-            Settings = settings;
-            Spatial = new TemporalPathHash();
-        }
-    }
+		public PrintLayerData(int layer_i, PlanarSlice slice, SingleMaterialFFFSettings settings) {
+			this.layer_i = layer_i;
+			Slice = slice;
+			Settings = settings;
+			Spatial = new TemporalPathHash();
+		}
+	}
 
 
 
@@ -82,13 +81,13 @@ namespace gs
 
 
         // Replace this if you want to customize PrintLayerData type
-        public Func<int, PlanarSlice, ISingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
+        public Func<int, PlanarSlice, SingleMaterialFFFSettings, PrintLayerData> PrintLayerDataFactoryF;
 
-        // Replace this to use a different path builder
-        public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
+		// Replace this to use a different path builder
+		public Func<PrintLayerData, ToolpathSetBuilder> PathBuilderFactoryF;
 
-        // Replace this to use a different scheduler
-        public Func<PrintLayerData, IFillPathScheduler2d> SchedulerFactoryF;
+		// Replace this to use a different scheduler
+		public Func<PrintLayerData, IFillPathScheduler2d> SchedulerFactoryF;
 
         // Replace this to use a different shell selector
         public Func<PrintLayerData, ILayerShellsSelector> ShellSelectorFactoryF;
@@ -97,9 +96,9 @@ namespace gs
         // implement progress bar, etc
         public Action<PrintLayerData> BeginLayerF;
 
-        // This is called before we process each shell. The Tag is transferred
-        // from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
-        public Action<IFillPolygon, int> BeginShellF;
+		// This is called before we process each shell. The Tag is transferred
+		// from the associated region in the PlanarSlice, if it had one, otherwise it is int.MaxValue
+		public Action<IFillPolygon, int> BeginShellF;
 
         // called at the end of each layer, before we compile the paths
         public ILayerPathsPostProcessor LayerPostProcessor;
@@ -142,37 +141,37 @@ namespace gs
                                SingleMaterialFFFSettings settings,
                                ThreeAxisPrinterCompiler compiler)
         {
-
+			
             PrintMeshes = meshes;
             Slices = slices;
             Settings = settings;
             Compiler = compiler;
 
 
-            // set defaults for configurable functions
+			// set defaults for configurable functions
 
-            PrintLayerDataFactoryF = (layer_i, slice, settingsArg) => {
-                return new PrintLayerData(layer_i, slice, settingsArg);
-            };
+			PrintLayerDataFactoryF = (layer_i, slice, settingsArg) => {
+				return new PrintLayerData(layer_i, slice, settingsArg);
+			};
 
-            PathBuilderFactoryF = (layer_data) => {
-                return new ToolpathSetBuilder();
-            };
+			PathBuilderFactoryF = (layer_data) => {
+				return new ToolpathSetBuilder();
+			};
 
-            SchedulerFactoryF = get_layer_scheduler;
+			SchedulerFactoryF = get_layer_scheduler;
 
             ShellSelectorFactoryF = (layer_data) => {
                 return new NextNearestLayerShellsSelector(layer_data.ShellFills);
             };
 
-            BeginLayerF = (layer_data) => { };
+			BeginLayerF = (layer_data) => { };
 
-            BeginShellF = (shell_fill, tag) => { };
+			BeginShellF = (shell_fill, tag) => { };
 
             LayerPostProcessor = null;
 
             if (PathFilterF == null)
-                PathFilterF = (pline) => { return pline.ArcLength < 3 * Settings.Machine.NozzleDiamMM; };
+				PathFilterF = (pline) => { return pline.ArcLength < 3 * Settings.Machine.NozzleDiamMM; };
 
         }
 
@@ -208,7 +207,7 @@ namespace gs
          *  Internals
          */
 
-
+ 
 
         // tags on slice polygons get transferred to shells
         IntTagSet<IFillPolygon> ShellTags = new IntTagSet<IFillPolygon>();
@@ -221,8 +220,8 @@ namespace gs
         double OverhangAllowanceMM;
         protected virtual double LayerFillAngleF(int layer_i)
         {
-            //return 90;
-            //return (layer_i % 2 == 0) ? 0 : 90;
+			//return 90;
+			//return (layer_i % 2 == 0) ? 0 : 90;
             return (layer_i % 2 == 0) ? -45 : 45;
         }
 
@@ -278,7 +277,7 @@ namespace gs
             precompute_support_areas();
             if (Cancelled()) return;
 
-            PrintLayerData prevLayerData = null;
+			PrintLayerData prevLayerData = null;
 
             // Now generate paths for each layer.
             // This could be parallelized to some extent, but we have to pass per-layer paths
@@ -289,17 +288,17 @@ namespace gs
                 if (Cancelled()) return;
 
                 // allocate new layer data structure
-                ISingleMaterialFFFSettings layerSettings = SettingsFactory(layer_i);
+                SingleMaterialFFFSettings layerSettings = MakeLayerSettings(layer_i);
                 PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], layerSettings);
-                layerdata.PreviousLayer = prevLayerData;
+				layerdata.PreviousLayer = prevLayerData;
 
-                // create path accumulator
-                ToolpathSetBuilder pathAccum = PathBuilderFactoryF(layerdata);
-                layerdata.PathAccum = pathAccum;
+				// create path accumulator
+				ToolpathSetBuilder pathAccum = PathBuilderFactoryF(layerdata);
+				layerdata.PathAccum = pathAccum;
 
-                // rest of code does not directly access path builder, instead it
-                // sends paths to scheduler.
-                IFillPathScheduler2d layerScheduler = SchedulerFactoryF(layerdata);
+				// rest of code does not directly access path builder, instead it
+				// sends paths to scheduler.
+				IFillPathScheduler2d layerScheduler = SchedulerFactoryF(layerdata);
                 GroupScheduler2d groupScheduler = new GroupScheduler2d(layerScheduler, Compiler.NozzlePosition.xy);
                 //GroupScheduler groupScheduler = new PassThroughGroupScheduler(layerScheduler, Compiler.NozzlePosition.xy);
                 layerdata.Scheduler = groupScheduler;
@@ -307,7 +306,7 @@ namespace gs
                 BeginLayerF(layerdata);
                 Compiler.AppendComment(string.Format("layer {0} - {1}mm", layer_i, Compiler.NozzlePosition.z));
 
-                layerdata.ShellFills = get_layer_shells(layer_i);
+				layerdata.ShellFills = get_layer_shells(layer_i);
 
                 bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
 
@@ -343,7 +342,7 @@ namespace gs
                     // schedule shell paths that we pre-computed
                     List<FillCurveSet2d> shells_gen_paths = shells_gen.GetFillCurves();
                     FillCurveSet2d outer_shell = (shells_gen_paths.Count > 0) ? shells_gen_paths[shells_gen_paths.Count - 1] : null;
-                    bool do_outer_last = Settings.OuterShellLast && (shells_gen_paths.Count > 1);
+					bool do_outer_last = Settings.OuterShellLast && (shells_gen_paths.Count > 1);
                     groupScheduler.BeginGroup();
                     if (do_outer_last == false) {
                         groupScheduler.AppendCurveSets(shells_gen_paths);
@@ -365,12 +364,12 @@ namespace gs
                     // [TODO] this can be precomputed now...
                     List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
                     if (is_infill)
-                        infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
+						infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
                     bool has_infill = (infill_regions.Count > 0);
 
                     // fill solid regions
                     groupScheduler.BeginGroup();
-                    // [RMS] always call this for now because we may have bridge regions
+					// [RMS] always call this for now because we may have bridge regions
                     // [TODO] we can precompute the bridge region calc we are doing here that is quite expensive...
                     fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
                     groupScheduler.EndGroup();
@@ -401,7 +400,7 @@ namespace gs
                 // discard the group scheduler
                 layerdata.Scheduler = groupScheduler.TargetScheduler;
 
-                // last chance to post-process paths for this layer before they are baked in
+				// last chance to post-process paths for this layer before they are baked in
                 if (Cancelled()) return;
                 if ( LayerPostProcessor != null )
                     LayerPostProcessor.Process(layerdata, pathAccum.Paths);
@@ -496,11 +495,11 @@ namespace gs
                 InsetFromInputPolygon = false,
                 PathSpacing = Settings.SparseLinearInfillStepX * Settings.SolidFillPathSpacingMM(),
                 ToolWidth = Settings.Machine.NozzleDiamMM,
-                AngleDeg = LayerFillAngleF(layer_data.layer_i)
+				AngleDeg = LayerFillAngleF(layer_data.layer_i)
             };
             infill_gen.Compute();
 
-            scheduler.AppendCurveSets(infill_gen.GetFillCurves());
+			scheduler.AppendCurveSets(infill_gen.GetFillCurves());
         }
 
 
@@ -522,15 +521,15 @@ namespace gs
         /// </summary>
 		protected virtual void fill_support_region(GeneralPolygon2d support_poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
         {
-            AxisAlignedBox2d bounds = support_poly.Bounds;
+			AxisAlignedBox2d bounds = support_poly.Bounds;
 
-            // settings may require a shell. However if support region
-            // is very small, we will also use nested shells because infill
-            // poly will likely be empty. In this case we nudge up the spacing
-            // so that they are more loosely bonded
+			// settings may require a shell. However if support region
+			// is very small, we will also use nested shells because infill
+			// poly will likely be empty. In this case we nudge up the spacing
+			// so that they are more loosely bonded
             // [TODO] we should only do this if we are directly below model. Otherwise this
             // branch is hit on any thin tube supports, that we could be printing empty
-            int nShells = (Settings.EnableSupportShell) ? 1 : 0;
+			int nShells = (Settings.EnableSupportShell) ? 1 : 0;
             double support_spacing = Settings.SupportSpacingStepX * Settings.Machine.NozzleDiamMM;
             double shell_spacing = Settings.Machine.NozzleDiamMM;
 			if (bounds.MaxDim < support_spacing) {
@@ -542,16 +541,16 @@ namespace gs
 
 			if (nShells > 0) {
                 ShellsFillPolygon shells_gen = new ShellsFillPolygon(support_poly);
-                shells_gen.PathSpacing = shell_spacing;
+				shells_gen.PathSpacing = shell_spacing;
                 shells_gen.ToolWidth = Settings.Machine.NozzleDiamMM;
-                shells_gen.Layers = nShells;
+				shells_gen.Layers = nShells;
                 shells_gen.FilterSelfOverlaps = false;
-                shells_gen.PreserveInputInsetTopology = true;
+				shells_gen.PreserveInputInsetTopology = true;
                 //shells_gen.FilterSelfOverlaps = true;
                 //shells_gen.PreserveOuterShells = false;
                 //shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
-                shells_gen.DiscardTinyPolygonAreaMM2 = 0.1;
-                shells_gen.DiscardTinyPerimterLengthMM = 0.0;
+				shells_gen.DiscardTinyPolygonAreaMM2 = 0.1;
+				shells_gen.DiscardTinyPerimterLengthMM = 0.0;
                 shells_gen.Compute();
                 List<FillCurveSet2d> shell_fill_curves = shells_gen.GetFillCurves();
                 foreach (var fillpath in shell_fill_curves)
@@ -565,12 +564,12 @@ namespace gs
                     infill_polys = ClipperUtil.MiterOffset(inner_shells, offset);
                 }
 
-            }
+            } 
 
             foreach ( var poly in infill_polys ) {
                 SupportLinesFillPolygon infill_gen = new SupportLinesFillPolygon(poly) {
                     InsetFromInputPolygon = (Settings.EnableSupportShell == false),
-                    PathSpacing = support_spacing,
+					PathSpacing = support_spacing,
                     ToolWidth = Settings.Machine.NozzleDiamMM,
                     AngleDeg = 0,
                 };
@@ -603,8 +602,8 @@ namespace gs
                     // bridge works better if there is a 'landing pad' on either side, so we
                     // expand and then clip with the solid regions, to get actual bridge fill region.
 
-                    double path_width = Settings.Machine.NozzleDiamMM;
-                    double shells_width = Settings.Shells * path_width;
+					double path_width = Settings.Machine.NozzleDiamMM;
+					double shells_width = Settings.Shells * path_width;
                     //bridge_regions = ClipperUtil.MiterOffset(bridge_regions, shells_width, filter_area);
                     bridge_regions = ClipperUtil.SeparateMiterOffsets(bridge_regions, shells_width, filter_area);
                     bridge_regions = ClipperUtil.Intersection(bridge_regions, solid_regions, filter_area);
@@ -620,10 +619,10 @@ namespace gs
                         solid_regions = CurveUtils2.FilterDegenerate(solid_regions, filter_area);     // [RMS] do we need to do this?
 
                         foreach (var bridge_poly in bridge_regions)
-                            fill_bridge_region(bridge_poly, scheduler, layer_data);
-                    }
-                }
-            }
+							fill_bridge_region(bridge_poly, scheduler, layer_data);
+					}
+				}
+			}
 
             foreach (GeneralPolygon2d solid_poly in solid_regions)
                 fill_solid_region(layer_data, solid_poly, scheduler, bIsInfillAdjacent);
@@ -638,8 +637,8 @@ namespace gs
         /// to sparse infill area - when the extruder zigs, most of the time there is nothing
         /// for the filament to attach to, so it pulls back. ugly!)
         /// </summary>
-        protected virtual void fill_solid_region(PrintLayerData layer_data,
-                                                 GeneralPolygon2d solid_poly,
+        protected virtual void fill_solid_region(PrintLayerData layer_data, 
+		                                         GeneralPolygon2d solid_poly, 
                                                  IFillPathScheduler2d scheduler,
                                                  bool bIsInfillAdjacent = false )
         {
@@ -685,32 +684,32 @@ namespace gs
 
                 solid_gen.Compute();
 
-                scheduler.AppendCurveSets(solid_gen.GetFillCurves());
+				scheduler.AppendCurveSets(solid_gen.GetFillCurves());
             }
         }
 
 
 
 
-        /// <summary>
-        /// Fill a bridge region. Goal is to use shortest paths possible.
-        /// So, instead of just using fixed angle, we fit bounding box and
-        /// use the shorter axis. 
-        /// </summary>
-        protected virtual void fill_bridge_region(GeneralPolygon2d poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
-        {
-            double spacing = Settings.BridgeFillPathSpacingMM();
+		/// <summary>
+		/// Fill a bridge region. Goal is to use shortest paths possible.
+		/// So, instead of just using fixed angle, we fit bounding box and
+		/// use the shorter axis. 
+		/// </summary>
+		protected virtual void fill_bridge_region(GeneralPolygon2d poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
+		{
+			double spacing = Settings.BridgeFillPathSpacingMM();
 
-            // fit bbox to try to find fill angle that has shortest spans
-            Box2d box = poly.Outer.MinimalBoundingBox(0.00001);
-            Vector2d axis = (box.Extent.x > box.Extent.y) ? box.AxisY : box.AxisX;
-            double angle = Math.Atan2(axis.y, axis.x) * MathUtil.Rad2Deg;
+			// fit bbox to try to find fill angle that has shortest spans
+			Box2d box = poly.Outer.MinimalBoundingBox(0.00001);
+			Vector2d axis = (box.Extent.x > box.Extent.y) ? box.AxisY : box.AxisX;
+			double angle = Math.Atan2(axis.y, axis.x) * MathUtil.Rad2Deg;
 
-            // [RMS] should we do something like this?
-            //if (Settings.SolidFillBorderOverlapX > 0) {
-            //	double offset = Settings.Machine.NozzleDiamMM * Settings.SolidFillBorderOverlapX;
-            //	fillPolys = ClipperUtil.MiterOffset(fillPolys, offset);
-            //}
+			// [RMS] should we do something like this?
+			//if (Settings.SolidFillBorderOverlapX > 0) {
+			//	double offset = Settings.Machine.NozzleDiamMM * Settings.SolidFillBorderOverlapX;
+			//	fillPolys = ClipperUtil.MiterOffset(fillPolys, offset);
+			//}
 
 			BridgeLinesFillPolygon fill_gen = new BridgeLinesFillPolygon(poly) {
                 InsetFromInputPolygon = false,
@@ -732,12 +731,12 @@ namespace gs
         /// Determine the sparse infill and solid fill regions for a layer, given the input regions that
         /// need to be filled, and the roof/floor areas above/below this layer. 
         /// </summary>
-        protected virtual List<GeneralPolygon2d> make_infill_regions(int layer_i,
-                                                             List<GeneralPolygon2d> fillRegions,
-                                                             List<GeneralPolygon2d> roof_cover,
-                                                             List<GeneralPolygon2d> floor_cover,
+        protected virtual List<GeneralPolygon2d> make_infill_regions(int layer_i, 
+		                                                     List<GeneralPolygon2d> fillRegions, 
+                                                             List<GeneralPolygon2d> roof_cover, 
+                                                             List<GeneralPolygon2d> floor_cover, 
                                                              out List<GeneralPolygon2d> solid_regions)
-
+                                                            
         {
             double min_area = Settings.Machine.NozzleDiamMM * Settings.Machine.NozzleDiamMM;
 
@@ -843,7 +842,7 @@ namespace gs
         /// </summary>
 		protected virtual void add_open_paths(PrintLayerData layerdata, IFillPathScheduler2d scheduler)
         {
-            PlanarSlice slice = layerdata.Slice;
+			PlanarSlice slice = layerdata.Slice;
             if (slice.Paths.Count == 0)
                 return;
 
@@ -890,7 +889,7 @@ namespace gs
             //    PlanarSlice slice = Slices[layeri];
             //    LayerShells[layeri] = compute_shells_for_slice(slice);
             //}
-            return LayerShells[layer_i];
+			return LayerShells[layer_i];
         }
 
         /// <summary>
@@ -945,7 +944,7 @@ namespace gs
             shells_gen.Layers = Settings.Shells;
             shells_gen.FilterSelfOverlaps = Settings.ClipSelfOverlaps;
             shells_gen.SelfOverlapTolerance = Settings.SelfOverlapToleranceX * Settings.Machine.NozzleDiamMM;
-            shells_gen.OuterShellLast = Settings.OuterShellLast;
+			shells_gen.OuterShellLast = Settings.OuterShellLast;
 
             shells_gen.Compute();
             return shells_gen;
@@ -1027,19 +1026,19 @@ namespace gs
             return LayerSupportAreas[layer_i];
         }
 
-        // The set of bridge areas for each layer. These are basically the support
-        // areas that we can bridge. So, they are one layer below the model area.
-        protected List<GeneralPolygon2d>[] LayerBridgeAreas;
+		// The set of bridge areas for each layer. These are basically the support
+		// areas that we can bridge. So, they are one layer below the model area.
+		protected List<GeneralPolygon2d>[] LayerBridgeAreas;
 
-        /// <summary>
-        /// return the set of bridgeable support-region polygons for a layer.
-        /// Note that the bridge regions for layer i are at layer i-1 (because
-        /// these are the support areas)
-        /// </summary>
-        protected virtual List<GeneralPolygon2d> get_layer_bridge_area(int layer_i)
-        {
-            return LayerBridgeAreas[layer_i];
-        }
+		/// <summary>
+		/// return the set of bridgeable support-region polygons for a layer.
+		/// Note that the bridge regions for layer i are at layer i-1 (because
+		/// these are the support areas)
+		/// </summary>
+		protected virtual List<GeneralPolygon2d> get_layer_bridge_area(int layer_i)
+		{
+			return LayerBridgeAreas[layer_i];
+		}
 
 
 
@@ -1049,7 +1048,7 @@ namespace gs
         /// </summary>
         protected virtual void precompute_support_areas()
         {
-            generate_bridge_areas();
+			generate_bridge_areas();
 
             if (Settings.GenerateSupport)
                 generate_support_areas();
@@ -1058,28 +1057,28 @@ namespace gs
         }
 
 
-        /// <summary>
+		/// <summary>
         /// Find the unsupported regions in each layer that can be bridged
         /// </summary>
-        protected virtual void generate_bridge_areas()
-        {
-            int nLayers = Slices.Count;
+		protected virtual void generate_bridge_areas()
+		{
+			int nLayers = Slices.Count;
 
-            LayerBridgeAreas = new List<GeneralPolygon2d>[nLayers];
-            if (nLayers <= 1)
-                return;
+			LayerBridgeAreas = new List<GeneralPolygon2d>[nLayers];
+			if (nLayers <= 1)
+				return;
 
-            // [RMS] does this make sense? maybe should be using 0 here?
-            double bridge_tol = Settings.Machine.NozzleDiamMM * 0.5;
+			// [RMS] does this make sense? maybe should be using 0 here?
+			double bridge_tol = Settings.Machine.NozzleDiamMM * 0.5;
             double expand_delta = bridge_tol * 0.1;     // see usage below
             bridge_tol += expand_delta;
-            double min_area = Settings.Machine.NozzleDiamMM;
-            min_area *= min_area;
+			double min_area = Settings.Machine.NozzleDiamMM;
+			min_area *= min_area;
 
-            gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
+			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
                 if (Cancelled()) return;
                 PlanarSlice slice = Slices[layeri];
-                PlanarSlice next_slice = Slices[layeri + 1];
+				PlanarSlice next_slice = Slices[layeri + 1];
 
                 // To find bridgeable regions, we compute all floating regions in next layer. 
                 // Then we look for polys that are bridgeable, ie thing enough and fully anchored.
@@ -1094,16 +1093,16 @@ namespace gs
                     bridgePolys = ClipperUtil.Difference(next_slice.Solids, expandPolys, min_area);
                     bridgePolys = CurveUtils2.FilterDegenerate(bridgePolys, min_area);
                     bridgePolys = CurveUtils2.Filter(bridgePolys, (p) => {
-                        return layeri > 0 && is_bridgeable(p, layeri, bridge_tol);
-                    });
-                }
+						return layeri > 0 && is_bridgeable(p, layeri, bridge_tol);
+					});
+				}
 
-                LayerBridgeAreas[layeri] = (bridgePolys != null)
-                    ? bridgePolys : new List<GeneralPolygon2d>();
-            });
-            LayerBridgeAreas[nLayers - 1] = new List<GeneralPolygon2d>();
+				LayerBridgeAreas[layeri] = (bridgePolys != null)
+					? bridgePolys : new List<GeneralPolygon2d>();
+			});
+			LayerBridgeAreas[nLayers - 1] = new List<GeneralPolygon2d>();
 
-        }
+		}
 
 
 
@@ -1147,15 +1146,15 @@ namespace gs
             // to ensure overlap. Using a larger value here has the effect of
             // smoothing out the support polygons. However it can also end up
             // merging disjoint regions...
-            double fMergeDownDilate = Settings.Machine.NozzleDiamMM * Settings.SupportRegionJoinTolX;
+			double fMergeDownDilate = Settings.Machine.NozzleDiamMM * Settings.SupportRegionJoinTolX;
 
             // space we leave between support polygons and solids
             // [TODO] do we need to include SupportAreaOffsetX here?
             double fSupportGapInLayer = Settings.SupportSolidSpace;
 
-            // extra offset we add to support polygons, eg to nudge them
-            // in/out depending on shell layers, etc
-            double fSupportOffset = Settings.SupportAreaOffsetX * Settings.Machine.NozzleDiamMM;
+			// extra offset we add to support polygons, eg to nudge them
+			// in/out depending on shell layers, etc
+			double fSupportOffset = Settings.SupportAreaOffsetX * Settings.Machine.NozzleDiamMM;
 
             // we will throw away holes in support regions smaller than these thresholds
 			double DiscardHoleSizeMM = 2*Settings.Machine.NozzleDiamMM;
@@ -1164,36 +1163,36 @@ namespace gs
             // throw away support polygons smaller than this
             double fMinDiameter = Settings.SupportMinDimension;
 
-            // if support poly is further than this from model, we consider
-            // it a min-z-tip and it gets special handling
-            double fSupportMinDist = Settings.Machine.NozzleDiamMM;
+			// if support poly is further than this from model, we consider
+			// it a min-z-tip and it gets special handling
+			double fSupportMinDist = Settings.Machine.NozzleDiamMM;
 
 
 
             int nLayers = Slices.Count;
-            LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
-            if (nLayers <= 1)
-                return;
+			LayerSupportAreas = new List<GeneralPolygon2d>[nLayers];
+			if (nLayers <= 1)
+				return;
 
 
             bool bEnableInterLayerSmoothing = true;
 
 
-            /*
+			/*
 			 * Step 1: compute absolute support polygon for each layer
 			 */
 
-            // For layer i, compute support region needed to support layer (i+1)
-            // This is the *absolute* support area - no inset for filament width or spacing from model
-            gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
+			// For layer i, compute support region needed to support layer (i+1)
+			// This is the *absolute* support area - no inset for filament width or spacing from model
+			gParallel.ForEach(Interval1i.Range(nLayers - 1), (layeri) => {
                 if (Cancelled()) return;
                 PlanarSlice slice = Slices[layeri];
-                PlanarSlice next_slice = Slices[layeri + 1];
+				PlanarSlice next_slice = Slices[layeri + 1];
 
-                // expand this layer and subtract from next layer. leftovers are
-                // what needs to be supported on next layer.
-                List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, fOverhangAngleDist);
-                List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(next_slice.Solids, expandPolys);
+				// expand this layer and subtract from next layer. leftovers are
+				// what needs to be supported on next layer.
+				List<GeneralPolygon2d> expandPolys = ClipperUtil.MiterOffset(slice.Solids, fOverhangAngleDist);
+				List<GeneralPolygon2d> supportPolys = ClipperUtil.Difference(next_slice.Solids, expandPolys);
 
                 // subtract regions we are going to bridge
                 List<GeneralPolygon2d> bridgePolys = get_layer_bridge_area(layeri);
@@ -1263,14 +1262,14 @@ namespace gs
 
                         // ok force support
                         filteredPolys.Add(make_support_point_poly(bounds.Center, fMinDiameter));
-                    }
+				    }
                     supportPolys.Clear();
                     supportPolys.AddRange(filteredPolys);
-                }
+                } 
 
-                // add any explicit support points in this layer as circles
-                foreach (Vector2d v in slice.InputSupportPoints)
-                    supportPolys.Add(make_support_point_poly(v));
+				// add any explicit support points in this layer as circles
+				foreach (Vector2d v in slice.InputSupportPoints)
+					supportPolys.Add(make_support_point_poly(v));
 
                 if (PathClipRegions != null)
                     supportPolys = ClipperUtil.Intersection(supportPolys, PathClipRegions);
@@ -1281,7 +1280,7 @@ namespace gs
             LayerSupportAreas[nLayers-1] = new List<GeneralPolygon2d>();
 
 
-            /*
+			/*
 			 * Step 2: sweep support polygons downwards
 			 */
 
@@ -1330,8 +1329,8 @@ namespace gs
                     support_above.Add(copy);
                 }
 
-                // union down
-                List<GeneralPolygon2d> combineSupport = null;
+				// union down
+				List<GeneralPolygon2d> combineSupport = null;
 
                 // [TODO] should discard small interior holes here if they don't intersect layer...
 
@@ -1421,9 +1420,9 @@ namespace gs
         }
 
 
-        /*
+		/*
 		 * Bridging and Support utility functions
-		 */
+		 */ 
 
         /// <summary>
         /// generate support point polygon (eg circle)
@@ -1508,10 +1507,10 @@ namespace gs
         /// </summary>
 		protected virtual IFillPathScheduler2d get_layer_scheduler(PrintLayerData layer_data)
         {
-            SequentialScheduler2d scheduler = new SequentialScheduler2d(layer_data.PathAccum, layer_data.Settings);
+			SequentialScheduler2d scheduler = new SequentialScheduler2d(layer_data.PathAccum, layer_data.Settings);
 
             // be careful on first layer
-            scheduler.SpeedHint = (layer_data.layer_i == CurStartLayer) ?
+			scheduler.SpeedHint = (layer_data.layer_i == CurStartLayer) ?
                 SchedulerSpeedHint.Careful : SchedulerSpeedHint.Rapid;
 
             return scheduler;

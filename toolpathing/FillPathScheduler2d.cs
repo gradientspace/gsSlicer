@@ -6,7 +6,7 @@ namespace gs
 {
     public enum SchedulerSpeedHint
     {
-        Careful, Default, Rapid, MaxSpeed
+        Careful, Default, Rapid, MaxSpeed, First
     }
 
 
@@ -147,7 +147,7 @@ namespace gs
         // 2) if this is an outer perimeter, scale by outer perimeter speed multiplier
         // 3) if we are being "careful" and this is support, also use that multiplier
         //       (bit of a hack, currently means on first layer we do support extra slow)
-        double select_speed(FillCurve2d pathCurve)
+        protected virtual double select_speed(FillCurve2d pathCurve)
         {
             bool bIsSupport = pathCurve.HasTypeFlag(FillTypeFlags.SupportMaterial);
             bool bIsOuterPerimeter = pathCurve.HasTypeFlag(FillTypeFlags.OuterPerimeter);
