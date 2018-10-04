@@ -1,10 +1,11 @@
 ﻿using System;
 using g3;
+using System.Collections.Generic;
 
 namespace gs
 {
-	// [TODO] be able to not hardcode this type?
-	using LinearToolpath = LinearToolpath3<PrintVertex>;
+    // [TODO] be able to not hardcode this type?
+    using LinearToolpath = LinearToolpath3<PrintVertex>;
 
 
     public interface ICNCCompiler
@@ -24,13 +25,14 @@ namespace gs
         void AppendPaths(ToolpathSet paths, ISingleMaterialFFFSettings pathSettings);
         void AppendComment(string comment);
         void End();
+        IEnumerable<string> GenerateTotalExtrusionReport(ISingleMaterialFFFSettings settings);
     }
 
 
 
 	public class SingleMaterialFFFCompiler : ThreeAxisPrinterCompiler
 	{
-		SingleMaterialFFFSettings Settings;
+		ISingleMaterialFFFSettings Settings;
 		GCodeBuilder Builder;
         BaseDepositionAssembler Assembler;
 
@@ -42,7 +44,7 @@ namespace gs
         public virtual Action<string> EmitMessageF { get; set; }
 
 
-        public SingleMaterialFFFCompiler(GCodeBuilder builder, SingleMaterialFFFSettings settings, AssemblerFactoryF AssemblerF )
+        public SingleMaterialFFFCompiler(GCodeBuilder builder, ISingleMaterialFFFSettings settings, AssemblerFactoryF AssemblerF )
 		{
 			Builder = builder;
 			Settings = settings;
@@ -198,5 +200,9 @@ namespace gs
                 EmitMessageF(string.Format(text, args));
         }
 
+        public IEnumerable<string> GenerateTotalExtrusionReport(ISingleMaterialFFFSettings settings)
+        {
+            return Assembler.GenerateTotalExtrusionReport(settings);
+        }
     }
 }
