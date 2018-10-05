@@ -45,9 +45,9 @@ namespace gs
     public abstract class ThreeAxisPrintGenerator
     {
         // Data structures that must be provided by client
-        protected PrintMeshAssembly PrintMeshes;
-        protected PlanarSliceStack Slices;
-        protected ThreeAxisPrinterCompiler Compiler;
+        public PrintMeshAssembly PrintMeshes { get; protected set; }
+        public PlanarSliceStack Slices { get; protected set; }
+        public ThreeAxisPrinterCompiler Compiler { get; protected set; }
         public SingleMaterialFFFSettings Settings;      // public because you could modify
                                                         // this during process, ie in BeginLayerF
                                                         // to implement per-layer settings
@@ -108,6 +108,10 @@ namespace gs
         // In default Initialize(), is set to a constant multiple of tool size
         public Func<FillPolyline2d, bool> PathFilterF = null;
 
+        // Called after we have finished print generation, use this to post-process the paths, etc.
+        // By default appends a comment block with print time statistics
+        public Action<ThreeAxisPrinterCompiler, ThreeAxisPrintGenerator> PostProcessCompilerF 
+            = PrintGeneratorDefaults.AppendPrintTimeStatistics;
 
         /// <summary>
         /// If this is set, we clip **generated** regions against it (ie generated support)
@@ -404,8 +408,7 @@ namespace gs
                 if (Settings.MinLayerTime > 0) {
                     CalculatePrintTime layer_time_calc = new CalculatePrintTime(pathAccum.Paths, layerSettings);
                     bool layerModified = layer_time_calc.EnforceMinLayerTime();
-                    if (layerModified)
-                    {
+                    if (layerModified) {
                         layer_time_calc.Calculate();
                     }
 
@@ -431,16 +434,10 @@ namespace gs
 
             Compiler.End();
 
-            Compiler.AppendComment("".PadRight(79, '-'));
-            foreach (string line in TotalPrintTimeStatistics.ToStringList())
-            {
-                Compiler.AppendComment(" " + line);
-            }
-            Compiler.AppendComment("".PadRight(79, '-'));
+            PostProcessCompilerF(Compiler, this);
+
             // TODO: May need to force Build.EndLine() somehow if losing the end
         }
-
-
 
 
         /// <summary>
