@@ -288,7 +288,7 @@ namespace gs
                 if (Cancelled()) return;
 
                 // allocate new layer data structure
-                SingleMaterialFFFSettings layerSettings = MakeLayerSettings(layer_i);
+                SingleMaterialFFFSettings layerSettings = MakeLayerSettings<SingleMaterialFFFSettings>(layer_i);
                 PrintLayerData layerdata = PrintLayerDataFactoryF(layer_i, Slices[layer_i], layerSettings);
 				layerdata.PreviousLayer = prevLayerData;
 
