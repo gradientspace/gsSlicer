@@ -62,40 +62,61 @@ namespace gs
 
 
 		// [TODO] no reason we couldn't start on edge midpoint??
-		public virtual void AppendPolygon2d(FillPolygon2d poly) {
-			Vector3d currentPos = Builder.Position;
-			Vector2d currentPos2 = currentPos.xy;
+		public virtual void AppendPolygon2d(FillPolygon2d poly)
+        {
+            Vector3d currentPos = Builder.Position;
+            Vector2d currentPos2 = currentPos.xy;
 
-			int N = poly.VertexCount;
-			if (N < 2)
-				throw new Exception("PathScheduler.AppendPolygon2d: degenerate curve!");
+            int N = poly.VertexCount;
+            if (N < 2)
+                throw new Exception("PathScheduler.AppendPolygon2d: degenerate curve!");
 
-			int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly.Vertices);
+            int iNearest = CurveUtils2.FindNearestVertex(currentPos2, poly.Vertices);
 
-			Vector2d startPt = poly[iNearest];
+            Vector2d startPt = poly[iNearest];
 
-            // a travel may require a retract, which we might want to skip
-            if (ExtrudeOnShortTravels && currentPos2.Distance(startPt) < ShortTravelDistance )
-                Builder.AppendExtrude(startPt, Settings.RapidTravelSpeed);
-            else
-			    Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
+            AppendTravel(currentPos2, startPt);
 
-			List<Vector2d> loopV = new List<Vector2d>(N + 1);
-			for (int i = 0; i <= N; i++ ) {
-				int k = (iNearest + i) % N;
-				loopV.Add(poly[k]);
-			}
+            List<Vector2d> loopV = new List<Vector2d>(N + 1);
+            for (int i = 0; i <= N; i++)
+            {
+                int k = (iNearest + i) % N;
+                loopV.Add(poly[k]);
+            }
 
             double useSpeed = select_speed(poly);
 
-			Builder.AppendExtrude(loopV, useSpeed, poly.TypeFlags, null);
-		}
+            Builder.AppendExtrude(loopV, useSpeed, poly.TypeFlags, null);
+        }
+
+        private void AppendTravel(Vector2d startPt, Vector2d endPt)
+        {
+            double travelDistance = startPt.Distance(endPt);
+
+            // a travel may require a retract, which we might want to skip
+            if (ExtrudeOnShortTravels &&
+                travelDistance < ShortTravelDistance)
+            {
+                Builder.AppendExtrude(endPt, Settings.RapidTravelSpeed);
+            }
+            else if (Settings.TravelLiftEnabled &&
+                travelDistance > Settings.TravelLiftDistanceThreshold)
+            {
+                Builder.AppendZChange(Settings.TravelLiftHeight, Settings.ZTravelSpeed, ToolpathTypes.Travel);
+                Builder.AppendTravel(endPt, Settings.RapidTravelSpeed);
+                Builder.AppendZChange(-Settings.TravelLiftHeight, Settings.ZTravelSpeed, ToolpathTypes.Travel);
+            }
+            else
+            {
+                Builder.AppendTravel(endPt, Settings.RapidTravelSpeed);
+            }
+        }
 
 
 
 
-		// [TODO] would it ever make sense to break polyline to avoid huge travel??
-		public virtual void AppendPolyline2d(FillPolyline2d curve)
+        // [TODO] would it ever make sense to break polyline to avoid huge travel??
+        public virtual void AppendPolyline2d(FillPolyline2d curve)
 		{
 			Vector3d currentPos = Builder.Position;
 			Vector2d currentPos2 = currentPos.xy;
@@ -112,7 +133,7 @@ namespace gs
 			}
 
 			Vector2d startPt = curve[iNearest];
-			Builder.AppendTravel(startPt, Settings.RapidTravelSpeed);
+            AppendTravel(currentPos2, startPt);
 
 			List<Vector2d> loopV;
 			List<TPVertexFlags> flags = null;
