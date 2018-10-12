@@ -64,7 +64,16 @@ namespace gs
 
         public PrintTimeStatistics TotalPrintTimeStatistics { get; private set; } = new PrintTimeStatistics();
 
-		/*
+        public IEnumerable<string> TotalExtrusionReport
+        {
+            get
+            {
+                return Compiler.GenerateTotalExtrusionReport(Settings);
+            }
+        }
+
+
+        /*
 		 * Customizable functions you can use to configure/modify slicer behavior
 		 */
 
@@ -111,7 +120,7 @@ namespace gs
         // Called after we have finished print generation, use this to post-process the paths, etc.
         // By default appends a comment block with print time statistics
         public Action<ThreeAxisPrinterCompiler, ThreeAxisPrintGenerator> PostProcessCompilerF 
-            = PrintGeneratorDefaults.AppendPrintTimeStatistics;
+            = PrintGeneratorDefaults.AppendPrintStatistics;
 
         /// <summary>
         /// If this is set, we clip **generated** regions against it (ie generated support)

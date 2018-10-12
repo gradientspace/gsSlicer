@@ -23,13 +23,6 @@ namespace gs
             base.Initialize(meshes, slices, settings, compiler);
         }
 
-        public IEnumerable<string> TotalExtrusionReport {
-            get
-            {
-                return Compiler.GenerateTotalExtrusionReport(Settings);
-            }
-        }
-
         protected override GCodeFile extract_result()
         {
             return file_accumulator.File;
