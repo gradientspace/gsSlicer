@@ -9,11 +9,15 @@ C#, MIT License (*but see notes below!*). Copyright 2017 ryan schmidt / gradient
 questions? get in touch on twitter: [@rms80](http://www.twitter.com/rms80) or [@gradientspace](http://www.twitter.com/gradientspace), 
 or email [rms@gradientspace.com](mailto:rms@gradientspace.com?subject=gsSlicer).
 
+Gradientspace no longer offers consulting services. If you are interested in using gsSlicer and would like to hire someone to provide advice, help with the code, or  develop things for you, get in touch with Sutro Machine (http://sutromachine.com), they have extensive experience with gsSlicer.
+
+
 # What is this?
 
 gsSlicer is an in-development open-source library for things like slicing 3D triangle meshes into planar polygons, filling those polygons with contour & raster fill paths, figuring out how much material to extrude along the paths, and then outputting GCode. The included **SliceViewer** project is also a GCode viewer/utility.
 
 The goal with this project is to create a well-structured slicing engine that is designed from the ground up to be extensible. Although the initial focus will be on FDM/FFF-style printers, many of the parts of the system will be applicable to other processes like SLA, etc. Hopefully. Fingers crossed. At least, we'll definitely solve the meshes-to-slices problem for you.
+
 
 # Current Status
 
