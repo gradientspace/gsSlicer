@@ -54,8 +54,8 @@ namespace gs
             }
         }
 
-		public virtual Vector3d AppendZChange(double ZDelta, double fSpeed) {
-			LinearToolpath zup = new LinearToolpath(ToolpathTypes.PlaneChange);
+		public virtual Vector3d AppendZChange(double ZDelta, double fSpeed, ToolpathTypes ttype = ToolpathTypes.PlaneChange) {
+			LinearToolpath zup = new LinearToolpath(ttype);
 			zup.AppendVertex(new PrintVertex(currentPos, NO_RATE, NO_DIM), TPVertexFlags.IsPathStart);
 			Vector3d toPos = new Vector3d(currentPos); 
 			toPos.z += ZDelta;
@@ -64,8 +64,7 @@ namespace gs
 			return currentPos;
 		}
 
-
-		public virtual Vector3d AppendTravel(Vector2d toPos, double fSpeed)
+        public virtual Vector3d AppendTravel(Vector2d toPos, double fSpeed)
 		{
 			return AppendTravel(new Vector3d(toPos.x, toPos.y, currentPos.z), fSpeed);
 		}
