@@ -7,11 +7,12 @@ using g3;
 
 namespace gs
 {
+    using ShellFillRegionDict = Dictionary<IShellsFillPolygon, FillRegions>;
 
-	/// <summary>
-	/// PrintLayerData is set of information for a single print layer
-	/// </summary>
-	public class PrintLayerData
+    /// <summary>
+    /// PrintLayerData is set of information for a single print layer
+    /// </summary>
+    public class PrintLayerData
 	{
 		public int layer_i;
 		public PlanarSlice Slice;
@@ -35,7 +36,17 @@ namespace gs
 		}
 	}
 
+    public class FillRegions
+    {
+        public readonly List<GeneralPolygon2d> Solid;
+        public readonly List<GeneralPolygon2d> Sparse;
 
+        public FillRegions(List<GeneralPolygon2d> solid, List<GeneralPolygon2d> sparse)
+        {
+            Solid = solid;
+            Sparse = sparse;
+        }
+    }
 
 
     /// <summary>
@@ -272,6 +283,10 @@ namespace gs
             precompute_roofs_floors();
             if (Cancelled()) return;
 
+            // compute solid/sparse in parallel based on shell interios, roofs & floors
+            precompute_infill_regions();
+            if (Cancelled()) return;
+
             // [TODO] use floor areas to determine support now?
 
             precompute_support_areas();
@@ -308,16 +323,12 @@ namespace gs
 
 				layerdata.ShellFills = get_layer_shells(layer_i);
 
-                bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < nLayers - Settings.RoofLayers - 1);
-
                 // make path-accumulator for this layer
                 pathAccum.Initialize(Compiler.NozzlePosition);
                 // layer-up (ie z-change)
                 pathAccum.AppendZChange(layerSettings.LayerHeightMM, Settings.ZTravelSpeed);
 
                 // get roof and floor regions.
-                List<GeneralPolygon2d> roof_cover = get_layer_roof_area(layer_i);
-                List<GeneralPolygon2d> floor_cover = get_layer_floor_area(layer_i);
 
                 // do support first
                 // this could be done in parallel w/ roof/floor...
@@ -356,27 +367,19 @@ namespace gs
                     // allow client to do configuration (eg change settings for example)
                     BeginShellF(shells_gen, ShellTags.Get(shells_gen));
 
-                    // solid fill areas are inner polygons of shell fills
-                    List<GeneralPolygon2d> solid_fill_regions = shells_gen.GetInnerPolygons();
-
-                    // if this is an infill layer, compute infill regions, and remaining solid regions
-                    // (ie roof/floor regions, and maybe others)
-                    // [TODO] this can be precomputed now...
-                    List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
-                    if (is_infill)
-						infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
-                    bool has_infill = (infill_regions.Count > 0);
+                    // retrieve precomputed solid/sparse infill regions
+                    var fill_regions = LayerShellFillRegions[layer_i][shells_gen];
 
                     // fill solid regions
                     groupScheduler.BeginGroup();
 					// [RMS] always call this for now because we may have bridge regions
                     // [TODO] we can precompute the bridge region calc we are doing here that is quite expensive...
-                    fill_solid_regions(solid_fill_regions, groupScheduler, layerdata, has_infill);
+                    fill_solid_regions(fill_regions.Solid, groupScheduler, layerdata, fill_regions.Sparse.Count > 0);
                     groupScheduler.EndGroup();
 
                     // fill infill regions
                     groupScheduler.BeginGroup();
-                    fill_infill_regions(infill_regions, groupScheduler, layerdata);
+                    fill_infill_regions(fill_regions.Sparse, groupScheduler, layerdata);
                     groupScheduler.EndGroup();
                     if (Cancelled()) return;
                     count_progress_step();
@@ -1008,9 +1011,63 @@ namespace gs
         }
 
 
+        // Each entry in the list has a collection of FillRegion objects for the layer.
+        // The FillRegions are stored in a dictionary with a ShellsFillPolygon as the key 
+        // so the correct ones for each individual shell can be retrieved, rather than getting
+        // all of them for a layer.
+        protected List<Dictionary<IShellsFillPolygon, FillRegions>> LayerShellFillRegions;
 
+        /// <summary>
+        /// compute all the solid/sparse areas for the entire stack, in parallel
+        /// </summary>
+        protected virtual void precompute_infill_regions()
+        {
+            int start_layer = Math.Max(0, Settings.LayerRangeFilter.a);
+            int end_layer = Math.Min(Slices.Count - 1, Settings.LayerRangeFilter.b);
 
+            LayerShellFillRegions = new List<ShellFillRegionDict>(
+                new ShellFillRegionDict[Slices.Count]);
 
+            Interval1i solve_infill_regions = new Interval1i(start_layer, end_layer);
+
+#if DEBUG
+            for (int layer_i = solve_infill_regions.a; layer_i <= solve_infill_regions.b; ++layer_i)
+#else
+            gParallel.ForEach(solve_infill_regions, (layer_i) => 
+#endif
+            {
+                if (Cancelled()) return;
+                compute_infill_regions(layer_i);
+                count_progress_step();
+#if DEBUG
+            }
+#else
+            });
+#endif
+        }
+
+        protected void compute_infill_regions(int layer_i)
+        {
+            bool is_infill = (layer_i >= Settings.FloorLayers && layer_i < Slices.Count - Settings.RoofLayers - 1);
+
+            List<GeneralPolygon2d> roof_cover = get_layer_roof_area(layer_i);
+            List<GeneralPolygon2d> floor_cover = get_layer_floor_area(layer_i);
+
+            var regions = new ShellFillRegionDict();
+
+            foreach (var shell in LayerShells[layer_i])
+            {
+                List<GeneralPolygon2d> solid_fill_regions = shell.GetInnerPolygons();
+                List<GeneralPolygon2d> infill_regions = new List<GeneralPolygon2d>();
+                if (is_infill)
+                    infill_regions = make_infill_regions(layer_i, solid_fill_regions, roof_cover, floor_cover, out solid_fill_regions);
+
+                regions[shell] = new FillRegions(solid_fill_regions, infill_regions);
+            }
+
+            LayerShellFillRegions[layer_i] = regions;
+        }
+        
         // The set of support areas for each layer
         protected List<GeneralPolygon2d>[] LayerSupportAreas;
 
