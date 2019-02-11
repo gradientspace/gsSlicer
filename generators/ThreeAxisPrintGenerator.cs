@@ -1010,7 +1010,12 @@ namespace gs
             });
         }
 
-        List<Dictionary<IShellsFillPolygon, FillRegions>> LayerShellFillRegions;
+
+        // Each entry in the list has a collection of FillRegion objects for the layer.
+        // The FillRegions are stored in a dictionary with a ShellsFillPolygon as the key 
+        // so the correct ones for each individual shell can be retrieved, rather than getting
+        // all of them for a layer.
+        protected List<Dictionary<IShellsFillPolygon, FillRegions>> LayerShellFillRegions;
 
         /// <summary>
         /// compute all the solid/sparse areas for the entire stack, in parallel
