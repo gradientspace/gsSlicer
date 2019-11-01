@@ -40,3 +40,5 @@ thirdparty/clipper_library/obj
 
 # unity meta files
 *.meta
+
+.vs/
