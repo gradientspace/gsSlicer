@@ -14,6 +14,9 @@ namespace gs
         public bool IsCropRegion = false;   // treat as crop region
         public bool IsOpen = false;         // treat as open mesh (ie do not fill)
 
+        public double ClearanceXY = 0;
+        public double OffsetXY = 0;
+
         public enum OpenPathsModes
         {
             Embedded = 0, Clipped = 1, Ignored = 2, Default = 10

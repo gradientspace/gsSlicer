@@ -46,11 +46,8 @@
     <Compile Include="compilers\ThreeAxisMillingCompiler.cs" />
     <Compile Include="generators\PrintGeneratorDefaults.cs" />
     <Compile Include="generators\PrintMeshAssembly.cs" />
-    <Compile Include="generators\SingleMaterialFFFPrintGenPro.cs" />
     <Compile Include="slicing\BaseSlicer.cs" />
     <Compile Include="slicing\MeshPlanarMillSlicer.cs" />
-    <Compile Include="slicing\MeshPlanarSlicerPro.cs" />
-    <Compile Include="slicing\PlanarSlicePro.cs" />
     <Compile Include="sls\GenericPathsAssembler.cs" />
     <Compile Include="sls\GenericSLSPrintGenerator.cs" />
     <Compile Include="sls\SLSCompiler.cs" />
@@ -60,6 +57,7 @@
     <Compile Include="toolpathing\GroupScheduler2d.cs" />
     <Compile Include="toolpathing\LayerShellSelector.cs" />
     <Compile Include="toolpathing\PathPostProcessor.cs" />
+    <Compile Include="utility\PolygonDecomposer.cs" />
     <Compile Include="toolpathing\SortingScheduler2d.cs" />
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
     <Compile Include="toolpathing\SupportPostProcessors.cs" />
