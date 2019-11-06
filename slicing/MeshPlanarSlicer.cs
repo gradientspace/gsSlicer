@@ -349,6 +349,18 @@ namespace gs
         protected virtual void add_cavity_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddCavityPolygons(polygons);
+
+            if (options.ClearanceXY != 0)
+            {
+                foreach (var poly in polygons)
+                    slice.Cavity_Clearances.Add(poly, options.ClearanceXY);
+            }
+
+            if (options.OffsetXY != 0)
+            {
+                foreach (var poly in polygons)
+                    slice.Cavity_Offsets.Add(poly, options.OffsetXY);
+            }
         }
 
         protected virtual void add_crop_region_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
@@ -359,6 +371,18 @@ namespace gs
         protected virtual void add_solid_polygons(PlanarSlice slice, List<GeneralPolygon2d> polygons, PrintMeshOptions options)
         {
             slice.AddPolygons(polygons);
+
+            if (options.ClearanceXY != 0)
+            {
+                foreach (var poly in polygons)
+                    slice.Clearances.Add(poly, options.ClearanceXY);
+            }
+
+            if (options.OffsetXY != 0)
+            {
+                foreach (var poly in polygons)
+                    slice.Offsets.Add(poly, options.OffsetXY);
+            }
         }
 
 

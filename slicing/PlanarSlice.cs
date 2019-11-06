@@ -34,7 +34,15 @@ namespace gs
         public List<GeneralPolygon2d> InputSupportSolids = new List<GeneralPolygon2d>();
         public List<GeneralPolygon2d> InputCropRegions = new List<GeneralPolygon2d>();
 
-		public List<Vector2d> InputSupportPoints = new List<Vector2d>();
+        public Dictionary<GeneralPolygon2d, double> Clearances = new Dictionary<GeneralPolygon2d, double>();
+        public Dictionary<GeneralPolygon2d, double> Offsets = new Dictionary<GeneralPolygon2d, double>();
+
+        public Dictionary<GeneralPolygon2d, double> Cavity_Clearances = new Dictionary<GeneralPolygon2d, double>();
+        public Dictionary<GeneralPolygon2d, double> Cavity_Offsets = new Dictionary<GeneralPolygon2d, double>();
+
+        protected Dictionary<GeneralPolygon2d, List<GeneralPolygon2d>> Thickened;
+
+        public List<Vector2d> InputSupportPoints = new List<Vector2d>();
 
         /*
          *  Output geometry, produced by Resolve(). These should not have any intersections.
@@ -47,8 +55,6 @@ namespace gs
         public List<PolyLine2d> Paths = new List<PolyLine2d>();
         public List<GeneralPolygon2d> SupportSolids = new List<GeneralPolygon2d>();
 
-
-
         // allow integer tags on polygons, which we can use for arbitrary stuff
         public IntTagSet<GeneralPolygon2d> Tags {
             get {
@@ -59,27 +65,24 @@ namespace gs
         }
         IntTagSet<GeneralPolygon2d> tags;
 
-
 		public PlanarSlice()
 		{
 		}
 
-
         public bool IsEmpty {
             get { return Solids.Count == 0 && Paths.Count == 0 && SupportSolids.Count == 0; }
         }
-
 
 		public void AddPolygon(GeneralPolygon2d poly) {
             if (poly.Outer.IsClockwise)
                 poly.Reverse();
             InputSolids.Add(poly);
 		}
+
 		public void AddPolygons(IEnumerable<GeneralPolygon2d> polys) {
 			foreach (GeneralPolygon2d p in polys)
 				AddPolygon(p);
 		}
-
 
         public void AddEmbeddedPath(PolyLine2d pline) {
             EmbeddedPaths.Add(pline);
@@ -88,21 +91,18 @@ namespace gs
             ClippedPaths.Add(pline);
         }
 
-
-
         public void AddSupportPolygon(GeneralPolygon2d poly)
         {
             if (poly.Outer.IsClockwise)
                 poly.Reverse();
             SupportSolids.Add(poly);
         }
+
         public void AddSupportPolygons(IEnumerable<GeneralPolygon2d> polys)
         {
             foreach (GeneralPolygon2d p in polys)
                 AddSupportPolygon(p);
         }
-
-
 
         public void AddCavityPolygon(GeneralPolygon2d poly)
         {
@@ -110,13 +110,12 @@ namespace gs
                 poly.Reverse();
             InputCavities.Add(poly);
         }
+
         public void AddCavityPolygons(IEnumerable<GeneralPolygon2d> polys)
         {
             foreach (GeneralPolygon2d p in polys)
                 AddCavityPolygon(p);
         }
-
-
 
         public void AddCropRegion(GeneralPolygon2d poly)
         {
@@ -128,8 +127,6 @@ namespace gs
             foreach (GeneralPolygon2d p in polys)
                 AddCropRegion(p);
         }
-
-
 
         /// <summary>
         /// Convert assembly of polygons, polylines, etc, into a set of printable solids and paths
@@ -246,25 +243,52 @@ namespace gs
 
         }
 
-
-
         /*
          *  functions for subclasses to override to customize behavior
          */
 
-
-        protected virtual GeneralPolygon2d[] process_input_polys_before_sort(GeneralPolygon2d[] solids) {
-            return solids;
+        protected virtual GeneralPolygon2d[] process_input_polys_before_sort(GeneralPolygon2d[] polys) {
+            if (Offsets.Count == 0)
+                return polys;
+            List<GeneralPolygon2d> newPolys = new List<GeneralPolygon2d>();
+            bool modified = false;
+            foreach (var poly in polys)
+            {
+                double offset;
+                if (Offsets.TryGetValue(poly, out offset) && Math.Abs(offset) > MathUtil.ZeroTolerancef)
+                {
+                    List<GeneralPolygon2d> offsetPolys = ClipperUtil.MiterOffset(poly, offset);
+                    foreach (var newpoly in offsetPolys)
+                    {
+                        transfer_tags(poly, newpoly);
+                        newPolys.Add(newpoly);
+                    }
+                    modified = true;
+                }
+                else
+                    newPolys.Add(poly);
+            }
+            if (modified == false)
+                return polys;
+            return newPolys.ToArray();
         }
 
         protected virtual GeneralPolygon2d[] process_input_polys_after_sort(GeneralPolygon2d[] solids) {
+            // construct thickened solids
+            Thickened = new Dictionary<GeneralPolygon2d, List<GeneralPolygon2d>>();
+            for (int k = 0; k < solids.Length; ++k)
+            {
+                double clearance;
+                if (Clearances.TryGetValue(solids[k], out clearance) && clearance > 0)
+                    Thickened.Add(solids[k], ClipperUtil.MiterOffset(solids[k], clearance));
+            }
+
             return solids;
         }
 
         protected virtual double sorting_weight(GeneralPolygon2d poly) {
             return poly.Outer.Area;
         }
-
 
         protected virtual List<GeneralPolygon2d> make_solid(GeneralPolygon2d poly, bool bIsSupportSolid)
         {
@@ -281,8 +305,17 @@ namespace gs
                 resolvedSolid = ClipperUtil.PolygonBoolean(resolvedSolid, holePoly, ClipperUtil.BooleanOp.Difference, MIN_AREA);
             }
 
+            if (bIsSupportSolid == false && Thickened != null)
+            {
+                // Subtract away any clearance solids
+                foreach (var pair in Thickened)
+                {
+                    if (pair.Key != poly)
+                        resolvedSolid = ClipperUtil.Difference(resolvedSolid, pair.Value);
+                }
+
+            }
             return filter_solids(resolvedSolid);
-            //return resolvedSolid;
         }
 
         protected virtual List<GeneralPolygon2d> combine_solids(List<GeneralPolygon2d> all_solids, List<GeneralPolygon2d> new_solids)
@@ -290,12 +323,27 @@ namespace gs
             return ClipperUtil.PolygonBoolean(all_solids, new_solids, ClipperUtil.BooleanOp.Union, MIN_AREA);
         }
 
-
         protected virtual List<GeneralPolygon2d> remove_cavity(List<GeneralPolygon2d> solids, GeneralPolygon2d cavity)
         {
-            return ClipperUtil.Difference(solids, cavity, MIN_AREA);
+            double offset = 0;
+            if (Cavity_Clearances.ContainsKey(cavity))
+            {
+                offset = Cavity_Clearances[cavity];
+            }
+            if (Cavity_Offsets.ContainsKey(cavity))
+            {
+                offset += Cavity_Offsets[cavity];
+            }
+            if (Math.Abs(offset) > 0.0001)
+            {
+                var offset_cavities = ClipperUtil.MiterOffset(cavity, offset, MIN_AREA);
+                return ClipperUtil.Difference(solids, offset_cavities, MIN_AREA);
+            }
+            else
+            {
+                return ClipperUtil.Difference(solids, cavity, MIN_AREA);
+            }
         }
-
 
         protected virtual List<GeneralPolygon2d> filter_solids(List<GeneralPolygon2d> solids)
         {
@@ -305,10 +353,9 @@ namespace gs
                 return solids;
         }
 
-
         /// <summary>
-        /// use during resolve() processing to transfer tags/metadata to child polygons
-        /// created by processing ops
+        /// Use during Resolve() processing to transfer tags/metadata to child polygons
+        /// created by processing operations.
         /// </summary>
         protected virtual void transfer_tags(GeneralPolygon2d oldPoly, GeneralPolygon2d newPoly)
         {
@@ -316,10 +363,15 @@ namespace gs
                 int t = Tags.Get(oldPoly);
                 Tags.Add(newPoly, t);
             }
+
+            double clearance;
+            if (Clearances.TryGetValue(oldPoly, out clearance))
+                Clearances[newPoly] = clearance;
+
+            double offset;
+            if (Offsets.TryGetValue(oldPoly, out offset))
+                Offsets[newPoly] = offset;
         }
-
-
-
 
         protected virtual Polygon2d make_thickened_path(PolyLine2d path, double width)
         {
@@ -332,8 +384,6 @@ namespace gs
                 poly.Reverse();
             return poly;
         }
-
-
 
         public AxisAlignedBox2d Bounds {
 			get {
@@ -352,7 +402,6 @@ namespace gs
                 return box;
 			}
 		}
-
 
 		/// <summary>
 		/// Returns the unsigned minimum distance to the solid/path polylines.
@@ -390,7 +439,6 @@ namespace gs
 			return dist_sqr;
 		}
 
-
 		/// <summary>
 		/// Precompute spatial caching information. This is not thread-safe.
 		/// (Currently just list of bboxes for each solid/path.)
@@ -414,8 +462,6 @@ namespace gs
 		AxisAlignedBox2d[] solid_bounds;
 		AxisAlignedBox2d[] path_bounds;
 		bool spatial_caches_available = false;
-
-
 
         public void Store(BinaryWriter writer)
         {
@@ -453,7 +499,6 @@ namespace gs
             for (int k = 0; k < SupportSolids.Count; ++k)
                 gSerialization.Store(SupportSolids[k], writer);
         }
-
 
         public void Restore(BinaryReader reader)
         {
@@ -500,8 +545,5 @@ namespace gs
             for (int k = 0; k < nSupportSolids; ++k)
                 gSerialization.Restore(SupportSolids[k], reader);
         }
-
-
-
     }
 }

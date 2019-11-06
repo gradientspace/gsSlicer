@@ -53,9 +53,11 @@
     <Compile Include="sls\SLSCompiler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="tests\CalibrationModelGenerator.cs" />
+    <Compile Include="toolpathing\CorrugatedFillPolygon.cs" />
     <Compile Include="toolpathing\GroupScheduler2d.cs" />
     <Compile Include="toolpathing\LayerShellSelector.cs" />
     <Compile Include="toolpathing\PathPostProcessor.cs" />
+    <Compile Include="utility\PolygonDecomposer.cs" />
     <Compile Include="toolpathing\SortingScheduler2d.cs" />
     <Compile Include="toolpathing\SparseLinesFillPolygon.cs" />
     <Compile Include="toolpathing\SupportPostProcessors.cs" />

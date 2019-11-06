@@ -717,11 +717,54 @@ namespace gs
 			scheduler.AppendCurveSets(fill_gen.GetFillCurves());
 		}
 
+        protected virtual void fill_bridge_region_decompose(GeneralPolygon2d poly, IFillPathScheduler2d scheduler, PrintLayerData layer_data)
+        {
+            poly.Simplify(0.1, 0.01, true);
 
+            double minLength = Settings.MaxBridgeWidthMM * 0.75;
+            double minArea = minLength * minLength;
 
+            var polys = PolygonDecomposer.Compute(poly, minArea);
 
+            double spacing = Settings.BridgeFillPathSpacingMM();
 
+            foreach (Polygon2d polypart in polys)
+            {
 
+                Box2d box = polypart.MinimalBoundingBox(0.00001);
+                Vector2d axis = (box.Extent.x > box.Extent.y) ? box.AxisY : box.AxisX;
+                double angle = Math.Atan2(axis.y, axis.x) * MathUtil.Rad2Deg;
+
+                GeneralPolygon2d gp = new GeneralPolygon2d(polypart);
+
+                ShellsFillPolygon shells_fill = new ShellsFillPolygon(gp);
+                shells_fill.PathSpacing = Settings.SolidFillPathSpacingMM();
+                shells_fill.ToolWidth = Settings.Machine.NozzleDiamMM;
+                shells_fill.Layers = 1;
+                shells_fill.InsetFromInputPolygonX = 0.25;
+                shells_fill.ShellType = ShellsFillPolygon.ShellTypes.BridgeShell;
+                shells_fill.FilterSelfOverlaps = false;
+                shells_fill.Compute();
+                scheduler.AppendCurveSets(shells_fill.GetFillCurves());
+                var fillPolys = shells_fill.InnerPolygons;
+
+                double offset = Settings.Machine.NozzleDiamMM * Settings.SolidFillBorderOverlapX;
+                fillPolys = ClipperUtil.MiterOffset(fillPolys, offset);
+
+                foreach (var fp in fillPolys)
+                {
+                    BridgeLinesFillPolygon fill_gen = new BridgeLinesFillPolygon(fp)
+                    {
+                        InsetFromInputPolygon = false,
+                        PathSpacing = spacing,
+                        ToolWidth = Settings.Machine.NozzleDiamMM,
+                        AngleDeg = angle,
+                    };
+                    fill_gen.Compute();
+                    scheduler.AppendCurveSets(fill_gen.GetFillCurves());
+                }
+            }
+        }
 
         /// <summary>
         /// Determine the sparse infill and solid fill regions for a layer, given the input regions that
